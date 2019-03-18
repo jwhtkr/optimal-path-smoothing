@@ -18,7 +18,8 @@ function TestElements()
     ax = gca;
     
     % Create a world 
-    world = PolygonWorld();
+    %world = PolygonWorld1();
+    world = EmptyWorld();
     world.plotWorld(ax);
     axis equal;
     
@@ -43,6 +44,7 @@ function TestElements()
         
         % Plot the measurements
         range.plotMeasurements(q, xo, yo);
+        pause();
     end
 
 end

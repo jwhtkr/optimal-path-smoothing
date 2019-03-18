@@ -37,6 +37,7 @@ classdef VehicleKinematics < handle
         function initializeStatePlot(obj, ax, x)
             % Get the robot polygon
             P = obj.getRobotPolygon(x);
+            q = x(1:2);
             
             % Plot the triangle
             obj.h_veh = fill(ax, P(:, 1), P(:, 2), obj.c, 'Edgecolor', obj.c);
@@ -49,9 +50,6 @@ classdef VehicleKinematics < handle
                 
                 % Plot the initial path point
                 obj.h_path = plot(ax, q(1), q(2), [':' obj.c], 'linewidth', 3);                    
-
-                % Set the time for the next plotting
-                obj.next_path_time = t + obj.path_period;
             end            
         end
         
@@ -68,7 +66,8 @@ classdef VehicleKinematics < handle
             end             
             
             % Get the robot polygon
-            P = obj.getRobotPolygon(x);            
+            P = obj.getRobotPolygon(x);
+            q = x(1:2);
 
             % Plot the triangle
             set(obj.h_veh, 'xdata', P(:, 1), 'ydata', P(:, 2));                

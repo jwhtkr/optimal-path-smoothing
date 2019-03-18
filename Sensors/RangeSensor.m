@@ -72,7 +72,7 @@ classdef RangeSensor < handle
         
         function initializePlots(obj, ax);
             % create the obstacle position plots
-            obj.h_obst_pos = plot(ax, 0, 0, 'ro', 'linewidth', 2);
+            obj.h_obst_pos = plot(ax, 0, 0, 'ro', 'linewidth', 2); hold on;
             set(obj.h_obst_pos, 'xdata', [], 'ydata', []);
             
             % Create the lines plot

@@ -28,8 +28,8 @@ classdef Vehicle < handle
     end
     
     methods (Abstract)
-        u = vectorControl(obj, g);
-        u = pathControl(obj, t, q_des, qd_des, qdd_des); 
+        u = velocityControl(obj, vd, wd, varargin);
+        u = pathControl(obj, t, q_des, qd_des, qdd_des, varargin); 
     end
     
     methods

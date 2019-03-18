@@ -1,4 +1,4 @@
-classdef PolygonWorld
+classdef PolygonWorld < handle
         
     properties (SetAccess = protected, GetAccess = public)
         polygons = {}; % Stores a cell structure of the polygons
@@ -10,14 +10,12 @@ classdef PolygonWorld
     end
     
     methods
-        function obj = PolygonWorld()
-            % Define verticies for the polygons
-            V1 = [6, 5, 1; 1, 6, 4];
-            V2 = [17, 21, 21, 17; 1, 1, 7, 7];
-            V3 = [7, 8, 13, 14, 13, 8; -1.5, -3, -3, -1.5, 0, 0];
-            obj.polygons{1} = V1;
-            obj.polygons{2} = V2;
-            obj.polygons{3} = V3;
+        function obj = PolygonWorld(varargin)
+            % Store the polygon vertices
+            obj.n_polygons = nargin;
+            for k = 1:obj.n_polygons
+                obj.polygons{k} = varargin{k};
+            end             
             
             % Define the halfplanes
             for p = 1:length(obj.polygons)
@@ -45,9 +43,6 @@ classdef PolygonWorld
                 obj.halfPlanes{p} = H;                
             end
             
-            % Store data for polygon world
-            obj.n_polygons = length(obj.polygons);
-            
         end
         
         function plotWorld(obj, ax)
@@ -56,7 +51,7 @@ classdef PolygonWorld
                 V = obj.polygons{k};
                 
                 % plot points
-                patch(ax, V(1,:), V(2,:), 'r', 'EdgeColor', 'r', 'FaceColor', 'w');
+                patch(ax, V(1,:), V(2,:), 'r', 'EdgeColor', 'r', 'FaceColor', 'r');
                 hold on;
             end
             
