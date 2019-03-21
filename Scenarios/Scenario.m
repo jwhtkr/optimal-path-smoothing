@@ -15,12 +15,20 @@ classdef Scenario < handle
         % Simulation results
         tmat = [] % Matrix of time values
         xmat = [] % Matrix of state values
+        
+        % Index variables
+        x_ind % x position index
+        y_ind % y position index
+    end
+    
+    properties (SetAccess = protected, GetAccess = public)
+        h_state_traj = [];
     end
     
     methods (Abstract)
-        runScenario(obj); % Runs the Scenario
+        %runScenario(obj); % Runs the Scenario
         u = control(obj, t, x); % Calculates the control to the vehicle
-        plotState(obj, t); % Plots the current state of the vehicle
+        %plotState(obj, t); % Plots the current state of the vehicle
     end
     
     methods
@@ -28,6 +36,82 @@ classdef Scenario < handle
             obj.vehicle = vehicle;
             obj.world = world;
             obj.plot_during_sim = plot_during_sim;
+            
+            % Get the indices for the position states for easy access
+            obj.x_ind = vehicle.kinematics.x_ind;
+            obj.y_ind = vehicle.kinematics.y_ind;
+            
+            % Initialize the obstacle detections
+            obj.vehicle.getObstacleDetections(obj.world);
+        end
+        
+        function runScenario(obj)
+            
+            % Initialize plots
+            obj.initializeStatePlot();
+            
+            % Simulate forward while plotting
+            obj.integrateEuler();
+            
+            % Plot the results
+            obj.plotResults();
+        end
+        
+        
+        %%%%%%  Plotting functions %%%%%%%%%%%
+        function plotState(obj, t)
+            if isempty(obj.h_state_traj)
+               warning('Attempting to plot uninitialized plots');
+               return;
+            end
+            
+            % Plot the state trajectory
+            ind = floor(obj.getStateIndex(t));
+            set(obj.h_state_traj, 'xdata', obj.xmat(obj.x_ind, 1:ind), 'ydata', obj.xmat(obj.y_ind,1:ind));
+            
+            % Plot the vehicle
+            obj.vehicle.plotVehicle();            
+        end
+        
+        function initializeStatePlot(obj)
+            figure; 
+            % Plot the world
+            obj.world.plotWorld(gca);
+            
+            % Initialize the state trajectory
+            obj.h_state_traj = plot(0, 0, ':b', 'linewidth', 2); hold on;
+            
+            % Plot the vehicle
+            obj.vehicle.initializePlots(gca);
+        end
+        
+        function plotResults(obj)
+            % Create the figure and get additional data
+            figure;
+            
+            % Plot x trajectory
+            subplot(3,1,1);
+            plot(obj.tmat, obj.xmat(obj.x_ind,:), 'b', 'linewidth', 2);
+            ylabel('x_1(t)');
+            
+            % Plot y trajectory 
+            subplot(3,1,2);
+            plot(obj.tmat, obj.xmat(obj.y_ind,:), 'b', 'linewidth', 2);
+            ylabel('x_2(t)');
+
+            % Calculate the control vs time
+            ctrl = zeros(2,length(obj.tmat));
+            for k = 1:length(obj.tmat)
+                ctrl(:,k) = obj.control(obj.tmat(k), obj.xmat(:,k));
+            end
+            
+            % Plot the control vs time
+            subplot(3,1,3);
+            plot(obj.tmat, ctrl(1,:), 'g', 'linewidth', 3); hold on;
+            plot(obj.tmat, ctrl(2,:), 'b', 'linewidth', 3); 
+            ylabel('Inputs');
+            legend('u_v', 'u_\omega');            
+            xlabel('Time (s)');
         end
         
     end
@@ -66,6 +150,9 @@ classdef Scenario < handle
 
                 % Store the state
                 obj.xmat(:,k) = obj.vehicle.x;
+                
+                % Get the sensor measurements
+                obj.vehicle.getObstacleDetections(obj.world);
                 
                 % Plot the state
                 if obj.plot_during_sim

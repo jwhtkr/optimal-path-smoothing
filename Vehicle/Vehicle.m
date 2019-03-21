@@ -41,6 +41,7 @@ classdef Vehicle < handle
 %             obj.path_controller = path_controller;
             obj.x = x0;
             obj.q_ind = q_ind;
+            obj.th_ind = kinematics.th_ind;
         end
         
         function [xo, yo, dist] = getObstacleDetections(obj, world)
@@ -53,7 +54,7 @@ classdef Vehicle < handle
             
             % Store the data
             obj.xo_latest = xo;
-            obj.y0_latest = yo;
+            obj.yo_latest = yo;
             obj.dist_latest = dist;
         end
         
@@ -70,7 +71,10 @@ classdef Vehicle < handle
             end
             
             % Plot the vehicle
-            obj.kinematics.plotState(obj.t, obj.x);            
+            obj.kinematics.plotState(obj.t, obj.x);  
+            
+            % Plot the sensor data
+            obj.sensor.plotMeasurements(obj.x(obj.q_ind), obj.xo_latest, obj.yo_latest);
         end
         
     end

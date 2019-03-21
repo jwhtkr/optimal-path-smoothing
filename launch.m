@@ -14,8 +14,8 @@ function launch()
     addpath World
     
     % Create scenario
-    scenario = ReferenceTrackingUnicycleScenario();
-    %scenario = VelocityTrackingUnicycleScenario();
+    %scenario = ReferenceTrackingUnicycleScenario();
+    scenario = VelocityTrackingUnicycleScenario();
     
     
     % Run the scenario

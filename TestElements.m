@@ -18,8 +18,8 @@ function TestElements()
     ax = gca;
     
     % Create a world 
-    %world = PolygonWorld1();
-    world = EmptyWorld();
+    world = PolygonWorld1();
+    %world = EmptyWorld();
     world.plotWorld(ax);
     axis equal;
     

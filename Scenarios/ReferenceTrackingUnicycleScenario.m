@@ -1,4 +1,4 @@
-classdef ReferenceTrackingUnicycleScenario < BetterUnicycleScenario
+classdef ReferenceTrackingUnicycleScenario < Scenario
     %ReferenceTrackingUnicycleScenario This scenario has a unicycle robot
     %follow a sinusoidal path input
     
@@ -13,8 +13,15 @@ classdef ReferenceTrackingUnicycleScenario < BetterUnicycleScenario
     
     methods
         function obj = ReferenceTrackingUnicycleScenario()
+            % Create the unicycle vehicle
+            x0 = [0; 0; 0; 0; 0]; % Initial state
+            veh = BetterUnicycleVehicle(x0);
+            
+            % Create the world
+            world = EmptyWorld();
+            
             % initialize the scenario
-            obj = obj@BetterUnicycleScenario();            
+            obj = obj@Scenario(veh, world, true);            
         end
     
         %%%%  Abstract Method Implementation %%%%
@@ -27,7 +34,7 @@ classdef ReferenceTrackingUnicycleScenario < BetterUnicycleScenario
         
         %%%% Plotting methods - Add reference %%%%
         function plotState(obj, t)
-            plotState@BetterUnicycleScenario(obj,t);
+            plotState@Scenario(obj,t);
             
             if isempty(obj.h_des_point)
                 warning('Attempting to plot state without initializing plots');
@@ -40,7 +47,7 @@ classdef ReferenceTrackingUnicycleScenario < BetterUnicycleScenario
         end
         
         function initializeStatePlot(obj)
-            initializeStatePlot@BetterUnicycleScenario(obj);
+            initializeStatePlot@Scenario(obj);
             
             % Get and plot the desired trajectory
             qd_traj = obj.SineReference([obj.t0:obj.dt:obj.tf]);

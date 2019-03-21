@@ -17,7 +17,14 @@ classdef BetterUnicycleVehicle < Vehicle
     end
     
     methods
-        function obj = BetterUnicycleVehicle(x0)
+        function obj = BetterUnicycleVehicle(varargin)
+            % Get the initial state
+            x0 = [0 0 0 0 0]'; % default to the zero state
+            if nargin > 0
+                x0 = varargin{1}; 
+            end
+            
+            % Initialize the kinematics and the vehicle
             kin = BetterUnicycle;
             q_ind = [kin.x_ind; kin.y_ind];
             obj = obj@Vehicle(kin, x0, q_ind);  

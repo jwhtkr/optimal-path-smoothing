@@ -1,4 +1,4 @@
-classdef VelocityTrackingUnicycleScenario < BetterUnicycleScenario
+classdef VelocityTrackingUnicycleScenario < Scenario
     %VelocityTrackingUnicycleScenario This scenario has a unicycle robot
     %track desired velocities
     
@@ -10,8 +10,15 @@ classdef VelocityTrackingUnicycleScenario < BetterUnicycleScenario
     
     methods
         function obj = VelocityTrackingUnicycleScenario()
+            % Create the unicycle vehicle
+            x0 = [0; 0; 0; 0; 0]; % Initial state
+            veh = BetterUnicycleVehicle(x0);
+            
+            % Create the world
+            world = EmptyWorld();
+            
             % initialize the scenario
-            obj = obj@BetterUnicycleScenario();            
+            obj = obj@Scenario(veh, world, true);           
         end
     
         %%%%  Abstract Method Implementation %%%%
