@@ -9,6 +9,7 @@ classdef VectorFieldScenario < Scenario
         function obj = VectorFieldScenario(vector_field, veh, world)
             % Initialize the scenario
             obj = obj@Scenario(veh, world, true);
+            obj.tf = 20; % Simulate for 20 seconds
             
             % Store the vector field
             obj.vector_field = vector_field;            
@@ -17,7 +18,7 @@ classdef VectorFieldScenario < Scenario
          %%%%  Abstract Method Implementation %%%%
         function u = control(obj, t, x)
             % Get the vector
-            g = obj.vector_field.getVector(t, x(obj.q_ind));
+            g = @(t_val, x_vec)obj.vector_field.getVector(t_val, x_vec);
             
             % Calculate the velocity control            
             u = obj.vehicle.vectorFieldControl(t, g, x);

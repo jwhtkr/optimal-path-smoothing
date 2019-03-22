@@ -30,12 +30,14 @@ classdef VelocityTrackingScenario < Scenario
             
             
             % Calculate the control and velocities vs time
-            ctrl = zeros(2,length(obj.tmat));
-            for k = 1:length(obj.tmat)
+            t_len = length(obj.tmat);
+            ctrl = zeros(2,t_len);
+            v_vec = zeros(1, t_len);
+            w_vec = zeros(1, t_len);
+            for k = 1:t_len
                 ctrl(:,k) = obj.control(obj.tmat(k), obj.xmat(:,k));
+                [v_vec(k), w_vec(k)] = obj.vehicle.kinematics.getVelocities(obj.tmat(k), obj.xmat(:,k), ctrl(:,k));
             end
-            v_vec = obj.xmat(obj.vehicle.kinematics.v_ind, :);
-            w_vec = obj.xmat(obj.vehicle.kinematics.w_ind, :);
             
             % Plot v and desired
             subplot(3,1,1);

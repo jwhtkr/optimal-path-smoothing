@@ -1,5 +1,4 @@
-classdef BetterUnicycleVehicle < Vehicle
-   
+classdef SimpleUnicycleVehicle < Vehicle
     properties
         % Properties for path control (using point control method)
         eps_path = 1.0 % Initial epsilon for controlling a point to a path
@@ -10,71 +9,35 @@ classdef BetterUnicycleVehicle < Vehicle
                      
         % Properties for point-method velocity control
         eps_vel = 0.2; % Epsilon to be used for velocity control
-        K_point_vel % Feedback matrix for point control of velocity, used with feedback on 
-                     % K_point_vel*(q - q_des), where q is the velocity of a point                     
                      
-        % Properties for velocity control 
-        K_vel % Feedback matrix for velocity control where the state is the 
-              % translational and rotational velocities
-              
         % Gains for control
         k_wd = 2; % Gain for the desired rotational velocity
         vd_field_max = 1; % Maximum desired velocity from a vector field
     end
     
     methods
-        function obj = BetterUnicycleVehicle(varargin)
-            % Get the initial state
-            x0 = [0 0 0 0 0]'; % default to the zero state
+        function obj = SimpleUnicycleVehicle(varargin)
+           % Get the initial state
+            x0 = [0 0 0]'; % default to the zero state
             if nargin > 0
                 x0 = varargin{1}; 
             end
             
             % Initialize the kinematics and the vehicle
-            kin = BetterUnicycle;
+            kin = SimpleUnicycle;
             q_ind = [kin.x_ind; kin.y_ind];
-            obj = obj@Vehicle(kin, x0, q_ind);  
-            
+            obj = obj@Vehicle(kin, x0, q_ind);
             
             % Calculate feedback matrix for point control
-            A = [zeros(2) eye(2); zeros(2,4)]; 
-            B = [zeros(2); eye(2)];
-            Q = diag([1, 1, 1, 1]);
-            R = diag([1, 1]);
-            obj.K_point_ctrl = lqr(A, B, Q, R);
-            
-            % Calculate feedback matrix for velocity point control
-            A = zeros(2);
-            B = eye(2);
-            Q = diag([1, 1]);
-            R = diag([.1, .1]);
-            obj.K_point_vel = lqr(A, B, Q, R);
-            
-            % Calculate feedback matrix for velocity control
-            A = zeros(2);
+            A = zeros(2); 
             B = eye(2);
             Q = diag([1, 1]);
             R = diag([1, 1]);
-            obj.K_vel = lqr(A, B, Q, R);
+            obj.K_point_ctrl = lqr(A, B, Q, R);            
         end
         
         function u = velocityControl(obj, vd, wd, varargin)
-            % Get the state
-            if nargin > 5
-                x = varargin{1};
-            else
-                x = obj.x;
-            end
-            
-            % Extract states
-            v = x(obj.kinematics.v_ind);
-            w = x(obj.kinematics.w_ind);
-            
-            % Calculate new state
-            z = [v - vd; w - wd;];
-            
-            % Calculate control
-            u = -obj.K_vel * z;
+            u = [vd;wd];
         end
         
         function u = pathControl(obj, t, q_des, qd_des, qdd_des, varargin)
@@ -104,26 +67,21 @@ classdef BetterUnicycleVehicle < Vehicle
             % Get states
             x_pos = x(obj.kinematics.x_ind);
             y_pos = x(obj.kinematics.y_ind);
-            [v, w] = obj.kinematics.getVelocities(t, x, 0);
             th = x(obj.kinematics.th_ind);
             c = cos(th);
             s = sin(th);
             
             % Form espilon variables
-            w_hat_e = [0 -eps*w; w/eps 0];
-            R_e = [c -eps*s; s eps*c];
             R_e_inv = [1 0; 0 1/eps] * [c s; -s c];
             
             % Calculate current values of espilon state
             q_eps = [x_pos; y_pos] + eps * [c; s];
-            q_eps_dot = R_e*[v; w];
-            q = [q_eps; q_eps_dot];
             
             % Calculate point control
-            u_point = -obj.K_point_ctrl*(q - [q_des; qd_des]) + qdd_des;
+            u_point = -obj.K_point_ctrl*(q_eps - q_des) + qd_des;
             
             % Calculate the control inputs
-            u = R_e_inv*u_point - w_hat_e*[v; w];            
+            u = R_e_inv*u_point;            
         end
         
         %%%%%%%%%%%%%%%  Vector Field Following Controls %%%%%%%%%%%%%%%%
@@ -195,20 +153,16 @@ classdef BetterUnicycleVehicle < Vehicle
             %    u: control input to the system (u_v, u_omega)
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Get necessary states
-            [v, w] = obj.kinematics.getVelocities(t, x, 0);
             th = x(obj.th_ind);
             c = cos(th);
             s = sin(th);
             
             % Form espilon variables
             eps = obj.eps_vel;
-            w_hat_e = [0 -eps*w; w/eps 0];
-            R_e = [c -eps*s; s eps*c];
             R_e_inv = [1 0; 0 1/eps] * [c s; -s c];
             
             % Calculate current velocity of espilon state
             q_eps = x(obj.q_ind) + eps*[c; s];
-            q_eps_dot = R_e*[v; w];
             
             % Calculate the vector field for the espilon point
             g = g_function(t, q_eps);
@@ -220,10 +174,10 @@ classdef BetterUnicycleVehicle < Vehicle
             end
             
             % Calculate point control
-            u_point = -obj.K_point_vel*(q_eps_dot - g);
+            u_point = g; % i.e. we are directly allowing g to affect our desired velocity
             
             % Calculate the commanded acceleration values            
-            u = R_e_inv*u_point - w_hat_e*[v;w];            
+            u = R_e_inv*u_point;            
         end
     end
     

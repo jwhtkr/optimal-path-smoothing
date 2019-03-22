@@ -37,7 +37,7 @@ classdef VectorField < handle
                     x = [obj.X_grid(r,c); obj.Y_grid(r,c)];
                     
                     % Get the vector
-                    g = obj.getUnitVector(t, x);
+                    g = obj.getVector(t, x);
                     
                     % Store the vector
                     U(r,c) = g(1);
