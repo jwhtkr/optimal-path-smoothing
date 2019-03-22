@@ -12,8 +12,6 @@ classdef Vehicle < handle
         % Elements of the vehicle
         kinematics
         sensor
-%         vector_controller
-%         path_controller
         
         % Vehicle state
         t =0    % Latest time value
@@ -30,6 +28,7 @@ classdef Vehicle < handle
     methods (Abstract)
         u = velocityControl(obj, vd, wd, varargin);
         u = pathControl(obj, t, q_des, qd_des, qdd_des, varargin); 
+        u = vectorFieldControl(obj, t, g, varargin);
     end
     
     methods
@@ -37,8 +36,6 @@ classdef Vehicle < handle
             % Store elements
             obj.kinematics = kinematics;
             obj.sensor = RangeSensor;
-%             obj.vector_controller = vector_controller;
-%             obj.path_controller = path_controller;
             obj.x = x0;
             obj.q_ind = q_ind;
             obj.th_ind = kinematics.th_ind;

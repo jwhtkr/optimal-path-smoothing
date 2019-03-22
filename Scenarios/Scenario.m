@@ -9,7 +9,7 @@ classdef Scenario < handle
         % Simulation parameters
         plot_during_sim; % true => plot while simulating (requires euler integration)
         t0 = 0; % Initial time of simulation
-        dt = 0.1; % Simulation step size
+        dt = 0.01; % Simulation step size
         tf = 10; % Final time of simulation
         
         % Simulation results
@@ -19,6 +19,7 @@ classdef Scenario < handle
         % Index variables
         x_ind % x position index
         y_ind % y position index
+        q_ind % 2D position index
     end
     
     properties (SetAccess = protected, GetAccess = public)
@@ -40,6 +41,7 @@ classdef Scenario < handle
             % Get the indices for the position states for easy access
             obj.x_ind = vehicle.kinematics.x_ind;
             obj.y_ind = vehicle.kinematics.y_ind;
+            obj.q_ind = [obj.x_ind; obj.y_ind];
             
             % Initialize the obstacle detections
             obj.vehicle.getObstacleDetections(obj.world);
@@ -85,7 +87,7 @@ classdef Scenario < handle
             obj.vehicle.initializePlots(gca);
         end
         
-        function plotResults(obj)
+        function plotResults2(obj)
             % Create the figure and get additional data
             figure;
             
@@ -105,6 +107,41 @@ classdef Scenario < handle
                 ctrl(:,k) = obj.control(obj.tmat(k), obj.xmat(:,k));
             end
             
+            % Plot the control vs time
+            subplot(3,1,3);
+            plot(obj.tmat, ctrl(1,:), 'g', 'linewidth', 3); hold on;
+            plot(obj.tmat, ctrl(2,:), 'b', 'linewidth', 3); 
+            ylabel('Inputs');
+            legend('u_v', 'u_\omega');            
+            xlabel('Time (s)');
+        end
+        
+        function plotResults(obj)
+            % Create the figure and get additional data
+            figure;
+            
+            
+            % Calculate the control and velocities vs time
+            ctrl = zeros(2,length(obj.tmat));
+            for k = 1:length(obj.tmat)
+                ctrl(:,k) = obj.control(obj.tmat(k), obj.xmat(:,k));
+            end
+            v_vec = obj.xmat(obj.vehicle.kinematics.v_ind, :);
+            w_vec = obj.xmat(obj.vehicle.kinematics.w_ind, :);
+            
+            % Plot v and desired
+            subplot(3,1,1);
+            %plot([obj.tmat(1) obj.tmat(end)],[obj.v_d obj.v_d], ':r', 'linewidth', 2); hold on;
+            plot(obj.tmat, v_vec, 'b', 'linewidth', 2);
+            ylabel('v(t)');
+            legend('Desired', 'Actual');
+            
+            % Plot w and desired
+            subplot(3,1,2);
+            %plot([obj.tmat(1) obj.tmat(end)],[obj.w_d obj.w_d], ':r', 'linewidth', 2); hold on;
+            plot(obj.tmat, w_vec, 'b', 'linewidth', 2);
+            ylabel('\omega(t)');
+
             % Plot the control vs time
             subplot(3,1,3);
             plot(obj.tmat, ctrl(1,:), 'g', 'linewidth', 3); hold on;

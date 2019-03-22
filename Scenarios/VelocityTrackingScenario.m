@@ -1,19 +1,15 @@
-classdef VelocityTrackingUnicycleScenario < Scenario
+classdef VelocityTrackingScenario < Scenario
     %VelocityTrackingUnicycleScenario This scenario has a unicycle robot
     %track desired velocities
     
     properties
-        % Sinusoid properties
+        % Desired velocity values
         v_d = 5 % Desired translational velocity
         w_d = 0.5 % Desired rotational velocity
     end
     
     methods
-        function obj = VelocityTrackingUnicycleScenario()
-            % Create the unicycle vehicle
-            x0 = [0; 0; 0; 0; 0]; % Initial state
-            veh = BetterUnicycleVehicle(x0);
-            
+        function obj = VelocityTrackingScenario(veh)
             % Create the world
             world = EmptyWorld();
             

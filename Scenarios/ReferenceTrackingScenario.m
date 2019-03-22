@@ -1,4 +1,4 @@
-classdef ReferenceTrackingUnicycleScenario < Scenario
+classdef ReferenceTrackingScenario < Scenario
     %ReferenceTrackingUnicycleScenario This scenario has a unicycle robot
     %follow a sinusoidal path input
     
@@ -12,11 +12,7 @@ classdef ReferenceTrackingUnicycleScenario < Scenario
     end
     
     methods
-        function obj = ReferenceTrackingUnicycleScenario()
-            % Create the unicycle vehicle
-            x0 = [0; 0; 0; 0; 0]; % Initial state
-            veh = BetterUnicycleVehicle(x0);
-            
+        function obj = ReferenceTrackingScenario(veh)
             % Create the world
             world = EmptyWorld();
             

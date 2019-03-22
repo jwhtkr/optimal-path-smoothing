@@ -10,10 +10,18 @@ classdef BetterUnicycleVehicle < Vehicle
                      % K_point_ctrl*(q - q_des), where q is the
                      % position and velocity of a point
                      
+        % Properties for point-method velocity control
+        eps_vel = 0.2; % Epsilon to be used for velocity control
+        K_point_vel % Feedback matrix for point control of velocity, used with feedback on 
+                     % K_point_vel*(q - q_des), where q is the velocity of a point                     
                      
         % Properties for velocity control 
         K_vel % Feedback matrix for velocity control where the state is the 
               % translational and rotational velocities
+              
+        % Gains for control
+        k_wd = 2; % Gain for the desired rotational velocity
+        vd_field_max = 1; % Maximum desired velocity from a vector field
     end
     
     methods
@@ -36,6 +44,13 @@ classdef BetterUnicycleVehicle < Vehicle
             Q = diag([1, 1, 1, 1]);
             R = diag([1, 1]);
             obj.K_point_ctrl = lqr(A, B, Q, R);
+            
+            % Calculate feedback matrix for velocity point control
+            A = zeros(2);
+            B = eye(2);
+            Q = diag([1, 1]);
+            R = diag([.1, .1]);
+            obj.K_point_vel = lqr(A, B, Q, R);
             
             % Calculate feedback matrix for velocity control
             A = zeros(2);
@@ -112,6 +127,98 @@ classdef BetterUnicycleVehicle < Vehicle
             % Calculate the control inputs
             u = R_e_inv*u_point - w_hat_e*[v; w];            
         end
+        
+        function u = vectorFieldControl(obj, t, g, varargin)
+            %vectorFieldControl will calculate the desired control to follow 
+            % a vector field with the following inputs:
+            %   t: Time
+            %   g: vector to be followed
+            %   varargin{1}: the state
+            %
+            %  With the output
+            %    u: control input to the system (u_v, u_omega)            %
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Get the state
+            if nargin > 3
+                x = varargin{1};
+            else
+                x = obj.x;
+            end
+            
+            u = obj.velocityVectorFieldControl(t, g, x);
+            %u = obj.pointVelocityVectorFieldControl(t, g, x);
+        end
+        
+        
+        function u = velocityVectorFieldControl(obj, t, g, x)
+            %vectorFieldControl will calculate the desired control to follow 
+            % a vector field with the following inputs:
+            %   t: Time
+            %   g: vector to be followed
+            %   x: the state
+            %
+            %  With the output
+            %    u: control input to the system (u_v, u_omega)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            
+            % Calculate the desired velocity
+            vd = norm(g);
+            vd = min(vd, obj.vd_field_max); % Threshold the desired velocity
+            
+            % Calculate the desired orientation
+            th_d = atan2(g(2), g(1));
+            
+            % Calculate the error in orientation
+            th = x(obj.th_ind);
+            th_e = th-th_d;
+            th_e = atan2(sin(th_e), cos(th_e)); % Adjust to ensure between -pi and pi
+            
+            % Calculate the desired rotational velocity
+            wd = -obj.k_wd*th_e;
+            
+            % Use velocity control to follow the vector field
+            u = obj.velocityControl(vd, wd, x);
+        end
+        
+        function u = pointVelocityVectorFieldControl(obj, t, g, x)
+            %pointVelocityVectorFieldControl will calculate the desired control to follow 
+            % a vector field with the following inputs (using point control):
+            %   t: Time
+            %   g: vector to be followed
+            %   x: the state
+            %
+            %  With the output
+            %    u: control input to the system (u_v, u_omega)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+            % Restrict the velocity of the vector field
+            v_g = norm(g);
+            if v_g > obj.vd_field_max
+                g = obj.vd_field_max/v_g * g;
+            end
+            
+            % Get necessary states
+            [v, w] = obj.kinematics.getVelocities(t, x, 0);
+            th = x(obj.kinematics.th_ind);
+            c = cos(th);
+            s = sin(th);
+            
+            % Form espilon variables
+            eps = obj.eps_vel;
+            w_hat_e = [0 -eps*w; w/eps 0];
+            R_e = [c -eps*s; s eps*c];
+            R_e_inv = [1 0; 0 1/eps] * [c s; -s c];
+            
+            % Calculate current velocity of espilon state
+            q_eps_dot = R_e*[v; w];
+            
+            % Calculate point control
+            u_point = -obj.K_point_vel*(q_eps_dot - g);
+            
+            % Calculate the commanded acceleration values            
+            u = R_e_inv*u_point - w_hat_e*[v;w];            
+        end
+        
         
     end
     
