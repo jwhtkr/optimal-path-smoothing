@@ -28,12 +28,12 @@ classdef OrbitField < VectorField
             obj.rad = rad;
             obj.w = w;
             obj.k_conv = k_conv;
-            obj.v_d = obj.rad*obj.w;
+            obj.v_d = abs(obj.rad*obj.w); % Note: this should be our forward velocity
         end
         
         function g = getVector(obj, t, x, th)
             xhat = x - obj.x_c;
-            gam = obj.k_conv*(obj.rad^2 - (xhat'*xhat));
+            gam = obj.k_conv*(obj.rad^2 - (xhat'*xhat));            
             
             A = [gam, obj.w; -obj.w, gam];
             g = A*xhat;   
