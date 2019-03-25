@@ -127,7 +127,7 @@ classdef BetterUnicycleVehicle < Vehicle
         end
         
         %%%%%%%%%%%%%%%  Vector Field Following Controls %%%%%%%%%%%%%%%%
-        function u = vectorFieldControl(obj, t, g, varargin)
+        function u = vectorFieldControl(obj, t, g, control_type, varargin)
             %vectorFieldControl will calculate the desired control to follow 
             % a vector field with the following inputs:
             %   t: Time
@@ -144,8 +144,13 @@ classdef BetterUnicycleVehicle < Vehicle
                 x = obj.x;
             end
             
-            %u = obj.velocityVectorFieldControl(t, g, x);
-            u = obj.pointVelocityVectorFieldControl(t, g, x);
+            if control_type == VECTOR_FOLLOWING_TYPE.VELOCITY
+                u = obj.velocityVectorFieldControl(t, g, x);
+            elseif control_type == VECTOR_FOLLOWING_TYPE.POINT
+                u = obj.pointVelocityVectorFieldControl(t, g, x);
+            else
+                u = [0; 0];
+            end
         end
         
         
@@ -162,7 +167,7 @@ classdef BetterUnicycleVehicle < Vehicle
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             % Calculate the current vector
-            g = g_function(t, x(obj.q_ind));
+            g = g_function(t, x(obj.q_ind), x(obj.th_ind));
             
             % Calculate the desired velocity
             vd = norm(g);
@@ -211,7 +216,7 @@ classdef BetterUnicycleVehicle < Vehicle
             q_eps_dot = R_e*[v; w];
             
             % Calculate the vector field for the espilon point
-            g = g_function(t, q_eps);
+            g = g_function(t, q_eps, th);
             
             % Restrict the velocity of the vector field
             v_g = norm(g);

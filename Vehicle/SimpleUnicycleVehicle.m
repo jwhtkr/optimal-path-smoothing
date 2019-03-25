@@ -85,7 +85,7 @@ classdef SimpleUnicycleVehicle < Vehicle
         end
         
         %%%%%%%%%%%%%%%  Vector Field Following Controls %%%%%%%%%%%%%%%%
-        function u = vectorFieldControl(obj, t, g, varargin)
+        function u = vectorFieldControl(obj, t, g, control_type, varargin)
             %vectorFieldControl will calculate the desired control to follow 
             % a vector field with the following inputs:
             %   t: Time
@@ -102,8 +102,14 @@ classdef SimpleUnicycleVehicle < Vehicle
                 x = obj.x;
             end
             
-            %u = obj.velocityVectorFieldControl(t, g, x);
-            u = obj.pointVelocityVectorFieldControl(t, g, x);
+            
+            if control_type == VECTOR_FOLLOWING_TYPE.VELOCITY
+                u = obj.velocityVectorFieldControl(t, g, x);
+            elseif control_type == VECTOR_FOLLOWING_TYPE.POINT
+                u = obj.pointVelocityVectorFieldControl(t, g, x);
+            else
+                u = [0; 0];
+            end
         end
         
         

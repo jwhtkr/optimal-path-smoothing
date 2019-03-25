@@ -1,17 +1,17 @@
-classdef GoToGoalField < VectorField
+classdef AvoidObstacle < VectorField
     %GoToGoalField Basic vector field pointing to a desired goal point
     
     properties (SetAccess = public, GetAccess = public)
-        x_g % Goal position
+        x_o % Goal position
         v_max % Max velocity
         
         % Convergence variables
-        sig = 1 % Effects the convergence to zero velocity through 1-exp(-d^2/sig^2)
-        sig_sq % Sig^2
+        S = 5 % Sphere of influence
+        R = 1 % Radius of max effect        
     end
     
     methods
-        function obj = GoToGoalField(x_vec, y_vec, x_g, v_max)
+        function obj = AvoidObstacle(x_vec, y_vec, x_o, v_max)
             %Inputs:
             %   x_vec & y_vec - Used for plotting. A grid of quivers will
             %     be plotted using the ranges specified in x_vec and y_vec
@@ -19,24 +19,28 @@ classdef GoToGoalField < VectorField
             
             % Create the object variable
             obj = obj@VectorField(x_vec, y_vec);
-            obj.x_g = x_g;
+            obj.x_o = x_o;
             obj.v_max = v_max;
-            
-            % Initialize scaling variable
-            obj.sig_sq = obj.sig^2;
         end
         
         function g = getVector(obj, t, x, th)
-            g = obj.x_g - x;
+            g = x - obj.x_o;
             
             % Scale the magnitude of the resulting vector
             dist = norm(g);
-            v_g = obj.v_max * (1- exp(-dist^2/obj.sig_sq));
+            scale = 1;
+            if dist > obj.S
+                scale = 0;
+            elseif dist > obj.R
+                scale = (obj.S - dist) / (obj.S - obj.R);
+            end
+            v_g = obj.v_max * scale;
             
+            % Output g
             if dist > 0 % Avoid dividing by zero
                 g = v_g/dist * g; % Dividing by dist is dividing by the norm
-            else
-                g = [0;0];
+            else % Choose a random position if you are on top of the obstacle
+                g = rand(2,1);
             end
         end
     end

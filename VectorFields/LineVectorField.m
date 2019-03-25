@@ -37,7 +37,7 @@ classdef LineVectorField < VectorField
             obj.R_lc = obj.R_cl';
         end
         
-        function g = getVector(obj, t, x)
+        function g = getVector(obj, t, x, th)
             % Calculate the distance to the line
             d = [0 1]*obj.R_lc*(x-obj.x_l);
             

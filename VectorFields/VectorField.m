@@ -8,10 +8,11 @@ classdef VectorField < handle
         X_grid  % Grid Variables used for plotting
         Y_grid  
         quiver_handle = [] % Handles to arrows plotted
+        plot_with_unit_vector = false; % true => use the unit vector to plot
     end
     
     methods (Abstract)
-        g = getVector(obj, t, x);
+        g = getVector(obj, t, x, th);
     end
     
     methods
@@ -37,7 +38,11 @@ classdef VectorField < handle
                     x = [obj.X_grid(r,c); obj.Y_grid(r,c)];
                     
                     % Get the vector
-                    g = obj.getVector(t, x);
+                    if obj.plot_with_unit_vector
+                        g = obj.getUnitVector(t, x, 0);
+                    else
+                        g = obj.getVector(t, x, 0);
+                    end
                     
                     % Store the vector
                     U(r,c) = g(1);
@@ -56,8 +61,8 @@ classdef VectorField < handle
             h = obj.quiver_handle;
         end
         
-        function g = getUnitVector(obj, t, x)
-            g = obj.getVector(t, x);
+        function g = getUnitVector(obj, t, x, th)
+            g = obj.getVector(t, x, th);
             g = g ./ norm(g);
         end
     end

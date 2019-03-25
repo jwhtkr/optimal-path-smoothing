@@ -3,25 +3,27 @@ classdef VectorFieldScenario < Scenario
     
     properties
         vector_field % Instance of the VectorField class
+        control_type % The type of vector field control to be used - instance of the VECTOR_FOLLOWING_TYPE
     end
     
     methods
-        function obj = VectorFieldScenario(vector_field, veh, world)
+        function obj = VectorFieldScenario(vector_field, veh, world, control_type)
             % Initialize the scenario
             obj = obj@Scenario(veh, world, true);
             obj.tf = 20; % Simulate for 20 seconds
             
             % Store the vector field
-            obj.vector_field = vector_field;            
+            obj.vector_field = vector_field; 
+            obj.control_type = control_type;
         end
         
          %%%%  Abstract Method Implementation %%%%
         function u = control(obj, t, x)
             % Get the vector
-            g = @(t_val, x_vec)obj.vector_field.getVector(t_val, x_vec);
+            g = @(t_val, x_vec, th)obj.vector_field.getVector(t_val, x_vec);
             
             % Calculate the velocity control            
-            u = obj.vehicle.vectorFieldControl(t, g, x);
+            u = obj.vehicle.vectorFieldControl(t, g, obj.control_type, x);
         end
         
         function initializeStatePlot(obj)

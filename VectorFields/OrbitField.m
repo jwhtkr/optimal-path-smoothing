@@ -31,7 +31,7 @@ classdef OrbitField < VectorField
             obj.v_d = obj.rad*obj.w;
         end
         
-        function g = getVector(obj, t, x)
+        function g = getVector(obj, t, x, th)
             xhat = x - obj.x_c;
             gam = obj.k_conv*(obj.rad^2 - (xhat'*xhat));
             
