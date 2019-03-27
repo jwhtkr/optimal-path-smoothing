@@ -12,7 +12,7 @@ classdef SimpleUnicycleVehicle < Vehicle
                      
         % Gains for control
         k_wd = 2; % Gain for the desired rotational velocity
-        vd_field_max = 1; % Maximum desired velocity from a vector field
+        vd_field_max = 5; % Maximum desired velocity from a vector field
     end
     
     methods
@@ -126,7 +126,7 @@ classdef SimpleUnicycleVehicle < Vehicle
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             % Calculate the current vector
-            g = g_function(t, x(obj.q_ind));
+            g = g_function(t, x(obj.q_ind), x(obj.th_ind));
             
             % Calculate the desired velocity
             vd = norm(g);
@@ -171,7 +171,7 @@ classdef SimpleUnicycleVehicle < Vehicle
             q_eps = x(obj.q_ind) + eps*[c; s];
             
             % Calculate the vector field for the espilon point
-            g = g_function(t, q_eps);
+            g = g_function(t, q_eps, th);
             
             % Restrict the velocity of the vector field
             v_g = norm(g);

@@ -20,7 +20,7 @@ classdef VectorFieldScenario < Scenario
          %%%%  Abstract Method Implementation %%%%
         function u = control(obj, t, x)
             % Get the vector
-            g = @(t_val, x_vec, th)obj.vector_field.getVector(t_val, x_vec);
+            g = @(t_val, x_vec, th)obj.vector_field.getVector(t_val, x_vec, th);
             
             % Calculate the velocity control            
             u = obj.vehicle.vectorFieldControl(t, g, obj.control_type, x);

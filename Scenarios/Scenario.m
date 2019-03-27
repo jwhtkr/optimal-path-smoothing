@@ -195,6 +195,7 @@ classdef Scenario < handle
                 % Plot the state
                 if obj.plot_during_sim
                     obj.plotState(t);
+                    obj.plotWorld(t);
                     pause(obj.dt/4); % dt/4 to allow for computation time as well
                 end
             end
@@ -202,6 +203,11 @@ classdef Scenario < handle
         
         function ind = getStateIndex(obj, t)
             ind = (t-obj.t0)/obj.dt;
+        end
+        
+        function plotWorld(obj, t)
+           %%% By default the function is empty, but it can be inherited to 
+           %%% update the world plot
         end
     end
 end

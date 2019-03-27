@@ -19,7 +19,7 @@ classdef BetterUnicycleVehicle < Vehicle
               
         % Gains for control
         k_wd = 2; % Gain for the desired rotational velocity
-        vd_field_max = 1; % Maximum desired velocity from a vector field
+        vd_field_max = 5; % Maximum desired velocity from a vector field
     end
     
     methods
