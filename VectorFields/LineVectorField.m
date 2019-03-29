@@ -1,7 +1,7 @@
 classdef LineVectorField < VectorField
     %LineVectorField Vector field causing vehicle to move to a line
     
-    properties (SetAccess = public, GetAccess = public)
+    properties (SetAccess = protected, GetAccess = public)
         % Line variables
         x_l % A point on the line
         psi_l % The orientation of the line
@@ -24,11 +24,18 @@ classdef LineVectorField < VectorField
             % Create the object variable
             obj = obj@VectorField(x_vec, y_vec);
             
-            % Store the line specific variables
-            obj.x_l = x_l;
-            obj.psi_l = psi_l;
+            % Store the convergence variables
             obj.slope = slope;
             obj.v_d = v_d;
+            
+            % Set the line variables
+            obj.setLineParameters(x_l, psi_l);
+            
+        end
+        
+        function setLineParameters(obj, x_l, psi_l)
+            obj.x_l = x_l;
+            obj.psi_l = psi_l;            
             
             % Calculate the rotation matrix to rotate cartesian 
             c = cos(obj.psi_l);
