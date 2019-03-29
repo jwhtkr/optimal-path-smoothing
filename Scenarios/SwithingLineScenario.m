@@ -1,4 +1,4 @@
-classdef CombinedGoToGoalOrbitAvoidScenario < VectorFieldScenario
+classdef SwithingLineScenario < VectorFieldScenario
     %CombinedGoToGoalOrbitAvoidScenario Combines a simple go to goal with
     %orbit-based obstacle avoidance
     
@@ -6,10 +6,14 @@ classdef CombinedGoToGoalOrbitAvoidScenario < VectorFieldScenario
         avoid_indices % Stores the indices for the avoidance fields
         q_inf; % Large number to use for placing an obstacle infinitely far away
         n_sensors; % Stores the number of sensors
+        
+        x_g % Series of goal's which then define the lines
+        current_goal = 2 % The column in x_g where the robot is headed
+        switch_distance = .1 % The distance to switch to the next goal
     end
     
     methods
-        function obj = CombinedGoToGoalOrbitAvoidScenario(veh, control_type)
+        function obj = SwithingLineScenario(veh, control_type)
             % Plotting variables
             x_vec = -1:1:20;
             y_vec = -6:1:10;
@@ -17,26 +21,30 @@ classdef CombinedGoToGoalOrbitAvoidScenario < VectorFieldScenario
             % Vehicle variables
             v_max = 2;
                         
-            % Go to goal variables
-            x_g = [16; 10]; % try [20; 5] [25; 5];
+            % Intermediate goal variables
+            x_g = [0, 0; 6, 0; 11, 6; 19, -4; 22, 4; 16, 10]';
             
             % Obstacle avoidance variables
             S = 3; % Sphere of influence
             R = 2; % Radius of orbit
             k_conv = 0.5; % Convergence gain
             
+            % Line variables
+            [x_l, psi_l] = SwithingLineScenario.getLineVariables(x_g(:,1), x_g(:,2));
+            slope = 1;
+            
             % Weights
-            w_g2g = 1;
+            w_line = 1;
             w_avoid = 1;
             weights = zeros(1+veh.sensor.n_lines, 1);
-            weights(1) = w_g2g;
+            weights(1) = w_line;
             weights(2:end) = w_avoid;
             
             % Create a weighted field for the vector field to follow
             fields = cell(1+veh.sensor.n_lines); % 1 for goal to goal and then the rest for the object avoidance
             avoid_indices = 2:veh.sensor.n_lines+1;
             q_inf = [10000000; 10000000];
-            fields{1} = GoToGoalField(x_vec, y_vec, x_g, v_max);
+            fields{1} = LineVectorField(x_vec, y_vec, x_l, psi_l, slope, v_max);
             for k = avoid_indices
                 fields{k} = OrbitAvoidField(x_vec, y_vec, q_inf, R, v_max, k_conv, S);                
             end
@@ -74,7 +82,13 @@ classdef CombinedGoToGoalOrbitAvoidScenario < VectorFieldScenario
             u = control@VectorFieldScenario(obj, t, x);
         end
         
-        
+        function new_goal = goalIndex(obj, t, x)
+            % Get the current position and goal
+            q = x(obj.q_ind);   % position
+            g = obj.x_g(:, obj.current_goal); % goal
+            
+            % Get the distance to the goal
+        end
         
         
     end
@@ -82,6 +96,14 @@ classdef CombinedGoToGoalOrbitAvoidScenario < VectorFieldScenario
     methods (Access=protected)
         function plotWorld(obj, t)
             obj.vector_field.plotVectorField(t);
+        end
+    end
+    
+    methods (Static)
+        function [x_l, psi_l] = getLineVariables(p1, p2)
+           v = p2-p1;
+           psi_l = atan2(v(2), v(1));
+           x_l = p2;
         end
     end
 end
