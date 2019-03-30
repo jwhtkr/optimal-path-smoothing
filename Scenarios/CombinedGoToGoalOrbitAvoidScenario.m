@@ -18,7 +18,7 @@ classdef CombinedGoToGoalOrbitAvoidScenario < VectorFieldScenario
             v_max = 2;
                         
             % Go to goal variables
-            x_g = [16; 10]; % try [20; 5] [25; 5];
+            x_g = [20; 5]; %[16; 10]; % try [20; 5] [25; 5];
             
             % Obstacle avoidance variables
             S = 3; % Sphere of influence

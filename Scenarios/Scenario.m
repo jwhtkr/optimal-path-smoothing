@@ -16,6 +16,10 @@ classdef Scenario < handle
         tmat = [] % Matrix of time values
         xmat = [] % Matrix of state values
         
+        % Plotting updates
+        T = 0.1 % Plotting period
+        t_latest = tic % Timer for plotting
+        
         % Index variables
         x_ind % x position index
         y_ind % y position index
@@ -193,11 +197,20 @@ classdef Scenario < handle
                 obj.vehicle.getObstacleDetections(obj.world);
                 
                 % Plot the state
-                if obj.plot_during_sim
+                if obj.isPlotReady()
                     obj.plotState(t);
                     obj.plotWorld(t);
                     pause(obj.dt/4); % dt/4 to allow for computation time as well
                 end
+            end
+        end
+        
+        function result = isPlotReady(obj)
+            if obj.plot_during_sim && toc(obj.t_latest) > obj.T
+                obj.t_latest = tic;
+                result = true;
+            else
+                result = false;
             end
         end
         
