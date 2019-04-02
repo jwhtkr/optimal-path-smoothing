@@ -1,6 +1,7 @@
 classdef SmoothDifferentialDriveVehicle < Vehicle
    
     properties
+        %% Problem 1.2.2 variables
         % Properties for path control (using point control method)
         eps_path = 1.0 % Initial epsilon for controlling a point to a path
         eps_path_min = 0.2 % Minimum value for eps_path
@@ -16,8 +17,6 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
         % Properties for velocity control 
         K_vel % Feedback matrix for velocity control where the state is the 
               % translational and rotational velocities
-              
-              
         
         % Properties for vector field orientation control 
         K_orient % Feedback matrix for velocity control where the state is the 
@@ -44,39 +43,26 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             q_ind = [kin.x_ind; kin.y_ind];
             obj = obj@Vehicle(kin, x0, q_ind);  
             
-            
+            %% Problem 1.2.2: Define K_point_ctrl
             % Calculate feedback matrix for point control
-            A = [zeros(2) eye(2); zeros(2,4)]; 
-            B = [zeros(2); eye(2)];
-            Q = diag([1, 1, 1, 1]);
-            R = diag([1, 1]);
-            obj.K_point_ctrl = lqr(A, B, Q, R);
+            obj.K_point_ctrl = [];
             
+            %% Problem 2.2.2: Define K_point_vel
             % Calculate feedback matrix for velocity point control
-            A = zeros(2);
-            B = eye(2);
-            Q = diag([1, 1]);
-            R = diag([.1, .1]);
-            obj.K_point_vel = lqr(A, B, Q, R);
+            obj.K_point_vel = [];
             
+            %% Problem 2.3.3
             % Calculate feedback matrix for velocity control
             r = kin.rad;
             L = kin.L;
-            A = zeros(2);
-            B = [r/2 r/2; r/L -r/L];
-            Q = diag([100, 100]);
-            R = diag([1, 1]);
-            obj.K_vel = lqr(A, B, Q, R);
+            obj.K_vel = [];
             
+            %% Problem 2.4.4
             % Create mapping from accelerations to wheel control
-            obj.map_accel_to_wheel = inv( B );
+            obj.map_accel_to_wheel = inv([r/2 r/2; r/L -r/L]);
             
             % Calculate feedback matrix for orientation control
-            A = [0 0 0; 0 0 1; 0 0 0];
-            B = [r/2 r/2; 0 0; r/L -r/L];
-            Q = diag([10 10000 0]);
-            R = diag([1 1]);
-            obj.K_orient = lqr(A, B, Q, R);
+            obj.K_orient = [];
             
            
         end
@@ -123,32 +109,7 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             % Calculate epsilon
             eps = obj.getEpsilon(t);
             
-            % Get states
-            x_pos = x(obj.kinematics.x_ind);
-            y_pos = x(obj.kinematics.y_ind);
-            [v, w] = obj.kinematics.getVelocities(t, x, 0);
-            th = x(obj.kinematics.th_ind);
-            c = cos(th);
-            s = sin(th);
-            
-            % Form espilon variables
-            w_hat_e = [0 -eps*w; w/eps 0];
-            R_e = [c -eps*s; s eps*c];
-            R_e_inv = [1 0; 0 1/eps] * [c s; -s c];
-            
-            % Calculate current values of espilon state
-            q_eps = [x_pos; y_pos] + eps * [c; s];
-            q_eps_dot = R_e*[v; w];
-            q = [q_eps; q_eps_dot];
-            
-            % Calculate point control
-            u_point = -obj.K_point_ctrl*(q - [q_des; qd_des]) + qdd_des;
-            
-            % Calculate the accelerations ([a; alpha])
-            accel = R_e_inv*u_point - w_hat_e*[v; w]; 
-            
-            % Calculate the control inputs
-            u = obj.map_accel_to_wheel * accel;
+            u = [0;0];            
         end
         
         %%%%%%%%%%%%%%%  Vector Field Following Controls %%%%%%%%%%%%%%%%
@@ -195,23 +156,8 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             % Calculate the current vector
             g = g_function(t, x(obj.q_ind), x(obj.th_ind));
             
-            % Calculate the desired velocity
-            vd = norm(g);
-            vd = min(vd, obj.vd_field_max); % Threshold the desired velocity
+            u = [0;0];
             
-            % Calculate the desired orientation
-            th_d = atan2(g(2), g(1));
-            
-            % Calculate the error in orientation
-            th = x(obj.th_ind);
-            th_e = th-th_d;
-            th_e = atan2(sin(th_e), cos(th_e)); % Adjust to ensure between -pi and pi
-            
-            % Calculate the desired rotational velocity
-            wd = -obj.k_wd*th_e;
-            
-            % Use velocity control to follow the vector field
-            u = obj.velocityControl(vd, wd, x);
         end
         
         function u = pointVelocityVectorFieldControl(obj, t, g_function, x)
@@ -228,36 +174,14 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             % Get necessary states
             [v, w] = obj.kinematics.getVelocities(t, x, 0);
             th = x(obj.th_ind);
-            c = cos(th);
-            s = sin(th);
-            
-            % Form espilon variables
-            eps = obj.eps_vel;
-            w_hat_e = [0 -eps*w; w/eps 0];
-            R_e = [c -eps*s; s eps*c];
-            R_e_inv = [1 0; 0 1/eps] * [c s; -s c];
             
             % Calculate current velocity of espilon state
-            q_eps = x(obj.q_ind) + eps*[c; s];
-            q_eps_dot = R_e*[v; w];
+            q_eps = [0;0];
             
             % Calculate the vector field for the espilon point
             g = g_function(t, q_eps, th);
             
-            % Restrict the velocity of the vector field
-            v_g = norm(g);
-            if v_g > obj.vd_field_max
-                g = obj.vd_field_max/v_g * g;
-            end
-            
-            % Calculate point control
-            u_point = -obj.K_point_vel*(q_eps_dot - g);
-            
-            % Calculate the commanded acceleration values            
-            accel = R_e_inv*u_point - w_hat_e*[v;w];            
-            
-            % Calculate the commanding wheel inputs
-            u = obj.map_accel_to_wheel * accel;
+            u = [0;0];
         end
         
         function u = orientationVectorFieldControl(obj, t, g_function, x)
@@ -275,26 +199,7 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             % Calculate the current vector
             g = g_function(t, x(obj.q_ind), x(obj.th_ind));
             
-            % Calculate the desired velocity
-            vd = norm(g);
-            vd = min(vd, obj.vd_field_max); % Threshold the desired velocity
-            
-            % Calculate the desired orientation
-            th_d = atan2(g(2), g(1));
-            
-            % Calculate the error in orientation
-            th = x(obj.th_ind);
-            th_e = th-th_d;
-            th_e = atan2(sin(th_e), cos(th_e)); % Adjust to ensure between -pi and pi
-            
-            % Extract states
-            [v, w] = obj.kinematics.getVelocities(0, x, 0); % zeros come from fact that velocities do not depend on time or input
-            
-            % Create the aggregate state
-            z = [v-vd; th_e; w];
-            
-            % Calculate the control from the aggregate state
-            u = -obj.K_orient*z;
+            u = [0;0];
         end
         
         
