@@ -17,7 +17,7 @@ classdef Scenario < handle
         xmat = [] % Matrix of state values
         
         % Plotting updates
-        T = 0.1 % Plotting period
+        T = 0.2 % Plotting period
         t_latest = tic % Timer for plotting
         
         % Index variables
@@ -89,6 +89,8 @@ classdef Scenario < handle
             
             % Plot the vehicle
             obj.vehicle.initializePlots(gca);
+            
+            pause();
         end
         
         function plotResults2(obj)
