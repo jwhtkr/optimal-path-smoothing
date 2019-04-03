@@ -60,6 +60,8 @@ classdef Scenario < handle
             obj.integrateEuler();
             
             % Plot the results
+            obj.plotState(obj.tf);
+            obj.plotWorld(obj.tf);
             obj.plotResults();
         end
         
