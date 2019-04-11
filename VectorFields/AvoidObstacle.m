@@ -1,5 +1,5 @@
 classdef AvoidObstacle < VectorField
-    %GoToGoalField Basic vector field pointing to a desired goal point
+    %AvoidObstacle Basic vector field pointing away from an obstacle point
     
     properties (SetAccess = public, GetAccess = public)
         x_o % Obsactle position

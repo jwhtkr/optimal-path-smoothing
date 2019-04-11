@@ -152,8 +152,7 @@ classdef BetterUnicycleVehicle < Vehicle
                 u = [0; 0];
             end
         end
-        
-        
+                
         function u = velocityVectorFieldControl(obj, t, g_function, x)
             %vectorFieldControl will calculate the desired control to follow 
             % a vector field with the following inputs:

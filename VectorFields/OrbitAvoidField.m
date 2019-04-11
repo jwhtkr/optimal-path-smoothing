@@ -1,12 +1,13 @@
 classdef OrbitAvoidField < VectorField
-    %OrbitField Creates a vector field moving the vehicle into orbit
+    %OrbitAvoidField Creates a vector field moving the vehicle around an
+    %obstacle position using an orbit
     
     properties
-        x_o % 2D center position of the orbit
+        x_o % 2D center position of the orbit (typically updated to use the obstacle position as the center of the orbit)
         rad % radius of the orbit
-        w % frequency of the orbit
+        w % frequency of the orbit (calculated using v = wr relationship)
         k_conv % gain on convergence to the orbit
-        v_d % Desired speed of the orbit (calculated using w*rad)
+        v_d % Desired speed of the orbit 
         
         S % Sphere of influence
     end
@@ -18,7 +19,7 @@ classdef OrbitAvoidField < VectorField
             %     be plotted using the ranges specified in x_vec and y_vec
             %   x_o - Defines a 2D center position for the vector field
             %   rad - radius of the orbit
-            %   v_d - Desired speed of the orbit (calculated using w*rad)
+            %   v_d - Desired speed of the orbit 
             %   k_conv - gain on convergence to the orbit
             %   S - Sphere of influence
             

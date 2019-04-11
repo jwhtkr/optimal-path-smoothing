@@ -1,5 +1,5 @@
 classdef VelocityTrackingScenario < Scenario
-    %VelocityTrackingUnicycleScenario This scenario has a unicycle robot
+    %VelocityTrackingUnicycleScenario This scenario has a robot
     %track desired velocities
     
     properties

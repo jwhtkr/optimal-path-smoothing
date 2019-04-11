@@ -28,7 +28,7 @@ classdef Vehicle < handle
     methods (Abstract)
         u = velocityControl(obj, vd, wd, varargin);
         u = pathControl(obj, t, q_des, qd_des, qdd_des, varargin); 
-        u = vectorFieldControl(obj, t, g, varargin);
+        u = vectorFieldControl(obj, t, g, control_type, varargin);
     end
     
     methods

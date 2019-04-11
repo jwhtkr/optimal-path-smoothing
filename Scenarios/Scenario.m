@@ -31,9 +31,7 @@ classdef Scenario < handle
     end
     
     methods (Abstract)
-        %runScenario(obj); % Runs the Scenario
-        u = control(obj, t, x); % Calculates the control to the vehicle
-        %plotState(obj, t); % Plots the current state of the vehicle
+        u = control(obj, t, x); % Calculates the control to the vehicle        
     end
     
     methods

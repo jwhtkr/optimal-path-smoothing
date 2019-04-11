@@ -1,5 +1,5 @@
 classdef ReferenceTrackingScenario < Scenario
-    %ReferenceTrackingUnicycleScenario This scenario has a unicycle robot
+    %ReferenceTrackingUnicycleScenario This scenario has a robot
     %follow a sinusoidal path input
     
     properties
