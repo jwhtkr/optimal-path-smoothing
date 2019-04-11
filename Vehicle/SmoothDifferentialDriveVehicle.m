@@ -74,7 +74,7 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             % Calculate feedback matrix for orientation control
             A = [0 0 0; 0 0 1; 0 0 0];
             B = [r/2 r/2; 0 0; r/L -r/L];
-            Q = diag([10 10000 0]);
+            Q = diag([10 100 0]);
             R = diag([1 1]);
             obj.K_orient = lqr(A, B, Q, R);
             
