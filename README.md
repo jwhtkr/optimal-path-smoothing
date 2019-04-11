@@ -12,9 +12,9 @@ The code is run using `launch.m`. Currently there are a variety of examples impl
 	- Summed vector fields (obstacle dependent)
 	- Stitched vector fields (obstacle dependent)
 
-Various types of 
+You can run each scenario with different types of vehicles and (for the vector field scenarios) different types of controllers.
 
-Starts the plot and then you need to press enter ...
+Once you run `launch.m`, the system will plot the world and then pause. The pause allows the user to adjust the figure where the vehicle and world will be plotted before the simulation actually begins. Once the figure is adjusted to the desired size, press *enter* and the simulation will begin.
 
 
 ## The basic lifecycle ##
