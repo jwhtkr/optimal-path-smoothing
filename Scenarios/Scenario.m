@@ -9,15 +9,15 @@ classdef Scenario < handle
         % Simulation parameters
         plot_during_sim; % true => plot while simulating (requires euler integration)
         t0 = 0; % Initial time of simulation
-        dt = 0.01; % Simulation step size
-        tf = 10; % Final time of simulation
+        dt = 0.05; % Simulation step size
+        tf = 40; % Final time of simulation
         
         % Simulation results
         tmat = [] % Matrix of time values
         xmat = [] % Matrix of state values
         
         % Plotting updates
-        T = 0.2 % Plotting period
+        T = .2 % Plotting period
         t_latest = tic % Timer for plotting
         
         % Index variables

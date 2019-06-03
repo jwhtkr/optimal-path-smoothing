@@ -5,14 +5,14 @@ function prob1_2_2()
     clc;
     
     % Configure file path
-    addpath Dependencies
-    addpath Dependencies\intersections
-    addpath Scenarios
-    addpath Sensors
-    addpath VectorFields
-    addpath Vehicle
-    addpath Vehicle\Kinematics
-    addpath World
+    addpath ../Dependencies
+    addpath ../Dependencies/intersections
+    addpath ../Scenarios
+    addpath ../Sensors
+    addpath ../VectorFields
+    addpath ../Vehicle
+    addpath ../Vehicle/Kinematics
+    addpath ../World
     
     %%%%%%%%%%%%%%%%% Create scenario %%%%%%%%%%%%%%%%%%%%%
     % Reference tracking scenario

@@ -71,7 +71,7 @@ classdef BetterUnicycleVehicle < Vehicle
             w = x(obj.kinematics.w_ind);
             
             % Calculate new state
-            z = [v - vd; w - wd;];
+            z = [v - vd; w - wd];
             
             % Calculate control
             u = -obj.K_vel * z;

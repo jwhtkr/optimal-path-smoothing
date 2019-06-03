@@ -1,25 +1,38 @@
-classdef VelocityTrackingScenario < Scenario
+classdef ParamOptScenario < Scenario
     %VelocityTrackingUnicycleScenario This scenario has a robot
     %track desired velocities
     
     properties
+        planner;
         % Desired velocity values
-        v_d = 5 % Desired translational velocity
-        w_d = 0.5 % Desired rotational velocity
+        v_d; % Desired translational velocity
+        w_d; % Desired rotational velocity
     end
     
     methods
-        function obj = VelocityTrackingScenario(veh)
-            % Create the world
-            world = EmptyWorld();
-%             world = PolygonWorld1();
+        function obj = ParamOptScenario(veh)
+            world = PolygonWorld1();
             
+            addpath TrajectoryPlanners/SingleArcBased/Opt_dep
+            rmpath TrajectoryPlanners/MultiArcBased/Opt_dep
             % initialize the scenario
             obj = obj@Scenario(veh, world, true);           
+            obj.planner = Unicycle2(veh.x);
+
+            obj.v_d = 0;
+            obj.w_d = 0;
         end
     
         %%%%  Abstract Method Implementation %%%%
         function u = control(obj, t, x)
+            [xo,yo,do] = obj.vehicle.getObstacleDetections(obj.world);
+            obj.planner.getObstacles(xo,yo,do);
+            % method to calculate desired velocities
+            u = [obj.v_d, obj.w_d]';
+            u = obj.planner.minimize(x,u)
+            obj.v_d = u(obj.planner.ind_a);
+            obj.w_d = u(obj.planner.ind_alpha);
+            
             % Calculate the velocity control            
             u = obj.vehicle.velocityControl(obj.v_d, obj.w_d, x);
         end

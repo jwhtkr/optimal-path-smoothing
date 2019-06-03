@@ -94,6 +94,7 @@ classdef ReferenceTrackingScenario < Scenario
         end
         
         
+        
         %%%% Reference trajectory methods %%%%
         function [qd, qd_dot, qd_ddot] = SineReference(obj, t)
             % Get length of the time vector
