@@ -2,10 +2,10 @@ classdef Unicycle2 < CostClass
         
     properties
         % Cost weights
-        p1 = 1; % weight on velocity
-        p2 = .01; % weight on angular velocity
-        p3 = 1; % weight of avoidance
-        p5 = .02; % weight on go to goal
+        p1 = 1000; % weight on velocity
+        p2 = .1; % weight on angular velocity
+        p3 = 100; % weight of avoidance
+        p5 = 10; % weight on go to goal
         
         % Operational flags
         numericalPartialLogic = false;
@@ -20,7 +20,7 @@ classdef Unicycle2 < CostClass
         vd = 1; % Desired Velocity
         
         dmin = .25; % Distance from obstacle just before collision
-        dmax = 2;
+        dmax = 1;
         log_dmax_dmin;
         
         
@@ -112,9 +112,7 @@ classdef Unicycle2 < CostClass
             u = obj.initialize(u);
             while ~obj.armijo_stop(u) 
                 u = u + step(u);
-            end
-            obj.plotTraj(u);
-            pause(0.1);
+            end          
         end
         
         function u0 = initialize(obj,u)
@@ -125,18 +123,16 @@ classdef Unicycle2 < CostClass
             % -90 degree to 90 degree turn based on time horizon
             
             
-            w = -120/obj.T*pi/180:120/obj.T*pi/180/30:120/obj.T*pi/180;            
+            w = -90/obj.T*pi/180:90/obj.T*pi/180/30:90/obj.T*pi/180;
+            obj.setTimeSpan();
+            
             for i = 1:length(w)
                 u_var = [obj.vd; w(i)];
-%                 obj.plotTraj(u_var);
-%                 pause(0.01);
                 if min_cost > cost(u_var)
                     u0 = u_var;
                     min_cost = cost(u_var);
-                    
                 end
             end
-            
         end
         
         
@@ -454,17 +450,17 @@ classdef Unicycle2 < CostClass
            
            % Plot the data 
            if isempty(obj.state_handle)
-%                figure;
-               obj.state_handle = plot(xvec(1,:), xvec(2,:), 'g', 'linewidth', 1); %hold on;
-%                for i = 1:length(obj.qb(1,:))
-%                    plot(obj.qb(1,i), obj.qb(2,i), 'ko', 'linewidth', 2);
-%                    circle(obj.qb(:,i), obj.dmin, 20, 'r', []);
-%                    circle(obj.qb(:,i), obj.dmax, 50, 'b', []);
-%                end
-%                plot(obj.qd(1), obj.qd(2), 'go', 'linewidth', 4); % Plot the goal position
-% %               ylim([0 max(xvec(2,:))]);
-%                obj.state_ax = gca;
-%                title('Trajectory of unicycle');
+               figure;
+               obj.state_handle = plot(xvec(1,:), xvec(2,:), 'r', 'linewidth', 2); hold on;
+               for i = 1:length(obj.qb(1,:))
+                   plot(obj.qb(1,i), obj.qb(2,i), 'ko', 'linewidth', 2);
+                   circle(obj.qb(:,i), obj.dmin, 20, 'r', []);
+                   circle(obj.qb(:,i), obj.dmax, 50, 'b', []);
+               end
+               plot(obj.qd(1), obj.qd(2), 'go', 'linewidth', 4); % Plot the goal position
+%               ylim([0 max(xvec(2,:))]);
+               obj.state_ax = gca;
+               title('Trajectory of unicycle');
            else
                set(obj.state_handle, 'xdata', xvec(1,:), 'ydata', xvec(2,:));
  %              set(obj.state_ax, 'ylim', [0 max(xvec(2,:))]);

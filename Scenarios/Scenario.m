@@ -28,6 +28,7 @@ classdef Scenario < handle
     
     properties (SetAccess = protected, GetAccess = public)
         h_state_traj = [];
+        traj = [];
     end
     
     methods (Abstract)
@@ -76,8 +77,16 @@ classdef Scenario < handle
             set(obj.h_state_traj, 'xdata', obj.xmat(obj.x_ind, 1:ind), 'ydata', obj.xmat(obj.y_ind,1:ind));
             
             % Plot the vehicle
-            obj.vehicle.plotVehicle();            
+            obj.vehicle.plotVehicle();   
+            
+            % Calculate the state trajectory
+%             [tvec, xvec] = ode45(@(t,x)obj.planner.unicycleDynamics(t,x,obj.control(t,x)), [0 obj.T], obj.planner.x0);
+%             xvec = xvec';
+%             
+%             % Plot the Trajectory
+%             set(obj.traj, 'xdata', xvec(1,:), 'ydata', xvec(2,:));
         end
+
         
         function initializeStatePlot(obj)
             figure; 
