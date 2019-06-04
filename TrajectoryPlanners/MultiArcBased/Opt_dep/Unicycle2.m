@@ -5,14 +5,14 @@ classdef Unicycle2 < CostClass
         p1 = 100; % weight on velocity
         p2 = 0.1; % weight on angular velocity
         p3 = 0.15; % weight of avoidance
-        p5 = 1; % weight on go to goal
+        p5 = 10; % weight on go to goal
         
         % Operational flags
         numericalPartialLogic = false;
         useEulerIntegration = true;
         
         % Cost variables
-        qd = [20; .5]; % Desired position
+        qd = [20; 0]; % Desired position
         qb = []; % Obstacles
         % qb = [[3;3], [4;4]];
         n_obs;
@@ -20,7 +20,7 @@ classdef Unicycle2 < CostClass
         vd = 1; % Desired Velocity
         
         dmin = .2; % Distance from obstacle just before collision
-        dmax = 1;
+        dmax = 2;
         log_dmax_dmin;
         
         
@@ -104,6 +104,7 @@ classdef Unicycle2 < CostClass
         end
         
         function getObstacles(obj,xo,yo,d)
+            obj.qb = [];
            for i = 1:length(xo)
                if d(i) <= obj.dmax
                     obj.qb =  [obj.qb [xo(i);yo(i)]];
@@ -113,25 +114,48 @@ classdef Unicycle2 < CostClass
         
         function u = minimize(obj,x,u)
             obj.reset(x);
-%             obj.plotTraj(u);
-%             obj.plotCostVsIteration(u);
-%             pause(0.1);
             
-            obj.cost(u)
+            obj.cost(u);
             step = @(u) obj.armijo_step(u);
-            
+            u = obj.initialize(u);
             while ~obj.armijo_stop(u) %i < 11
-                u = u + step(u);
-                                 
-%                 obj.plotTraj(u);
-%                 obj.plotCostVsIteration(u);
-%                 pause(0.1);
+                u = u + step(u)
+                                
             end
             
         end
         
-        function u = initialize(obj,x,u)
+        function u = initialize(obj,u)
+            min_cost = obj.cost(u);
+            u0 = u;
+            cost = @(var) obj.cost(var);
             
+            % -90 degree to 90 degree turn based on time horizon
+            w1 = -90/u(obj.ind_time1)*pi/180:90/u(obj.ind_time1)*pi/180/10:90/u(obj.ind_time1)*pi/180;
+            w2 = -90/u(obj.ind_time2)*pi/180:90/u(obj.ind_time2)*pi/180/5:90/u(obj.ind_time2)*pi/180;
+            w3 = -90/(obj.T-u(obj.ind_time2))*pi/180:90/(obj.T-u(obj.ind_time2))*pi/180/5:90/(obj.T-u(obj.ind_time2))*pi/180;
+            for i = 1:length(w1)
+                u_var = [obj.vd; w1(i);u(obj.ind_time1);0;0;u(obj.ind_time2);0;0];
+                if min_cost > cost(u_var)
+                    u0 = u_var;
+                    min_cost = cost(u_var);
+                end
+            end
+            for i = 1:length(w2)
+                u_var = [u0(1); u0(2);u(obj.ind_time1);obj.vd;w2(i);u(obj.ind_time2);0;0];
+                if min_cost > cost(u_var)
+                    u0 = u_var;
+                    min_cost = cost(u_var);
+                end
+                
+            end
+            for i = 1:length(w3)
+                u_var = [u0(1); u0(2);u0(3);u0(4);u0(5);u0(6);obj.vd;w3(i)];
+                if min_cost > cost(u_var)
+                    u0 = u_var;
+                    min_cost = cost(u_var);
+                end
+            end
             
             
         end
@@ -286,7 +310,7 @@ classdef Unicycle2 < CostClass
             q = obj.getPosition(x);
             
             % Calculate partial
-            dphi_dx = obj.p5.*[2*(q-obj.qd)', 0, 0, 0];
+            dphi_dx = obj.p5.*[(q-obj.qd)', 0, 0, 0];
         end
             
         function dL_dx = instStatePartial(obj, t, x, u)

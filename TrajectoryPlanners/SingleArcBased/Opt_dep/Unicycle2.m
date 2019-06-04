@@ -2,9 +2,9 @@ classdef Unicycle2 < CostClass
         
     properties
         % Cost weights
-        p1 = 10; % weight on velocity
-        p2 = 1; % weight on angular velocity
-        p3 = 1000; % weight of avoidance
+        p1 = 1000; % weight on velocity
+        p2 = .25; % weight on angular velocity
+        p3 = .1; % weight of avoidance
         p5 = 10; % weight on go to goal
         
         % Operational flags
@@ -12,19 +12,19 @@ classdef Unicycle2 < CostClass
         useEulerIntegration = true;
         
         % Cost variables
-        qd = [20; 0.1]; % Desired position
+        qd = [20; -0.1]; % Desired position
         qb = []; % Obstacles
 %         qb = [[4;4]];
         n_obs;
         sig = 10;
         vd = 1; % Desired Velocity
         
-        dmin = 0.25; % Distance from obstacle just before collision
+        dmin = .25; % Distance from obstacle just before collision
         dmax = 2;
         log_dmax_dmin;
         
         
-        T = 3; % Final time
+        T = 5; % Final time
         dt = 0.1; % Integration stepsize
         t_span % Stores the span for integration
         t_span_rev % Same as t_space but in reverse order
@@ -97,6 +97,7 @@ classdef Unicycle2 < CostClass
         end
         
         function getObstacles(obj,xo,yo,d)
+           obj.qb = [];
            for i = 1:length(xo)
                if d(i) <= obj.dmax
                     obj.qb =  [obj.qb [xo(i);yo(i)]];
@@ -108,9 +109,8 @@ classdef Unicycle2 < CostClass
             obj.reset(x);
             
             step = @(u) obj.armijo_step(u);
-                      
+            u = obj.initialize(u);
             while ~obj.armijo_stop(u) 
-                u = obj.initialize(u);
                 u = u + step(u);
             end          
         end
@@ -120,15 +120,23 @@ classdef Unicycle2 < CostClass
             u0 = u;
             cost = @(var) obj.cost(var);
             
-            w = -90/obj.T*pi/180:.01:90/obj.T*pi/180;
+            % -90 degree to 90 degree turn based on time horizon
             
-            parfor i = 1:length(w)
-                u_var = [u(obj.ind_a); w(i)];
-                if min_cost > cost(u_var)
-                    u0 = u_var;
+           
+            t = obj.T/3:obj.T/3:obj.T;
+            for j = 1:length(t)
+                obj.T = t(j);
+                w = -90/obj.T*pi/180:90/obj.T*pi/180/30:90/obj.T*pi/180;
+                obj.setTimeSpan();
+
+                for i = 1:length(w)
+                    u_var = [obj.vd; w(i)];
+                    if min_cost > cost(u_var)
+                        u0 = u_var;
+                        min_cost = cost(u_var);
+                    end
                 end
             end
-
         end
         
         
@@ -517,11 +525,17 @@ classdef Unicycle2 < CostClass
         
         function z = evalIntResult(obj, z_sol, t)
             if obj.useEulerIntegration
-                ind = round(t/obj.dt)+1;
+                ind = floor(t/obj.dt*100/100)+1;%round(t/obj.dt)+1;
                 z = z_sol(:, ind);
             else
                 z = deval(z_sol, t);
             end
+        end
+        
+        function setTimeSpan(obj)
+            obj.t_span = 0:obj.dt:obj.T;
+            obj.t_span_rev = obj.T:-obj.dt:0;
+            obj.t_len = length(obj.t_span);
         end
         
         
