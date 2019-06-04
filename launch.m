@@ -26,8 +26,8 @@ function launch()
     % Velocity tracking scenarios
     %scenario = VelocityTrackingScenario(BetterUnicycleVehicle);    
     %scenario = VelocityTrackingScenario(SimpleUnicycleVehicle);    
-%     scenario = ParamOptScenario(BetterUnicycleVehicle);
-    scenario = MultiParamOptScenario(BetterUnicycleVehicle);
+    scenario = ParamOptScenario(BetterUnicycleVehicle);
+%     scenario = MultiParamOptScenario(BetterUnicycleVehicle);
         
     % Create a vector field
     x_vec = -5:.5:5;

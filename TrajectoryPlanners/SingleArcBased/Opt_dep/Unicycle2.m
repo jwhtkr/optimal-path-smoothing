@@ -3,7 +3,7 @@ classdef Unicycle2 < CostClass
     properties
         % Cost weights
         p1 = 1000; % weight on velocity
-        p2 = .25; % weight on angular velocity
+        p2 = .1; % weight on angular velocity
         p3 = .1; % weight of avoidance
         p5 = 10; % weight on go to goal
         
@@ -24,7 +24,7 @@ classdef Unicycle2 < CostClass
         log_dmax_dmin;
         
         
-        T = 5; % Final time
+        T = 3; % Final time
         dt = 0.1; % Integration stepsize
         t_span % Stores the span for integration
         t_span_rev % Same as t_space but in reverse order
