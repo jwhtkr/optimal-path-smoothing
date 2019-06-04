@@ -119,7 +119,7 @@ classdef Unicycle2 < CostClass
             step = @(u) obj.armijo_step(u);
             u = obj.initialize(u);
             while ~obj.armijo_stop(u) %i < 11
-                u = u + step(u)
+                u = u + step(u);
                                 
             end
             
