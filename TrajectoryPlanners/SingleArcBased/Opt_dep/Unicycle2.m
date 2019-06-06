@@ -12,15 +12,15 @@ classdef Unicycle2 < CostClass
         useEulerIntegration = true;
         
         % Cost variables
-        qd = [20; -0]; % Desired position
+        qd = [21; 4]; % Desired position
         qb = []; % Obstacles
 %         qb = [[4;4]];
         n_obs;
         sig = 10;
         vd = 1; % Desired Velocity
         
-        dmin = .25; % Distance from obstacle just before collision
-        dmax = 2;
+        dmin = .1; % Distance from obstacle just before collision
+        dmax = 1;
         log_dmax_dmin;
         
         
@@ -96,11 +96,11 @@ classdef Unicycle2 < CostClass
             obj.k = 10;
         end
         
-        function getObstacles(obj,xo,yo,d)
+        function setObstacles(obj,xo,yo,d)
            obj.qb = [];
            for i = 1:length(xo)
-               if d(i) <= obj.dmax
-                    obj.qb =  [obj.qb [xo(i);yo(i)]];
+               if ~isinf(d(i)) %d(i) <= obj.dmax
+                   obj.qb =  [obj.qb [xo(i);yo(i)]];
                end
            end
         end
@@ -114,7 +114,7 @@ classdef Unicycle2 < CostClass
                 u = u + step(u);
             end
             obj.plotTraj(u);
-            pause(0.1);
+            pause(0.02);
         end
         
         function u0 = initialize(obj,u)

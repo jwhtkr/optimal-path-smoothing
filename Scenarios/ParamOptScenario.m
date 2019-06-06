@@ -26,7 +26,7 @@ classdef ParamOptScenario < Scenario
         %%%%  Abstract Method Implementation %%%%
         function u = control(obj, t, x)
             [xo,yo,do] = obj.vehicle.getObstacleDetections(obj.world);
-            obj.planner.getObstacles(xo,yo,do);
+            obj.planner.setObstacles(xo,yo,do);
             % method to calculate desired velocities
             u = [obj.v_d, obj.w_d]';
             u = obj.planner.minimize(x,u)

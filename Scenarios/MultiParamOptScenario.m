@@ -28,7 +28,7 @@ classdef MultiParamOptScenario < Scenario
         %%%%  Abstract Method Implementation %%%%
         function u = control(obj, t, x)
             [xo,yo,do] = obj.vehicle.getObstacleDetections(obj.world);
-            obj.planner.getObstacles(xo,yo,do);
+            obj.planner.setObstacles(xo,yo,do);
             % method to calculate desired velocities
             
             u = obj.planner.minimize(x,obj.u_init);
