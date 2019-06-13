@@ -2,9 +2,9 @@ classdef Unicycle2 < CostClass
         
     properties
         % Cost weights
-        p1 = 1; % weight on velocity
-        p2 = .1; % weight on angular velocity
-        p3 = 3; % weight of avoidance
+        p1 = 10; % weight on velocity
+        p2 = 0.1; % weight on angular velocity
+        p3 = 4; % weight of avoidance
         p5 = .1; % weight on go to goal
         
         % Operational flags
@@ -12,29 +12,36 @@ classdef Unicycle2 < CostClass
         useEulerIntegration = true;
         
         % Cost variables
-        qd = [6; 5]; % Desired position
+        qd = [20; 0]; % Desired position
         qb = []; % Obstacles
-%         qb = [[4;4]];
+        % qb = [[3;3], [4;4]];
         n_obs;
         sig = 10;
         vd = 1; % Desired Velocity
         
         dmin = .25; % Distance from obstacle just before collision
-        dmax = 1.1;
+        dmax = 1.25;
         log_dmax_dmin;
         
         
-        T = 5; % Final time
+        T = 5;
+        tf = 5;% Final time
         dt = 0.1; % Integration stepsize
         t_span % Stores the span for integration
-        t_span_rev % Same as t_space but in reverse order
+        t_span_rev % Same as t_span but in reverse order
         t_len % Number of time variables        
         
-        % Define the control variables
-        ind_a = 1;
-        ind_alpha = 2;
-        
         k_vel_ctrl;
+        
+        % Define the control variables
+        ind_a1 = 1;
+        ind_alpha1 = 2;
+        ind_time1 = 3;
+        ind_a2 = 4;
+        ind_alpha2 = 5;
+        ind_time2 = 6;
+        ind_a3 = 7;
+        ind_alpha3 = 8;
         
         % Define the state indices
         ind_x = 1;
@@ -46,7 +53,9 @@ classdef Unicycle2 < CostClass
         n_agg = 4;          % Number of aggregate states when cost and dynamics are considered
         
         % Plotting variables
-        state_handle = [];
+        traj_arc1 = [];
+        traj_arc2 = [];
+        traj_arc3 = [];
         state_ax = []; % Handle for the state axes
     end
     
@@ -61,12 +70,13 @@ classdef Unicycle2 < CostClass
 %             x2 = [-.2 .2];
             x1 = [0 .25];
             x2 = [-.05 .05];
-            z = [-10 100];            
+            z = [-10 100];
             
             % Create the class
             obj = obj@CostClass(x1, x2, z, x0);
             obj.n_obs = size(obj.qb, 2);
             obj.log_dmax_dmin = log(obj.dmax - obj.dmin);
+            
             
             % Control Gain
             A = zeros(2);
@@ -100,7 +110,7 @@ classdef Unicycle2 < CostClass
            obj.qb = [];
            for i = 1:length(xo)
                if ~isinf(d(i)) %d(i) <= obj.dmax
-                   obj.qb =  [obj.qb [xo(i);yo(i)]];
+                    obj.qb =  [obj.qb [xo(i);yo(i)]];
                end
            end
         end
@@ -108,37 +118,67 @@ classdef Unicycle2 < CostClass
         function u = minimize(obj,x,u)
             obj.reset(x);
             
+            obj.cost(u);
             step = @(u) obj.armijo_step(u);
             u = obj.initialize(u);
-            while ~obj.armijo_stop(u) 
-                u = u + step(u);
+            while ~obj.armijo_stop(u) %i < 11
+                u = u + step(u)
+%                 u(obj.ind_time1) = u(obj.ind_time1) - obj.dt;
+%                 u(obj.ind_time2) = u(obj.ind_time2) - obj.dt;
+                                
             end
             obj.plotTraj(u);
-            pause(0.02);
+            pause(0.3);
+            
         end
         
         function u0 = initialize(obj,u)
             min_cost = obj.cost(u);
             u0 = u;
             cost = @(var) obj.cost(var);
-            
-            % -90 degree to 90 degree turn based on time horizon
-            
-            
-            w = -120/obj.T*pi/180:120/obj.T*pi/180/30:120/obj.T*pi/180;            
-            for i = 1:length(w)
-                u_var = [obj.vd; w(i)];
-%                 obj.plotTraj(u_var);
-%                 pause(0.01);
-                if min_cost > cost(u_var)
-                    u0 = u_var;
-                    min_cost = cost(u_var);
-                    
+            n = 3;
+            for j = 1:n
+                
+                w1 = -120/obj.T*3*pi/180:120/obj.T*3*pi/180/1:120/obj.T*3*pi/180;
+                w2 = -120/obj.T*3*pi/180:120/obj.T*3*pi/180/5:120/obj.T*3*pi/180;
+                w1 = w1*(j/n);
+                w2 = w2*(j/n);
+                obj.T = obj.tf/3;
+                for i = 1:length(w)
+                    u_var = [obj.vd*(j/n); w(i);obj.T-obj.dt*2;0;0;obj.T-obj.dt;0;0];
+%                     obj.plotTraj(u_var);
+%                     pause(0.01);
+                    if min_cost > cost(u_var)
+                        u0 = u_var;
+                        min_cost = cost(u_var);
+                    end
                 end
+                obj.T = obj.tf*2/3;
+                for i = 1:length(w)
+                    u_var = [obj.vd*(j/n); u0(2);obj.T/2;obj.vd*(j/n);w(i);obj.T-obj.dt;0;0];
+%                     obj.plotTraj(u_var);
+%                     pause(0.01);
+                    if min_cost > cost(u_var)
+                        u0 = u_var;
+                        min_cost = cost(u_var);
+                    end 
+                end
+                obj.T = obj.tf;
+                for i = 1:length(w)
+                    u_var = [obj.vd*(j/n); u0(2);obj.T/3;obj.vd*(j/n);u0(5);obj.T*2/3;obj.vd*(j/n);w(i)];
+%                     obj.plotTraj(u_var);
+%                     pause(0.01);
+                    if min_cost > cost(u_var)
+                        u0 = u_var;
+                        min_cost = cost(u_var);
+                    end
+                end
+                
             end
-            
+            obj.T = obj.tf;
+%             u0
+
         end
-        
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %%%  Functions for Calculating cost  %%%
@@ -159,7 +199,7 @@ classdef Unicycle2 < CostClass
             L = zT(obj.ind_cost);
             
             % Add the terminal cost
-            val = L + obj.terminalCost(xT, u);
+            val = L + obj.terminalCost(xT, u);            
         end
         
         function L = instantaneousCost(obj, t, x, u)
@@ -168,7 +208,7 @@ classdef Unicycle2 < CostClass
             q = obj.getPosition(x);
             
             % Get portion for velocities
-            L = obj.p1/2*(v-obj.vd)^2 + obj.p2/2*w^2;
+            L = obj.p_global(x)*obj.p1/2*(v-obj.vd)^2 + obj.p_global(x)*obj.p2/2*w^2;
             
             % Get portion for obstacles
             for k = 1:obj.n_obs
@@ -183,7 +223,7 @@ classdef Unicycle2 < CostClass
                     Lavoid = obj.p3*(obj.log_dmax_dmin - log(d - obj.dmin));
                     L = L + Lavoid;
                 elseif d < obj.dmin
-                    L = L + obj.p3*inf;
+                    L = L + inf;
                     if isnan(L)
                         L = 0;
                     end
@@ -198,7 +238,7 @@ classdef Unicycle2 < CostClass
             
             % Calculate cost as squared distance to goal
             err = q - obj.qd;
-            phi = obj.p5/2*(err'*err);
+            phi = obj.p_global(x)*obj.p5/2*(err'*err);
         end
         
         function zdot = costAndStateDynamics(obj, t, z, u)
@@ -227,9 +267,7 @@ classdef Unicycle2 < CostClass
             end      
            
             % Simulate state forward in time
-            %x_sol = ode45(@(t,x)obj.unicycleDynamics(t, x, u), [0:obj.dt:obj.T], obj.x0);
             x_sol = obj.integrate(@(t,x)obj.unicycleDynamics(t, x, u), obj.x0, true, false);
-            
             
             % Create costate initial conditions
             xT = obj.evalIntResult(x_sol, obj.T);
@@ -237,14 +275,59 @@ classdef Unicycle2 < CostClass
             xiT = zeros(2,1);
             costateT = [lamT; xiT];
             
-            % Simulate costates backward in time
-            %costates = ode45(@(t,costate)obj.costateDynamics(t, costate, x_sol, u), [obj.T:-obj.dt:0], costateT); 
-            costates = obj.integrate(@(t,costate)obj.costateDynamics(t, costate, x_sol, u), costateT, false, false);
             
-            % Calculate partial
-            costate0 = obj.evalIntResult(costates, 0);
+            % Simulate costates backward in time Tf to tau2
+            obj.setTimeSpan(u,3);
+
+            costates_T = obj.integrate(@(t,costate)obj.costateDynamics(t, costate, x_sol, u), costateT, false, false);
+            
+            % Evaluate Results, extract xi values and reset for next time
+            % interval
+            costate2 = obj.evalIntResult(costates_T, u(obj.ind_time2));
+            xi2 = costate2(obj.n+1:end);
+            lam2 = costate2(1:obj.n);
+            costate2(4:end) = 0;
+            
+            % Simulate costates backwards in time tau2 to tau1
+            obj.setTimeSpan(u,2);
+            costates_2 = obj.integrate(@(t,costate)obj.costateDynamics(t, costate, x_sol, u), costate2, false, false);
+            
+            % Evaluate Results, extract xi values and reset for next time
+            % interval
+            costate1 = obj.evalIntResult(costates_2, u(obj.ind_time1));
+            xi1 = costate1(obj.n+1:end);
+            lam1 = costate1(1:obj.n);
+            costate1(4:end) = 0;
+            
+            % Simulate costates backwards in time tau1 to 0
+            obj.setTimeSpan(u,1);
+            costates_1 = obj.integrate(@(t,costate)obj.costateDynamics(t, costate, x_sol, u), costate1, false, false);
+            
+            % Evaluate results, extract xi values and reset time span to 0
+            % to T
+            costate0 = obj.evalIntResult(costates_1, 0);
             xi0 = costate0(obj.n+1:end);
-            dJ_du = xi0';
+%             lam0 = costate0(1:obj.n);
+            obj.setTimeSpan(u,0);
+            
+            
+            z0 = [obj.x0; 0];
+            cost = obj.integrate(@(t,z)obj.costAndStateDynamics(t,z,u), z0, true, true);
+            cost0 = obj.evalIntResult(cost,0);
+            cost1 = obj.evalIntResult(cost,u(3));
+            cost2 = obj.evalIntResult(cost,u(6));
+            
+            dJ_dtau1 = cost0(obj.ind_cost) - cost1(obj.ind_cost) + lam1'*(cost0(1:obj.n) - cost1(1:obj.n));
+            dJ_dtau2 = cost1(obj.ind_cost) - cost2(obj.ind_cost) + lam2'*(cost1(1:obj.n) - cost2(1:obj.n));
+            
+            if u(obj.ind_time1) - dJ_dtau1 < 0 || u(obj.ind_time1) - dJ_dtau1 > u(obj.ind_time2) - dJ_dtau2
+                dJ_dtau1 = 0;
+            end
+            if u(obj.ind_time2) - dJ_dtau2 < u(obj.ind_time1) - dJ_dtau1 || u(obj.ind_time2) - dJ_dtau2 > obj.T
+                dJ_dtau2 = 0;
+            end
+            % Final Partial
+            dJ_du = [xi0' dJ_dtau1 xi1' dJ_dtau2 xi2'];
         end
         
         function dphi_dx = terminalStatePartial(obj, x)
@@ -252,7 +335,7 @@ classdef Unicycle2 < CostClass
             q = obj.getPosition(x);
             
             % Calculate partial
-            dphi_dx = obj.p5.*[(q-obj.qd)', 0, 0, 0];
+            dphi_dx = obj.p_global(x)*obj.p5.*[(q-obj.qd)', 0, 0, 0];
         end
             
         function dL_dx = instStatePartial(obj, t, x, u)
@@ -289,7 +372,7 @@ classdef Unicycle2 < CostClass
                 dL_dx = dL_dx + dLavoid_dx;
             end
             
-            dL_dx = dL_dx + [0 0 0 obj.p1*(v-obj.vd) obj.p2*w];
+            dL_dx = dL_dx + obj.p_global(x).*[0 0 0 obj.p1*(v-obj.vd) obj.p2*w];
             
         end
         
@@ -297,8 +380,7 @@ classdef Unicycle2 < CostClass
             % Extract states and velocities
             [v, w] = obj.getVelocities(x);
             
-            dL_du = [0 0];
-%             dL_du = [obj.p1*(v-obj.vd), obj.p2*w];
+            dL_du = [0 0]; %[obj.p1*(v-obj.vd), obj.p2*w];
         end
         
         function df_dx = dynamicsStatePartial(obj, t, x, u)
@@ -315,16 +397,25 @@ classdef Unicycle2 < CostClass
             theta = x(obj.ind_theta);
             
             % Calculate partial
-            %df_du = [cos(theta), 0; sin(theta), 0; 0 1];
+%             df_du = [cos(theta), 0; sin(theta), 0; 0 1; 0 0; 0 0];
             df_du = [0, 0; 0, 0; 0 0; obj.k_vel_ctrl];
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %%% State and Dynamics functions %%%%
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        function [a, alpha] = getAccelerations(obj,u)
-            a = u(obj.ind_a);
-            alpha = u(obj.ind_alpha);
+        function [a, alpha] = getAccelerations(obj,u,t)
+            if t < u(obj.ind_time1)
+                a = u(obj.ind_a1);
+                alpha = u(obj.ind_alpha1);
+            elseif t >= u(obj.ind_time1) && t < u(obj.ind_time2)
+                a = u(obj.ind_a2);
+                alpha = u(obj.ind_alpha2);
+            else
+                a = u(obj.ind_a3);
+                alpha = u(obj.ind_alpha3);
+            end
+            
         end
             
         function [v, w] = getVelocities(obj, x)
@@ -339,7 +430,7 @@ classdef Unicycle2 < CostClass
         function xdot = unicycleDynamics(obj, t, x, u)
             % Extract states and velocities
             [v, w] = obj.getVelocities(x);
-%             [a, alpha] = obj.getAccelerations(u);
+            [a, alpha] = obj.getAccelerations(u,t);
             theta = x(obj.ind_theta);
             
             % Calculate derivative
@@ -347,8 +438,8 @@ classdef Unicycle2 < CostClass
             xdot(obj.ind_x) = v*cos(theta);
             xdot(obj.ind_y) = v*sin(theta);
             xdot(obj.ind_theta) = w;
-            xdot(obj.ind_v) = -obj.k_vel_ctrl(1,1)*(v-u(1));
-            xdot(obj.ind_w) = -obj.k_vel_ctrl(2,2)*(w-u(2));
+            xdot(obj.ind_v) = -obj.k_vel_ctrl(1,1)*(v-a);
+            xdot(obj.ind_w) = -obj.k_vel_ctrl(2,2)*(w-alpha);
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -411,9 +502,6 @@ classdef Unicycle2 < CostClass
                 for n = 1:size(X1,2)
                     x = [X1(m,n); X2(m,n)];
                     c = costfunction(x);
-%                     if c == inf || isnan(c)
-%                         display('inf cost at ',x)
-%                     end
                     Z(m,n) = min(obj.zlim(2), c);
                 end
             end
@@ -449,25 +537,34 @@ classdef Unicycle2 < CostClass
         
         function plotTraj(obj, u)
            % Calculate the state trajectory
-           [tvec, xvec] = ode45(@(t,x)obj.unicycleDynamics(t,x,u), [0 obj.T], obj.x0);
-           xvec = xvec';
+           xvec = obj.integrate(@(t,x)obj.unicycleDynamics(t, x, u), obj.x0, true, false);
+%            [tvec, xvec] = ode45(@(t,x)obj.unicycleDynamics(t,x,u), [0 obj.T], obj.x0);
+%            xvec = xvec';
+           tvec = obj.t_span;
+           j = 1;
+           k = 1;
+           for i = 1:length(tvec)
+               if tvec(i) < u(obj.ind_time1)
+                   xarc1(:,i) = xvec(:,i);
+               elseif tvec(i) > u(obj.ind_time1) && tvec(i) < u(obj.ind_time2)
+                   xarc2(:,j) = xvec(:,i);
+                   j = j + 1;
+               elseif tvec(i) > u(obj.ind_time2) && tvec(i) < obj.T
+                   xarc3(:,k) = xvec(:,i);
+                   k = k + 1;
+               end
+           end
            
            % Plot the data 
-           if isempty(obj.state_handle)
+           if isempty(obj.traj_arc1)
 %                figure;
-               obj.state_handle = plot(xvec(1,:), xvec(2,:), 'g', 'linewidth', 1); %hold on;
-%                for i = 1:length(obj.qb(1,:))
-%                    plot(obj.qb(1,i), obj.qb(2,i), 'ko', 'linewidth', 2);
-%                    circle(obj.qb(:,i), obj.dmin, 20, 'r', []);
-%                    circle(obj.qb(:,i), obj.dmax, 50, 'b', []);
-%                end
-%                plot(obj.qd(1), obj.qd(2), 'go', 'linewidth', 4); % Plot the goal position
-% %               ylim([0 max(xvec(2,:))]);
-%                obj.state_ax = gca;
-%                title('Trajectory of unicycle');
+               obj.traj_arc1 = plot(xarc1(1,:), xarc1(2,:), 'g', 'linewidth', 1);
+               obj.traj_arc2 = plot(xarc2(1,:), xarc2(2,:), 'r', 'linewidth', 1);
+               obj.traj_arc3 = plot(xarc3(1,:), xarc3(2,:), 'b', 'linewidth', 1);
            else
-               set(obj.state_handle, 'xdata', xvec(1,:), 'ydata', xvec(2,:));
- %              set(obj.state_ax, 'ylim', [0 max(xvec(2,:))]);
+               set(obj.traj_arc1, 'xdata', xarc1(1,:), 'ydata', xarc1(2,:));
+               set(obj.traj_arc2, 'xdata', xarc2(1,:), 'ydata', xarc2(2,:));
+               set(obj.traj_arc3, 'xdata', xarc3(1,:), 'ydata', xarc3(2,:));
            end
         end
         
@@ -525,20 +622,43 @@ classdef Unicycle2 < CostClass
         
         function z = evalIntResult(obj, z_sol, t)
             if obj.useEulerIntegration
-                ind = floor(t/obj.dt*100/100)+1;%round(t/obj.dt)+1;
+                ind = find(obj.t_span == t); 
+                if isempty(ind)
+                    ind = round(t/obj.dt)+1;
+                end
                 z = z_sol(:, ind);
             else
                 z = deval(z_sol, t);
             end
         end
         
-        function setTimeSpan(obj)
-            obj.t_span = 0:obj.dt:obj.T;
-            obj.t_span_rev = obj.T:-obj.dt:0;
-            obj.t_len = length(obj.t_span);
+        function setTimeSpan(obj, u, logic)
+            switch logic
+                case 1
+                    obj.t_span = 0:obj.dt:u(obj.ind_time1);
+                    obj.t_span_rev = u(obj.ind_time1):-obj.dt:0;
+                    obj.t_len = length(obj.t_span);
+                case 2
+                    obj.t_span = u(obj.ind_time1):obj.dt:u(obj.ind_time2);
+                    obj.t_span_rev = u(obj.ind_time2):-obj.dt:u(obj.ind_time1);
+                    obj.t_len = length(obj.t_span);
+                case 3
+                    obj.t_span = u(obj.ind_time2):obj.dt:obj.T;
+                    obj.t_span_rev = obj.T:-obj.dt:u(obj.ind_time2);
+                    obj.t_len = length(obj.t_span);
+                case 0
+                    obj.t_span = 0:obj.dt:obj.T;
+                    obj.t_span_rev = obj.T:-obj.dt:0;
+                    obj.t_len = length(obj.t_span);
+            end
         end
         
-        
+        function p = p_global(obj,x)
+            q = obj.getPosition(x);
+            d = norm(q - obj.qd);
+            p = 1 - exp(-d^2/obj.sig^2);
+%             p = 1;
+        end
     end
 end
 

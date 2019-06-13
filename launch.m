@@ -15,8 +15,6 @@ function launch()
     addpath World
 
     
-    
-    
     %%%%%%%%%%%%%%%%% Create scenario %%%%%%%%%%%%%%%%%%%%%
     % Reference tracking scenario
     %scenario = ReferenceTrackingScenario(BetterUnicycleVehicle);
@@ -36,7 +34,7 @@ function launch()
     %field = AvoidObstacle(x_vec, y_vec, [1; 1], 1);
     %field = OrbitField(x_vec, y_vec, [1; 1], 2, -1, .1);
     %field = LineVectorField(x_vec, y_vec, [0; 0], 0, 1, 1);
-    %field = LineVectorField(x_vec, y_vec, [-2; 2], pi/4, 1, 1); 
+    %field = LineVectorField(x_vec, y_vec, [-2; 2], pi/4, 1, 1);
     
     % Vector field scenario
     %scenario = VectorFieldScenario(field, BetterUnicycleVehicle, EmptyWorld, VECTOR_FOLLOWING_TYPE.POINT );
