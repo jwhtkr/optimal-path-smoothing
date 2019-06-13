@@ -122,13 +122,18 @@ classdef Unicycle2 < CostClass
             step = @(u) obj.armijo_step(u);
             u = obj.initialize(u);
             while ~obj.armijo_stop(u) %i < 11
-                u = u + step(u)
-%                 u(obj.ind_time1) = u(obj.ind_time1) - obj.dt;
-%                 u(obj.ind_time2) = u(obj.ind_time2) - obj.dt;
-                                
+                u = u + step(u);             
             end
+            u
             obj.plotTraj(u);
             pause(0.3);
+            if u(obj.ind_time1) - obj.dt < 0
+                u(obj.ind_time1) = obj.T/3;
+                u(obj.ind_time2) = obj.T*2/3;
+            else
+                u(obj.ind_time1) = u(obj.ind_time1) - obj.dt;
+                u(obj.ind_time2) = u(obj.ind_time2) - obj.dt;
+            end
             
         end
         
