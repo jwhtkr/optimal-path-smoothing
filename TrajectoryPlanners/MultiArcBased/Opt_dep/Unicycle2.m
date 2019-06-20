@@ -12,19 +12,21 @@ classdef Unicycle2 < CostClass
         useEulerIntegration = true;
         
         % Cost variables
-        qd = [20; 0]; % Desired position
+        qd = [6; 6]; % Desired position
         qb = []; % Obstacles
         % qb = [[3;3], [4;4]];
         n_obs;
         sig = 10;
         vd = 1; % Desired Velocity
         
-        dmin = .25; % Distance from obstacle just before collision
-        dmax = 1.25;
+        dmin = 0.1; %.25; % Distance from obstacle just before collision
+        dmax = 1;%1.25;
         log_dmax_dmin;
         
-        
-        T = 5;
+        % Time Variables
+        time_collision;     % time of collison
+        collision_detection = false;    % collision bool
+        T = 5; % Time variable for integration
         tf = 5;% Final time
         dt = 0.1; % Integration stepsize
         t_span % Stores the span for integration
@@ -141,49 +143,39 @@ classdef Unicycle2 < CostClass
             min_cost = obj.cost(u);
             u0 = u;
             cost = @(var) obj.cost(var);
-            n = 3;
-            for j = 1:n
-                
-                w1 = -180/obj.T*3*pi/180:180/obj.T*3*pi/180/9:180/obj.T*3*pi/180;
-                w2 = -120/obj.T*3*pi/180:120/obj.T*3*pi/180/5:120/obj.T*3*pi/180;
-                w1 = w1*(j/n);
-                w2 = w2*(j/n);
-                obj.T = obj.tf/3;
-                for i = 1:length(w1)
-                    u_var = [obj.vd*(j/n); w1(i);obj.T-obj.dt*2;0;0;obj.T-obj.dt;0;0];
-%                     obj.plotTraj(u_var);
-%                     pause(0.02);
-                    if min_cost > cost(u_var)
-                        u0 = u_var;
-                        min_cost = cost(u_var);
-                    end
+            
+            w1 = -100/obj.T*3*pi/180:100/obj.T*3*pi/180/15:100/obj.T*3*pi/180;
+            
+            for i = 1:length(w1)
+                u_var = [obj.vd; w1(i);obj.T/3;obj.vd;w1(i);obj.T*2/3;obj.vd;w1(i)];
+                %                 obj.plotTraj(u_var);
+                %                 pause(0.02);
+                if min_cost > cost(u_var)
+                    u0 = u_var;
+                    min_cost = cost(u_var);
                 end
-                obj.T = obj.tf*2/3;
-                for i = 1:length(w2)
-                    u_var = [obj.vd*(j/n); u0(2);obj.T/2;obj.vd*(j/n);w2(i);obj.T-obj.dt;0;0];
-%                     obj.plotTraj(u_var);
-%                     pause(0.01);
-                    if min_cost > cost(u_var)
-                        u0 = u_var;
-                        min_cost = cost(u_var);
-                    end 
-                end
-                obj.T = obj.tf;
-                for i = 1:length(w2)
-                    u_var = [obj.vd*(j/n); u0(2);obj.T/3;obj.vd*(j/n);u0(5);obj.T*2/3;obj.vd*(j/n);w2(i)];
-%                     obj.plotTraj(u_var);
-%                     pause(0.01);
-                    if min_cost > cost(u_var)
-                        u0 = u_var;
-                        min_cost = cost(u_var);
-                    end
-                end
-                
             end
-            obj.T = obj.tf;
-%             obj.plotTraj(u0);
-%             pause(0.3);
-
+            if isinf(min_cost)
+                obj.collision_detection = true;
+                obj.cost(u0);
+                
+                obj.time_collision
+                
+                if ~obj.collision_detection
+                    s = 0.2*obj.time_collision/obj.T;
+                    u0(obj.ind_a1) = u0(obj.ind_a1)*s;
+                    u0(obj.ind_alpha1) = u0(obj.ind_alpha1)*s;
+                    u0(obj.ind_a2) = u0(obj.ind_a2)*s;
+                    u0(obj.ind_alpha2) = u0(obj.ind_alpha2)*s;
+                    u0(obj.ind_a3) = u0(obj.ind_a3)*s;
+                    u0(obj.ind_alpha3) = u0(obj.ind_alpha3)*s;
+                    u0(obj.ind_time1) = u0(obj.ind_time1)*s;
+                    u0(obj.ind_time2) = u0(obj.ind_time2)*s;
+                    obj.T = obj.T*s;
+                    obj.cost(u0);
+                end
+            end
+            
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -300,6 +292,7 @@ classdef Unicycle2 < CostClass
             
             % Evaluate Results, extract xi values and reset for next time
             % interval
+            
             costate1 = obj.evalIntResult(costates_2, u(obj.ind_time1));
             xi1 = costate1(obj.n+1:end);
             lam1 = costate1(1:obj.n);
@@ -326,12 +319,12 @@ classdef Unicycle2 < CostClass
             dJ_dtau1 = cost0(obj.ind_cost) - cost1(obj.ind_cost) + lam1'*(cost0(1:obj.n) - cost1(1:obj.n));
             dJ_dtau2 = cost1(obj.ind_cost) - cost2(obj.ind_cost) + lam2'*(cost1(1:obj.n) - cost2(1:obj.n));
             
-            if u(obj.ind_time1) - dJ_dtau1 < 0 || u(obj.ind_time1) - dJ_dtau1 > u(obj.ind_time2) - dJ_dtau2
-                dJ_dtau1 = 0;
-            end
-            if u(obj.ind_time2) - dJ_dtau2 < u(obj.ind_time1) - dJ_dtau1 || u(obj.ind_time2) - dJ_dtau2 > obj.T
-                dJ_dtau2 = 0;
-            end
+%             if u(obj.ind_time1) - dJ_dtau1 < 0 || u(obj.ind_time1) - dJ_dtau1 > u(obj.ind_time2) - dJ_dtau2
+%                 dJ_dtau1 = 0;
+%             end
+%             if u(obj.ind_time2) - dJ_dtau2 < u(obj.ind_time1) - dJ_dtau1 || u(obj.ind_time2) - dJ_dtau2 > obj.T
+%                 dJ_dtau2 = 0;
+%             end
             % Final Partial
             dJ_du = [xi0' dJ_dtau1 xi1' dJ_dtau2 xi2'];
         end
@@ -549,13 +542,14 @@ classdef Unicycle2 < CostClass
            tvec = obj.t_span;
            j = 1;
            k = 1;
+           xarc2 = [];
            for i = 1:length(tvec)
                if tvec(i) < u(obj.ind_time1)
                    xarc1(:,i) = xvec(:,i);
-               elseif tvec(i) > u(obj.ind_time1) && tvec(i) < u(obj.ind_time2)
+               elseif tvec(i) >= u(obj.ind_time1) && tvec(i) <= u(obj.ind_time2)
                    xarc2(:,j) = xvec(:,i);
                    j = j + 1;
-               elseif tvec(i) > u(obj.ind_time2) && tvec(i) < obj.T
+               elseif tvec(i) > u(obj.ind_time2) && tvec(i) <= obj.T
                    xarc3(:,k) = xvec(:,i);
                    k = k + 1;
                end
@@ -617,9 +611,13 @@ classdef Unicycle2 < CostClass
             zvec(:,1) = z_act;
             
             % Perform integration            
-            for k = 2:obj.t_len                
+            for k = 2:obj.t_len
                 z_act = z_act + dynamics(t(k), z_act)*del_t;
                 zvec(:,k) = z_act;
+                if isinf(zvec(end,k)) && obj.collision_detection
+                    obj.time_collision = obj.t_span(k);
+                    obj.collision_detection = false;
+                end
             end
             
             % Reverse ordering of zvec if reverse integration performed
@@ -635,6 +633,7 @@ classdef Unicycle2 < CostClass
                     ind = round(t/obj.dt)+1;
                 end
                 z = z_sol(:, ind);
+
             else
                 z = deval(z_sol, t);
             end
@@ -665,8 +664,8 @@ classdef Unicycle2 < CostClass
             q = obj.getPosition(x);
             d = norm(q - obj.qd);
             p = 1 - exp(-d^2/obj.sig^2);
-%             p = 1;
         end
+        
     end
 end
 

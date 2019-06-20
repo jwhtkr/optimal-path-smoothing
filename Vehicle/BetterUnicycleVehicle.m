@@ -25,7 +25,7 @@ classdef BetterUnicycleVehicle < Vehicle
     methods
         function obj = BetterUnicycleVehicle(varargin)
             % Get the initial state
-            x0 = [0 0 0 0 0]'; % default to the zero state
+            x0 = [1 1 pi/4 3 0]'; % default to the zero state
             if nargin > 0
                 x0 = varargin{1}; 
             end
