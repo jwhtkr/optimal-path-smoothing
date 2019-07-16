@@ -6,28 +6,40 @@ classdef CombinedGoToGoalOrbitAvoidWithBarrierScenario < VectorFieldScenario
         avoid_indices % Stores the indices for the avoidance fields
         q_inf; % Large number to use for placing an obstacle infinitely far away
         n_sensors; % Stores the number of sensors
+        x_g; % Stores the location goal of the robot
+        goals;
+        x_vec;
+        y_vec;
+        v_max;
     end
     
     methods
         function obj = CombinedGoToGoalOrbitAvoidWithBarrierScenario(veh, control_type)
             % Plotting variables
-            x_vec = -1:1:20;
-            y_vec = -6:1:10;
+            x_vec = -1:1:20; % size of the vector field arrow graph limits
+            y_vec = -6:1:10; % size of the vector field arrow graph limits
             
             % Vehicle variables
-            v_max = 2;
+            v_max = 0.5;
                         
             % Go to goal variables
-            x_g =  [20; 5]; %[16; 10]; % try [20; 5]; [25; 5];
+%             goals = [  3,   0,   3,   3,  6, 6.5,   6, 8.5, 9.5;
+%                      1.5,   0, 1.5,-6.5, -6,  -1,  -6, 0.5, -6]; 
+%             broke through wall, was from straight line movement, see first_fail.jpeg
+%             goals = [ 2, 0,  2.5, 2.5;
+%                      -0.67, 0, 1.67,  -4];
+            goals = [8.5;
+                     -10]; 
+            x_g =  goals(:,1); %[16; 10]; % try [20; 5]; [25; 5];
             
             % Obstacle avoidance variables - orbit
-            S = 3; % Sphere of influence
-            R = 2; % Radius of orbit
+            S = 0.34; % Sphere of influence
+            R = 0.2; % Radius of orbit
             k_conv = 0.5; % Convergence gain
             
             % Obstacle avoidance variables - barrier
-            S_b = 1.0; % Sphere of influence of barrier
-            R_b = 0.5; % Radius of full influence
+            S_b = 0.3; % Sphere of influence of barrier
+            R_b = 0.1; % Radius of full influence
             
             % Weights
             w_g2g = 1;
@@ -63,6 +75,11 @@ classdef CombinedGoToGoalOrbitAvoidWithBarrierScenario < VectorFieldScenario
             obj.avoid_indices = avoid_indices;
             obj.q_inf = q_inf; 
             obj.n_sensors = veh.sensor.n_lines;
+            obj.x_g = x_g;
+            obj.goals = goals;
+            obj.x_vec = x_vec;
+            obj.y_vec = y_vec;
+            obj.v_max = v_max;
         end
         
         function u = control(obj, t, x)
@@ -83,9 +100,6 @@ classdef CombinedGoToGoalOrbitAvoidWithBarrierScenario < VectorFieldScenario
             % Get the control
             u = control@VectorFieldScenario(obj, t, x);
         end
-        
-        
-        
         
     end
     

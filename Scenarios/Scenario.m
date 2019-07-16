@@ -10,7 +10,7 @@ classdef Scenario < handle
         plot_during_sim; % true => plot while simulating (requires euler integration)
         t0 = 0; % Initial time of simulation
         dt = 0.01; % Simulation step size
-        tf = 10; % Final time of simulation
+        tf = 50; % Final time of simulation
         
         % Simulation results
         tmat = [] % Matrix of time values
@@ -90,7 +90,7 @@ classdef Scenario < handle
             % Plot the vehicle
             obj.vehicle.initializePlots(gca);
             
-            pause();
+            pause(1);
         end
         
         function plotResults2(obj)
@@ -177,10 +177,11 @@ classdef Scenario < handle
         
         function integrateEuler(obj)
             % Initialize state data
-            obj.tmat = [obj.t0:obj.dt:obj.tf]';
+            obj.tmat = [obj.t0:obj.dt:200]';
             len = length(obj.tmat);
             obj.xmat = zeros(length(obj.vehicle.x), len);
             obj.xmat(:,1) = obj.vehicle.x;
+            i = 2;
 
             % Loop through and calculate the state
             for k = 1:len
@@ -198,11 +199,23 @@ classdef Scenario < handle
                 % Get the sensor measurements
                 obj.vehicle.getObstacleDetections(obj.world);
                 
+                % Get position
+                q = [obj.vehicle.x(1); obj.vehicle.x(2)];
+                min_goal_val = 0.4;
+                dif = abs(q - obj.x_g)
+                if abs(q - obj.x_g) <= [min_goal_val; min_goal_val]
+                    obj.x_g = obj.goals(:,i);
+                    obj.vector_field.fields{1} = GoToGoalField(obj.x_vec, obj.y_vec, obj.x_g, obj.v_max);
+                    if i < 9
+                        i = i + 1;
+                    end
+                end
+                
                 % Plot the state
                 if obj.isPlotReady()
                     obj.plotState(t);
                     obj.plotWorld(t);
-                    pause(obj.dt/4); % dt/4 to allow for computation time as well
+                    pause(obj.dt); % dt/4 to allow for computation time as well
                 end
             end
         end

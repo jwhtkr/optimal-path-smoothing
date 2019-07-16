@@ -34,7 +34,7 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
     methods
         function obj = SmoothDifferentialDriveVehicle(varargin)
             % Get the initial state
-            x0 = [0 0 0 0 0]'; % default to the zero state
+            x0 = [8.5 -4 0 0 0]'; % default to the zero state
             if nargin > 0
                 x0 = varargin{1}; 
             end
@@ -55,8 +55,8 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             % Calculate feedback matrix for velocity point control
             A = zeros(2);
             B = eye(2);
-            Q = diag([1, 1]);
-            R = diag([.1, .1]);
+            Q = diag([.1, 0.1]);
+            R = diag([.05, 1]);
             obj.K_point_vel = lqr(A, B, Q, R);
             
             % Calculate feedback matrix for velocity control
@@ -74,7 +74,7 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             % Calculate feedback matrix for orientation control
             A = [0 0 0; 0 0 1; 0 0 0];
             B = [r/2 r/2; 0 0; r/L -r/L];
-            Q = diag([10 100 0]);
+            Q = diag([10, 100, 0]);
             R = diag([1 1]);
             obj.K_orient = lqr(A, B, Q, R);
             
