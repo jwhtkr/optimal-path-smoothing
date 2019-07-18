@@ -16,15 +16,17 @@ classdef CombinedGoToGoalOrbitAvoidWithBarrierScenario < VectorFieldScenario
     methods
         function obj = CombinedGoToGoalOrbitAvoidWithBarrierScenario(veh, control_type)
             % Plotting variables
-            x_vec = -1:1:20; % size of the vector field arrow graph limits
-            y_vec = -6:1:10; % size of the vector field arrow graph limits
+            x_vec = -1:1:16; % size of the vector field arrow graph limits
+            y_vec = -6:1:3; % size of the vector field arrow graph limits
             
             % Vehicle variables
             v_max = 0.5;
                         
             % Go to goal variables
-%             goals = [  3,   0,   3,   3,  6, 6.5,   6, 8.5, 9.5;
-%                      1.5,   0, 1.5,-6.5, -6,  -1,  -6, 0.5, -6]; 
+            goals = [  3,   3,  5.75, 6.5,   6, 8.5, 9.5;
+                     1.5,-6.5,    -6,  -1,  -6, 0.5,  -6]; 
+            goals = [  6, 8.5, 9.5;
+                      -6, 0.5,  -6]; 
 %             broke through wall, was from straight line movement, see first_fail.jpeg
 %             goals = [ 2, 0,  2.5, 2.5;
 %                      -0.67, 0, 1.67,  -4];

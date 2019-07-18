@@ -29,7 +29,9 @@ classdef SmoothDifferentialDrive < DifferentialDrive
             % Calculate velocities
             v = obj.rad/2*(wr+wl); % Translational velocity
             w = obj.rad/obj.L*(wr-wl); % Rotational velocity
-            
+            if t >= 8.33
+                wr = wr + 0.000001;
+            end
             % Calculate dynamics
             theta = x(obj.th_ind);  % Orientation
             xdot = zeros(obj.dimensions,1);

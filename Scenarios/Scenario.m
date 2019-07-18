@@ -177,7 +177,7 @@ classdef Scenario < handle
         
         function integrateEuler(obj)
             % Initialize state data
-            obj.tmat = [obj.t0:obj.dt:200]';
+            obj.tmat = [obj.t0:obj.dt:obj.tf]';
             len = length(obj.tmat);
             obj.xmat = zeros(length(obj.vehicle.x), len);
             obj.xmat(:,1) = obj.vehicle.x;
@@ -206,7 +206,7 @@ classdef Scenario < handle
                 if abs(q - obj.x_g) <= [min_goal_val; min_goal_val]
                     obj.x_g = obj.goals(:,i);
                     obj.vector_field.fields{1} = GoToGoalField(obj.x_vec, obj.y_vec, obj.x_g, obj.v_max);
-                    if i < 9
+                    if i < 7
                         i = i + 1;
                     end
                 end

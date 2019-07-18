@@ -34,7 +34,7 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
     methods
         function obj = SmoothDifferentialDriveVehicle(varargin)
             % Get the initial state
-            x0 = [8.5 -4 0 0 0]'; % default to the zero state
+            x0 = [8.5 -5 0 0 0]'; % default to the zero state
             if nargin > 0
                 x0 = varargin{1}; 
             end
@@ -247,7 +247,7 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             % Restrict the velocity of the vector field
             v_g = norm(g);
             if v_g > obj.vd_field_max
-                g = obj.vd_field_max/v_g * g;
+                g = ((obj.vd_field_max)/v_g * g);
             end
             
             % Calculate point control
