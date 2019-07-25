@@ -28,6 +28,7 @@ classdef Scenario < handle
     
     properties (SetAccess = protected, GetAccess = public)
         h_state_traj = [];
+        plot_ax = [];
     end
     
     methods (Abstract)
@@ -76,12 +77,16 @@ classdef Scenario < handle
             set(obj.h_state_traj, 'xdata', obj.xmat(obj.x_ind, 1:ind), 'ydata', obj.xmat(obj.y_ind,1:ind));
             
             % Plot the vehicle
-            obj.vehicle.plotVehicle();            
+            obj.vehicle.plotVehicle();  
+            
+            % Update the axes title
+            title(obj.plot_ax, obj.getTitle(t));
         end
         
         function initializeStatePlot(obj)
             figure; 
             % Plot the world
+            obj.plot_ax = gca;
             obj.world.plotWorld(gca);
             
             % Initialize the state trajectory
@@ -158,6 +163,10 @@ classdef Scenario < handle
             xlabel('Time (s)');
         end
         
+        function title_val = getTitle(obj, t)
+            title_val = ['Sim Time: ' num2str(t, '%.2f')];
+        end
+        
     end
     
     methods (Access=protected)
@@ -199,23 +208,23 @@ classdef Scenario < handle
                 % Get the sensor measurements
                 obj.vehicle.getObstacleDetections(obj.world);
                 
-                % Get position
-                q = [obj.vehicle.x(1); obj.vehicle.x(2)];
-                min_goal_val = 0.4;
-                dif = abs(q - obj.x_g)
-                if abs(q - obj.x_g) <= [min_goal_val; min_goal_val]
-                    obj.x_g = obj.goals(:,i);
-                    obj.vector_field.fields{1} = GoToGoalField(obj.x_vec, obj.y_vec, obj.x_g, obj.v_max);
-                    if i < 7
-                        i = i + 1;
-                    end
-                end
+%                 % Get position
+%                 q = [obj.vehicle.x(1); obj.vehicle.x(2)];
+%                 min_goal_val = 0.4;
+%                 dif = abs(q - obj.x_g);
+%                 if abs(q - obj.x_g) <= [min_goal_val; min_goal_val]
+%                     obj.x_g = obj.goals(:,i);
+%                     obj.vector_field.fields{1} = GoToGoalField(obj.x_vec, obj.y_vec, obj.x_g, obj.v_max);
+%                     if i < 7
+%                         i = i + 1;
+%                     end
+%                 end
                 
                 % Plot the state
                 if obj.isPlotReady()
                     obj.plotState(t);
                     obj.plotWorld(t);
-                    pause(obj.dt); % dt/4 to allow for computation time as well
+                    pause(obj.dt/4); % dt/4 to allow for computation time as well
                 end
             end
         end

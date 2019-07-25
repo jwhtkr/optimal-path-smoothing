@@ -55,8 +55,8 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             % Calculate feedback matrix for velocity point control
             A = zeros(2);
             B = eye(2);
-            Q = diag([.1, 0.1]);
-            R = diag([.05, 1]);
+            Q = diag([1, 1]);
+            R = diag([.1, .1]);
             obj.K_point_vel = lqr(A, B, Q, R);
             
             % Calculate feedback matrix for velocity control

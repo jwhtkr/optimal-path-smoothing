@@ -30,7 +30,7 @@ classdef VectorFieldScenario < Scenario
            initializeStatePlot@Scenario(obj);
            
            % Plot the vector field
-           obj.vector_field.plotVectorField(0);           
+           %obj.vector_field.plotVectorField(0);           
         end
     end
 end

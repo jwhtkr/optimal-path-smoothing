@@ -5,6 +5,10 @@ classdef GoToGoalField < VectorField
         x_g % Goal position
         v_max % Max velocity
         
+    end
+    
+    properties(SetAccess = protected, GetAccess = public)
+        
         % Convergence variables
         sig = 1 % Effects the convergence to zero velocity through 1-exp(-d^2/sig^2)
         sig_sq % Sig^2
@@ -38,6 +42,11 @@ classdef GoToGoalField < VectorField
             else
                 g = [0;0];
             end
+        end
+        
+        function setSigma(obj, sig_in)
+            obj.sig = sig_in;
+            obj.sig_sq = obj.sig^2;
         end
     end
 end
