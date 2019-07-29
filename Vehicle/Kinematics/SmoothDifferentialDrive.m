@@ -29,17 +29,15 @@ classdef SmoothDifferentialDrive < DifferentialDrive
             % Calculate velocities
             v = obj.rad/2*(wr+wl); % Translational velocity
             w = obj.rad/obj.L*(wr-wl); % Rotational velocity
-%             if t >= 8.33
-%                 wr = wr + 0.000001;
-%             end
+
             % Calculate dynamics
             theta = x(obj.th_ind);  % Orientation
             xdot = zeros(obj.dimensions,1);
             xdot(obj.x_ind) = v * cos(theta); % \dot{x}
             xdot(obj.y_ind) = v * sin(theta); % \dot{y}
-            xdot(obj.th_ind) = w; % \dot{theta} 
+            xdot(obj.th_ind) = w; % \dot{theta}
             xdot(obj.ind_wr) = ur; % \dot{wr}
-            xdot(obj.ind_wl) = ul; % \dot{wl}            
+            xdot(obj.ind_wl) = ul; % \dot{wl}
         end   
         
         function [v, w] = getVelocities(obj, t, x, u)

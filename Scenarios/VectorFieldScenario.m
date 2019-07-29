@@ -10,7 +10,6 @@ classdef VectorFieldScenario < Scenario
         function obj = VectorFieldScenario(vector_field, veh, world, control_type)
             % Initialize the scenario
             obj = obj@Scenario(veh, world, true);
-            obj.tf = 40; % Simulate for 20 seconds
             
             % Store the vector field
             obj.vector_field = vector_field; 

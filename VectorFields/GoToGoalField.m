@@ -8,7 +8,6 @@ classdef GoToGoalField < VectorField
     end
     
     properties(SetAccess = protected, GetAccess = public)
-        
         % Convergence variables
         sig = 1 % Effects the convergence to zero velocity through 1-exp(-d^2/sig^2)
         sig_sq % Sig^2

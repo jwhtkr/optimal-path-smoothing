@@ -190,7 +190,6 @@ classdef Scenario < handle
             len = length(obj.tmat);
             obj.xmat = zeros(length(obj.vehicle.x), len);
             obj.xmat(:,1) = obj.vehicle.x;
-            i = 2;
 
             % Loop through and calculate the state
             for k = 1:len
@@ -207,19 +206,7 @@ classdef Scenario < handle
                 
                 % Get the sensor measurements
                 obj.vehicle.getObstacleDetections(obj.world);
-                
-%                 % Get position
-%                 q = [obj.vehicle.x(1); obj.vehicle.x(2)];
-%                 min_goal_val = 0.4;
-%                 dif = abs(q - obj.x_g);
-%                 if abs(q - obj.x_g) <= [min_goal_val; min_goal_val]
-%                     obj.x_g = obj.goals(:,i);
-%                     obj.vector_field.fields{1} = GoToGoalField(obj.x_vec, obj.y_vec, obj.x_g, obj.v_max);
-%                     if i < 7
-%                         i = i + 1;
-%                     end
-%                 end
-                
+                                
                 % Plot the state
                 if obj.isPlotReady()
                     obj.plotState(t);

@@ -14,7 +14,7 @@ classdef CombinedGoToGoalOrbitAvoidWithBarrierScenario < VectorFieldScenario
         x_g; % Stores the location goal of the robot
         goals;
         goal_ind = 1;
-        goal_switch = 0.5; % Distance away from a goal for switching to occur
+        goal_switch = 0.3; % Distance away from a goal for switching to occur
         n_goals; % The number of goals
         g2g_field_index; % The index of the go-to-goal within the array of vector fields
         h_goal_plot = [] % Plot the goal location
@@ -30,24 +30,24 @@ classdef CombinedGoToGoalOrbitAvoidWithBarrierScenario < VectorFieldScenario
             v_max = 0.5;
                         
             % Go to goal variables
-            goals = [  3,   3,  5.75, 6.5,   6, 8.5, 9.5;
-                     1.5,-6.5,    -6,  -1,  -6, 0.5,  -6]; 
+            goals = [  3,0,3,   3,  5.75, 6.5, 5.5, 6.5, 8.5, 9.5;
+                     1.5,0,1.5,-6.5,  -6,  -1,  -6, -6, 0.5,  -6]; 
 %             goals = [  6, 8.5, 9.5;
 %                       -6, 0.5,  -6]; 
 %             broke through wall, was from straight line movement, see first_fail.jpeg
 %             goals = [ 2, 0,  2.5, 2.5;
 %                      -0.67, 0, 1.67,  -4];
-            goals = [8.5;
-                     -10]; 
+%             goals = [8.5;
+%                      -10]; 
             x_g =  goals(:,1); %[16; 10]; % try [20; 5]; [25; 5];
             
             % Obstacle avoidance variables - orbit
-            S = 0.5; % Sphere of influence
-            R = 0.34; % Radius of orbit
+            S = 0.36; % Sphere of influence
+            R = 0.3; % Radius of orbit
             k_conv = 0.5; % Convergence gain
             
             % Obstacle avoidance variables - barrier
-            S_b = 0.3; % Sphere of influence of barrier
+            S_b = 0.27; % Sphere of influence of barrier
             R_b = 0.1; % Radius of full influence
             
             % Weights
