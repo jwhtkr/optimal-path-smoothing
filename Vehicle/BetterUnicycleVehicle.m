@@ -20,12 +20,21 @@ classdef BetterUnicycleVehicle < Vehicle
         % Gains for control
         k_wd = 2; % Gain for the desired rotational velocity
         vd_field_max = 5; % Maximum desired velocity from a vector field
+        
+        planner;
+        u_init;
+        v_d;
+        w_d;
+        
+        v_ind = 4;
+        w_ind = 5;
+        
     end
     
     methods
         function obj = BetterUnicycleVehicle(varargin)
             % Get the initial state
-            x0 = [1 1 pi/4 3 0]'; % default to the zero state
+            x0 = [0 0 0 0 0]'; % default to the zero state
             if nargin > 0
                 x0 = varargin{1}; 
             end
@@ -56,6 +65,7 @@ classdef BetterUnicycleVehicle < Vehicle
             Q = diag([1, 1]);
             R = diag([1, 1]);
             obj.K_vel = lqr(A, B, Q, R);
+            
         end
         
         function u = velocityControl(obj, vd, wd, varargin)
@@ -108,7 +118,7 @@ classdef BetterUnicycleVehicle < Vehicle
             th = x(obj.kinematics.th_ind);
             c = cos(th);
             s = sin(th);
-            
+                
             % Form espilon variables
             w_hat_e = [0 -eps*w; w/eps 0];
             R_e = [c -eps*s; s eps*c];

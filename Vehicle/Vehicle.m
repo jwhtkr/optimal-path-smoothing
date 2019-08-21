@@ -18,6 +18,8 @@ classdef Vehicle < handle
         x       % State of the vehicle
         q_ind   % Indices of the position
         th_ind  % Index of the orientation
+        x_ind;
+        y_ind;
         
         % Latest sensor measurements
         xo_latest = [] % Latest x measurement
@@ -39,6 +41,8 @@ classdef Vehicle < handle
             obj.x = x0;
             obj.q_ind = q_ind;
             obj.th_ind = kinematics.th_ind;
+            obj.x_ind = kinematics.x_ind;
+            obj.y_ind = kinematics.y_ind;
         end
         
         function [xo, yo, dist] = getObstacleDetections(obj, world)
@@ -68,7 +72,7 @@ classdef Vehicle < handle
             end
             
             % Plot the vehicle
-            obj.kinematics.plotState(obj.t, obj.x);  
+            obj.kinematics.plotState(obj.t, obj.x);
             
             % Plot the sensor data
             obj.sensor.plotMeasurements(obj.x(obj.q_ind), obj.xo_latest, obj.yo_latest);

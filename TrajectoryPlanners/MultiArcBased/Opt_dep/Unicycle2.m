@@ -2,8 +2,8 @@ classdef Unicycle2 < CostClass
         
     properties
         % Cost weights
-        p1 = 2.1; % weight on velocity
-        p2 = 0.1; % weight on angular velocity
+        p1 = .1; % weight on velocity
+        p2 = 0.00000000001; % weight on angular velocity
         p3 = 4; % weight of avoidance
         p5 = .1; % weight on go to goal
         
@@ -12,7 +12,7 @@ classdef Unicycle2 < CostClass
         useEulerIntegration = true;
         
         % Cost variables
-        qd = [6; 6]; % Desired position
+        qd = []; % Desired position
         qb = []; % Obstacles
         % qb = [[3;3], [4;4]];
         n_obs;
@@ -48,6 +48,7 @@ classdef Unicycle2 < CostClass
         % Define the state indices
         ind_x = 1;
         ind_y = 2;
+        ind_q = [1; 2];
         ind_theta = 3; 
         ind_v = 4;
         ind_w = 5;
@@ -78,7 +79,6 @@ classdef Unicycle2 < CostClass
             obj = obj@CostClass(x1, x2, z, x0);
             obj.n_obs = size(obj.qb, 2);
             obj.log_dmax_dmin = log(obj.dmax - obj.dmin);
-            
             
             % Control Gain
             A = zeros(2);
@@ -126,7 +126,7 @@ classdef Unicycle2 < CostClass
             while ~obj.armijo_stop(u) %i < 11
                 u = u + step(u);             
             end
-            u
+            u;
             obj.plotTraj(u);
             pause(0.3);
             if u(obj.ind_time1) - obj.dt < 0
@@ -227,7 +227,6 @@ classdef Unicycle2 < CostClass
                     end
                 end
             end
-            
         end
         
         function phi = terminalCost(obj, x, u)
@@ -662,9 +661,24 @@ classdef Unicycle2 < CostClass
         
         function p = p_global(obj,x)
             q = obj.getPosition(x);
-            d = norm(q - obj.qd);
-            p = 1 - exp(-d^2/obj.sig^2);
+%             d = norm(q - obj.qd);
+%             p = 1 - exp(-d^2/obj.sig^2);
+            p = 1;
         end
+        
+        function setGoal(obj, q)
+            obj.qd = q;
+        end
+        
+        function xT = getTerminalPosition(obj, x0, u)
+
+            %z_sol = ode45(@(t,z)obj.costAndStateDynamics(t,z,u), [0:obj.dt:obj.T], z0, opts);
+            xvec = obj.integrate(@(t,x)obj.unicycleDynamics(t, x, u), x0, true, false);
+            
+            % Extract the final value for the cost
+            xT = obj.evalIntResult(xvec, obj.T);
+        end
+        
         
     end
 end

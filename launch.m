@@ -13,6 +13,7 @@ function launch()
     addpath Vehicle
     addpath Vehicle/Kinematics
     addpath World
+    addpath TrajectoryPlanners/MultiArcBased/Opt_dep
 
     
     %%%%%%%%%%%%%%%%% Create scenario %%%%%%%%%%%%%%%%%%%%%
@@ -25,8 +26,9 @@ function launch()
     %scenario = VelocityTrackingScenario(BetterUnicycleVehicle);    
     %scenario = VelocityTrackingScenario(SimpleUnicycleVehicle);    
 %     scenario = ParamOptScenario(BetterUnicycleVehicle);
-    scenario = MultiParamOptScenario(BetterUnicycleVehicle);
-        
+%     scenario = MultiParamOptScenario(BetterUnicycleVehicle);
+    scenario = MultiAgent_ParamOptScenario();
+       
     % Create a vector field
     x_vec = -5:.5:5;
     y_vec = -5:.5:5;

@@ -55,13 +55,7 @@ classdef VehicleKinematics < handle
                 % Plot the initial path point
                 obj.h_path = plot(ax, q(1), q(2), [':' obj.c], 'linewidth', 3);                    
             end   
-%             if obj.plot_traj
-%                 % Set the figure to be the same as the vehicle was
-%                 % plotted in
-%                 
-%                 % Plot the initial path point
-%                 obj.h_traj = plot(ax, q(1), q(2), ['-' obj.c], 'linewidth', 2);                    
-%             end 
+
         end
         
         function plotState(obj, t, x)
@@ -98,22 +92,6 @@ classdef VehicleKinematics < handle
                end                
             end
             
-%             if obj.plot_traj
-%                if t >= obj.next_path_time
-%                     % Form the aggregate path
-%                     [tvec, xvec] = ode45(@(t,x)obj.planner.unicycleDynamics(t,x,obj.control(t,x)), [0 obj.T], obj.planner.x0);
-%                     xvec = xvec';
-%                     
-%                     % Plot the Trajectory
-%                     set(obj.traj, 'xdata', xvec(1,:), 'ydata', xvec(2,:));
-% 
-%                     % Replot
-%                     set(obj.h_path, 'xdata', x_vec, 'ydata', y_vec);
-% 
-%                     % Reset the time
-%                     obj.next_path_time = t + obj.path_period;
-%                end                
-%             end
             
         end
     
