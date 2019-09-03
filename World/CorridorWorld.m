@@ -1,0 +1,19 @@
+classdef CorridorWorld < PolygonWorld
+    %PolygonWorld1 Is an instantiation of Polygon World with a three polygons
+    
+    
+    methods
+        function obj = CorridorWorld()
+            % Define the vertices for various polygons
+            V1 = [-2, 10, 10, -2; 2, 2, 6, 6];
+            V2 = [-2, 16, 16, 18, 18, -2;-2, -2, 6, 6, -4, -4];
+            
+            
+            % Create the polygon world
+            obj = obj@PolygonWorld(V1, V2);
+        end
+        
+        
+    end
+end
+

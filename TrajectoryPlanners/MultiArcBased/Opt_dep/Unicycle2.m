@@ -2,10 +2,10 @@ classdef Unicycle2 < CostClass
         
     properties
         % Cost weights
-        p1 = .1; % weight on velocity
-        p2 = 0.00000000001; % weight on angular velocity
+        p1 = .5; % weight on velocity
+        p2 = 0.25; % weight on angular velocity
         p3 = 4; % weight of avoidance
-        p5 = .1; % weight on go to goal
+        p5 = 1; % weight on go to goal
         
         % Operational flags
         numericalPartialLogic = false;
@@ -22,18 +22,23 @@ classdef Unicycle2 < CostClass
         dmin = 0.1; %.25; % Distance from obstacle just before collision
         dmax = 1;%1.25;
         log_dmax_dmin;
+        log_dmax_dmin2;
         
         % Time Variables
         time_collision;     % time of collison
         collision_detection = false;    % collision bool
-        T = 5; % Time variable for integration
-        tf = 5;% Final time
+        T = 2.5; % Time variable for integration
+        tf = 2.5;% Final time
         dt = 0.1; % Integration stepsize
         t_span % Stores the span for integration
         t_span_rev % Same as t_span but in reverse order
         t_len % Number of time variables        
         
         k_vel_ctrl;
+%         vl;
+        agent_num;
+        leader_traj;
+        n_agents;
         
         % Define the control variables
         ind_a1 = 1;
@@ -79,7 +84,7 @@ classdef Unicycle2 < CostClass
             obj = obj@CostClass(x1, x2, z, x0);
             obj.n_obs = size(obj.qb, 2);
             obj.log_dmax_dmin = log(obj.dmax - obj.dmin);
-            
+            obj.log_dmax_dmin2 = log(obj.dmax*2/3 - obj.dmin);
             % Control Gain
             A = zeros(2);
             B = eye(2);
@@ -208,6 +213,25 @@ classdef Unicycle2 < CostClass
             % Get portion for velocities
             L = obj.p_global(x)*obj.p1/2*(v-obj.vd)^2 + obj.p_global(x)*obj.p2/2*w^2;
             
+            x_leader = obj.evalIntResult(obj.leader_traj, t);
+            d = obj.getVoronoiDistance(x,x_leader);
+            
+            for k = 1:length(d)
+                if d(k) < obj.dmin
+                    test = 0;
+                end
+                if d(k) > obj.dmin && d(k) < obj.dmax/2
+                    Lvoronoi = obj.log_dmax_dmin2 - log(d(k) - obj.dmin);
+                    L = L + Lvoronoi;
+                elseif d(k) < obj.dmin
+                    L = L + inf;
+                    if isnan(L)
+                        L = 0;
+                    end
+                end
+            end
+            
+            
             % Get portion for obstacles
             for k = 1:obj.n_obs
                 % Extract obstacle of interest
@@ -275,7 +299,7 @@ classdef Unicycle2 < CostClass
             
             % Simulate costates backward in time Tf to tau2
             obj.setTimeSpan(u,3);
-
+            
             costates_T = obj.integrate(@(t,costate)obj.costateDynamics(t, costate, x_sol, u), costateT, false, false);
             
             % Evaluate Results, extract xi values and reset for next time
@@ -326,6 +350,9 @@ classdef Unicycle2 < CostClass
 %             end
             % Final Partial
             dJ_du = [xi0' dJ_dtau1 xi1' dJ_dtau2 xi2'];
+            if isnan(dJ_du)
+                test = 0;
+            end
         end
         
         function dphi_dx = terminalStatePartial(obj, x)
@@ -341,8 +368,29 @@ classdef Unicycle2 < CostClass
             [v, w] = obj.getVelocities(x);
             q = obj.getPosition(x);
             
-            % Calculate necesssary derivatives
+
             dL_dx = zeros(1, obj.n);
+            dq_dx = [eye(2), [0; 0], [0; 0], [0; 0]];
+            
+            x_leader = obj.evalIntResult(obj.leader_traj, t);
+            d_barrier = obj.getVoronoiDistance(x,x_leader);
+            q_i = obj.getVoronoiIntersect(x,x_leader);
+            dLvor_dd = 0;
+            for k = 1:length(d_barrier)
+                if d_barrier(k) > obj.dmin && d_barrier(k) < obj.dmax/2
+                    dLvor_dd = -1/(d_barrier(k)-obj.dmin);
+                elseif d_barrier(k) < obj.dmin
+                    dLvor_dd = -inf;
+                end
+                
+                dd_dq = (q - q_i(:,k))' / d_barrier(k);
+                
+                % Calculate contribution of avoidance
+                dLvor_dx = dLvor_dd * dd_dq * dq_dx;
+                dL_dx = dL_dx + dLvor_dx;
+            end
+            
+            % Calculate necesssary derivatives
             dq_dx = [eye(2), [0; 0], [0; 0], [0; 0]];
             
             % Loop through obstacles to get contribution of each obstacle
@@ -371,6 +419,11 @@ classdef Unicycle2 < CostClass
             end
             
             dL_dx = dL_dx + obj.p_global(x).*[0 0 0 obj.p1*(v-obj.vd) obj.p2*w];
+            
+            if isnan(dL_dx)
+                test = 0;
+            end
+            
             
         end
         
@@ -670,13 +723,64 @@ classdef Unicycle2 < CostClass
             obj.qd = q;
         end
         
-        function xT = getTerminalPosition(obj, x0, u)
+        function [xvec, xT] = getTerminalPosition(obj, x0, u)
 
             %z_sol = ode45(@(t,z)obj.costAndStateDynamics(t,z,u), [0:obj.dt:obj.T], z0, opts);
             xvec = obj.integrate(@(t,x)obj.unicycleDynamics(t, x, u), x0, true, false);
             
             % Extract the final value for the cost
             xT = obj.evalIntResult(xvec, obj.T);
+        end
+        
+        function D = getVoronoiDistance(obj,x,x_leader)
+            q_l = x_leader(obj.ind_q);
+            theta = x_leader(obj.ind_theta);
+            R = [cos(theta), -sin(theta); sin(theta), cos(theta)];
+            
+            q_f = x(obj.ind_q)-q_l;
+            
+            if obj.n_agents == 2
+                n1 = R*[0;1];
+                d = abs(dot(q_f,n1));
+                D = [d];
+            else
+                % Only works for Star boundaries
+                phi1 = ((obj.agent_num-1)*2*pi)/(obj.n_agents)+pi/obj.n_agents;
+                offset1 = [cos(phi1) -sin(phi1); sin(phi1) cos(phi1)];
+                phi2 = ((obj.agent_num-2)*2*pi)/(obj.n_agents)+pi/obj.n_agents;
+                offset2 = [cos(phi2) -sin(phi2); sin(phi2) cos(phi2)];
+                q1 = offset1*R*[0;1];
+                q2 = offset2*R*[0;1];
+                d1 = abs(dot(q_f,q1));
+                d2 = abs(dot(q_f,q2));
+                D = [d1;d2];
+            end
+                
+        end
+        
+        function P = getVoronoiIntersect(obj,x,x_leader)
+            q_l = x_leader(obj.ind_q);
+            theta = x_leader(obj.ind_theta);
+            R = [cos(theta), -sin(theta); sin(theta), cos(theta)];
+            
+            q_f = x(obj.ind_q)-q_l;
+            
+            if obj.n_agents == 2
+                n1 = R*[1;0];
+                q_i = dot(q_f,n1)/(norm(n1)^2)*n1+q_l;
+                P = [q_i];
+            else
+                phi1 = ((obj.agent_num-1)*2*pi)/(obj.n_agents)+pi/obj.n_agents;
+                offset1 = [cos(phi1) -sin(phi1); sin(phi1) cos(phi1)];
+                phi2 = ((obj.agent_num-2)*2*pi)/(obj.n_agents)+pi/obj.n_agents;
+                offset2 = [cos(phi2) -sin(phi2); sin(phi2) cos(phi2)];
+                n1 = offset1*R*[1;0];
+                n2 = offset2*R*[1;0];
+                q1 = dot(q_f,n1)/(norm(n1)^2)*n1+q_l;
+                q2 = dot(q_f,n2)/(norm(n2)^2)*n2+q_l;
+                
+                P = [q1, q2];
+            end
         end
         
         

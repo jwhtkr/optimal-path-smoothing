@@ -28,6 +28,8 @@ classdef virtual_leader < handle
         voronoiBarrier;
         leader_xT;
         
+        t_span;
+        leader_traj;
         planner;
     end
     
@@ -35,6 +37,7 @@ classdef virtual_leader < handle
         function obj = virtual_leader(vehicle, n_agents)
             obj.vehicle = vehicle;
             obj.n_agents = n_agents;
+            obj.planner = Unicycle2(obj.vehicle.x);
         end
         
         function initializePlots(obj, ax)
@@ -153,8 +156,14 @@ classdef virtual_leader < handle
         
         function setLeaderTerminalState(obj,x,u)
 %             z_sol = obj.integrate(@(t,z)obj.UnicycleDynamics(t,z,u), obj.vehicle.x, true);
-            obj.leader_xT = obj.planner.getTerminalPosition(x,u);
+            [obj.leader_traj, obj.leader_xT] = obj.planner.getTerminalPosition(x,u);
+            obj.t_span = obj.planner.t_span;
+%             obj.leader_xT = obj.leader_traj;
 %             x = z_sol;
+            
+        end
+        
+        function x_i = getFutureLeaderState(obj,t)
             
         end
     end

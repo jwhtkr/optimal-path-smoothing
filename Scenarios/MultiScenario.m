@@ -8,6 +8,7 @@ classdef MultiScenario < handle
         n_agents;
         vehicle % Instance of teh Vehicle class
         world % Instance of the Polygon world class
+        worldEmpty
         
         % Simulation parameters
         plot_during_sim; % true => plot while simulating (requires euler integration)
@@ -41,6 +42,7 @@ classdef MultiScenario < handle
     methods
         function obj = MultiScenario(leader,agents,world,plot_during_sim)
             obj.world = world;
+            obj.worldEmpty = EmptyWorld();
             obj.plot_during_sim = plot_during_sim;
             obj.vl = leader;
             obj.agents = agents;
@@ -214,7 +216,7 @@ classdef MultiScenario < handle
                 % Store the state
                 obj.xmat(:,k,1) = obj.vl.vehicle.x;
                 
-                obj.vl.vehicle.getObstacleDetections(obj.world);
+                obj.vl.vehicle.getObstacleDetections(obj.worldEmpty);
                 for i = 1:obj.n_agents
                     xdot = obj.vl.vehicle.kinematics.kinematics(t, obj.agents(i).vehicle.x, u(:,i+1));
 

@@ -23,12 +23,12 @@ function launch()
     %scenario = ReferenceTrackingScenario(SmoothDifferentialDriveVehicle);
     
     % Velocity tracking scenarios
-    %scenario = VelocityTrackingScenario(BetterUnicycleVehicle);    
-    %scenario = VelocityTrackingScenario(SimpleUnicycleVehicle);    
+    %scenario = VelocityTrackingScenario(BetterUnicycleVehicle);
+    %scenario = VelocityTrackingScenario(SimpleUnicycleVehicle);
 %     scenario = ParamOptScenario(BetterUnicycleVehicle);
 %     scenario = MultiParamOptScenario(BetterUnicycleVehicle);
     scenario = MultiAgent_ParamOptScenario();
-       
+    
     % Create a vector field
     x_vec = -5:.5:5;
     y_vec = -5:.5:5;
