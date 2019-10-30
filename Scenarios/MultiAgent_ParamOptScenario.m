@@ -11,19 +11,13 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
     end
     
     methods
-        function obj = MultiAgent_ParamOptScenario()
-            n_agents = 3;
-            
-            world = CorridorWorld();
-            leader = virtual_leader(BetterUnicycleVehicle([7.5; 0; 0; 0; 0]),n_agents);
-            
-%             leader.planner = Unicycle2(leader.vehicle.x);
-            
+        function obj = MultiAgent_ParamOptScenario(n_agents,world,leaderVehicle)
+            leader = virtual_leader(leaderVehicle,n_agents);
             
             for k= 1:n_agents
                 q = leader.getDesiredFollowerPosition(k);
                 theta = leader.vehicle.x(leader.vehicle.th_ind);
-                agents(k) = agent(BetterUnicycleVehicle([q; theta; 0; 0]),n_agents,k);
+                agents(k) = agent(BetterUnicycleVehicle([q; theta; 1; 0]),n_agents,k);
             end
 
             
@@ -31,8 +25,8 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
             obj = obj@MultiScenario(leader, agents, world, true);
             
             obj.v_d = 1;
-            obj.w_d = 0.250;
-            obj.vl.vehicle.u_init = [obj.v_d, obj.w_d, obj.vl.planner.T/3, obj.v_d, obj.w_d, obj.vl.planner.T/3*2, obj.v_d, obj.w_d]';
+            obj.w_d = 0.0;
+            obj.vl.vehicle.u_init = [obj.v_d, obj.w_d, obj.vl.agent.planner.T/3, obj.v_d, obj.w_d, obj.vl.agent.planner.T/3*2, obj.v_d, obj.w_d]';
             obj.vl.setLeaderTerminalState(obj.vl.vehicle.x, obj.vl.vehicle.u_init);
             
             for k= 1:n_agents
@@ -51,6 +45,7 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
         function u = control(obj, t, x)
             % Calculate VL Control
 %             u = obj.vl.planner.minimize(x,obj.vl.vehicle.u_init);
+            obj.setDesiredVelocities(x, t);
             obj.vl.vehicle.v_d = obj.v_d; %u(obj.vl.planner.ind_a1);
             obj.vl.vehicle.w_d = obj.w_d; %u(obj.vl.planner.ind_alpha1);
 %             obj.vl.vehicle.u_init = u;
@@ -75,6 +70,25 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
                 obj.agents(k).vehicle.u_init = u_agent;
                 u(:,k+1) = obj.agents(k).vehicle.velocityControl(obj.agents(k).vehicle.v_d, obj.agents(k).vehicle.w_d, obj.agents(k).vehicle.x);
             end
+        end
+        
+        function setDesiredVelocities(obj, x, t)
+            if x(1) >= 7.5
+                obj.v_d = 1;
+                obj.w_d = .30;
+            end
+            if x(2) >= 3.0
+                obj.v_d = 1;
+                obj.w_d = -.30;
+            end
+            if x(1) >= 14.25
+                obj.v_d = 1;
+                obj.w_d = 0.0;
+            end
+            if x(1) >= 20
+                obj.v_d = 0.0;
+                obj.w_d = 0.0;
+            end 
         end
         
         %%%% Plotting methods - Add desired velocities %%%%

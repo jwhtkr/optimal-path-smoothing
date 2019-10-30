@@ -246,9 +246,15 @@ classdef (Abstract) CostClass < handle
 
                 if x(obj.ind_time1) + dtau1 < 0 || x(obj.ind_time1) + dtau1 > x(obj.ind_time2) + dtau2
                     dc_dx(obj.ind_time1) = 0;
+                    dtau1 = 0;
                 end
                 if x(obj.ind_time2) + dtau2 < x(obj.ind_time1) + dtau1 || x(obj.ind_time2) + dtau2 > obj.T
                     dc_dx(obj.ind_time2) = 0;
+                    dtau2 = 0;
+                end
+                if x(obj.ind_time1) + dtau1 < 0 || x(obj.ind_time1) + dtau1 > x(obj.ind_time2) + dtau2
+                    dc_dx(obj.ind_time1) = 0;
+                    dtau1 = 0;
                 end
             end
             % Output step

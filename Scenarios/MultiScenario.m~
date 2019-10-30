@@ -105,7 +105,7 @@ classdef MultiScenario < handle
             obj.vl.initializePlots(gca);
             
             for k = 1:obj.n_agents
-                obj.agents(k).vehicle.kinematics.plot_path = 0;
+                obj.agents(k).vehicle.kinematics.plot_path
                 obj.agents(k).vehicle.initializePlots(gca);
             end
             
