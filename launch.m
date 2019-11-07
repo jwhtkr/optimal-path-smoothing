@@ -28,8 +28,8 @@ function launch()
     %scenario = VelocityTrackingScenario(SimpleUnicycleVehicle);
 %     scenario = ParamOptScenario(BetterUnicycleVehicle);
 %     scenario = MultiParamOptScenario(BetterUnicycleVehicle);
-    % Only supports n = 2,3,4
-    scenario = MultiAgent_ParamOptScenario(2, CorridorWorld, BetterUnicycleVehicle([7.5; 0; 0; 1; 0]));
+    % Only supports n = 3,4
+    scenario = MultiAgent_ParamOptScenario(3, CorridorWorld, BetterUnicycleVehicle([7.5; 0; 0; 1; 0]));
     
     % Create a vector field
     x_vec = -5:.5:5;
