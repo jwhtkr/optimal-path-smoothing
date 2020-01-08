@@ -151,6 +151,68 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             u = obj.map_accel_to_wheel * accel;
         end
         
+        function u = pathVectorControl(obj, t, q_des, qd_des, qdd_des, g_function, varargin)
+            %pathVectorControl combines control laws for path tracking and
+            %vector field following. Both act as forces on a vehicle
+            %
+            %Inputs:
+            %   t: Time
+            %   q_des: Desired position
+            %   qd_des: Desired velocity vector of a point mass
+            %   qdd_des: Desired acceleration vector of a point mass
+            %   g_function: function handle for obtaining vector.
+            %               g_function is a function of (t, x)
+            %
+            %  With the output
+            %    u: control input to the system (u_v, u_omega)
+            %
+            % Note that the current time t is used to calcualte the value
+            % for epsilon in the epsilon point control
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Get the state
+            if nargin > 6
+                x = varargin{1};
+            else
+                x = obj.x;
+            end
+            
+            % Calculate epsilon
+            eps = obj.getEpsilon(t);
+            
+            % Get states
+            x_pos = x(obj.kinematics.x_ind);
+            y_pos = x(obj.kinematics.y_ind);
+            [v, w] = obj.kinematics.getVelocities(t, x, 0);
+            th = x(obj.kinematics.th_ind);
+            c = cos(th);
+            s = sin(th);
+            
+            % Form espilon variables
+            w_hat_e = [0 -eps*w; w/eps 0];
+            R_e = [c -eps*s; s eps*c];
+            R_e_inv = [1 0; 0 1/eps] * [c s; -s c];
+            
+            % Calculate current values of espilon state
+            q_eps = [x_pos; y_pos] + eps * [c; s];
+            q_eps_dot = R_e*[v; w];
+            q = [q_eps; q_eps_dot];
+            
+            % Calculate the vector field for the espilon point
+            g = g_function(t, q_eps, th);
+            
+            % Calculate point control for path following
+            u_point = -obj.K_point_ctrl*(q - [q_des; qd_des]) + qdd_des
+            
+            % Add in the force caused by the vector field
+            %u_point = u_point + g;
+            
+            % Calculate the accelerations ([a; alpha])
+            accel = R_e_inv*u_point - w_hat_e*[v; w]; 
+            
+            % Calculate the control inputs
+            u = obj.map_accel_to_wheel * accel;
+        end
+        
         %%%%%%%%%%%%%%%  Vector Field Following Controls %%%%%%%%%%%%%%%%
         function u = vectorFieldControl(obj, t, g,control_type, varargin)
             %vectorFieldControl will calculate the desired control to follow 
