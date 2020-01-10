@@ -120,6 +120,14 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
                 x = obj.x;
             end
             
+            % Calculate the epsilon point control to follow the path
+            u_eps = obj.epsilonPathControl(t, q_des, qd_des, qdd_des, x);
+            
+            % Calculate the vehicle control
+            u = obj.epsilonToVehicleControl(t, x, u_eps);
+        end
+        
+        function u_eps = epsilonPathControl(obj, t, q_des, qd_des, qdd_des, x)
             % Calculate epsilon
             eps = obj.getEpsilon(t);
             
@@ -132,9 +140,7 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             s = sin(th);
             
             % Form espilon variables
-            w_hat_e = [0 -eps*w; w/eps 0];
             R_e = [c -eps*s; s eps*c];
-            R_e_inv = [1 0; 0 1/eps] * [c s; -s c];
             
             % Calculate current values of espilon state
             q_eps = [x_pos; y_pos] + eps * [c; s];
@@ -142,13 +148,43 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             q = [q_eps; q_eps_dot];
             
             % Calculate point control
-            u_point = -obj.K_point_ctrl*(q - [q_des; qd_des]) + qdd_des;
+            u_eps = -obj.K_point_ctrl*(q - [q_des; qd_des]) + qdd_des;
+        end
+        
+        function q_eps = calculateEpsilonPoint(obj, t, x)
+            % Calculate epsilon
+            eps = obj.getEpsilon(t);
+            
+            % Extract states
+            x_pos = x(obj.kinematics.x_ind);
+            y_pos = x(obj.kinematics.y_ind);
+            th = x(obj.kinematics.th_ind);
+            c = cos(th);
+            s = sin(th);
+            
+            % Calculate the epsilon state
+            q_eps = [x_pos; y_pos] + eps * [c; s];
+        end
+        
+        function u = epsilonToVehicleControl(obj, t, x, u_eps)
+            % Calculate epsilon
+            eps = obj.getEpsilon(t);
+            
+            % Get states
+            [v, w] = obj.kinematics.getVelocities(t, x, 0);
+            th = x(obj.kinematics.th_ind);
+            c = cos(th);
+            s = sin(th);
+            
+            % Form espilon variables
+            w_hat_e = [0 -eps*w; w/eps 0];
+            R_e_inv = [1 0; 0 1/eps] * [c s; -s c];
             
             % Calculate the accelerations ([a; alpha])
-            accel = R_e_inv*u_point - w_hat_e*[v; w]; 
+            accel = R_e_inv*u_eps - w_hat_e*[v; w]; 
             
             % Calculate the control inputs
-            u = obj.map_accel_to_wheel * accel;
+            u = obj.map_accel_to_wheel * accel;            
         end
         
         function u = pathVectorControl(obj, t, q_des, qd_des, qdd_des, g_function, varargin)

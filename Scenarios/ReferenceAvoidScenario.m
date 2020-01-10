@@ -11,11 +11,26 @@ classdef ReferenceAvoidScenario < Scenario
         h_des_point = []; % Handle to the desired point
         
         % Vector field for obstacle avoidance
-        vector_field
-        avoid_indices
+        orbit_field % Uses orbit on sensors
+        avoid_field % Uses avoid on sensors
         q_inf
         n_sensors; % Stores the number of sensors
+        
+        % Current state of the control (slide or follow)
+        state = 1; % Default to tracking        
     end
+    
+    properties (Constant)
+        % State possibilities
+        state_track = 1;
+        state_slide = 0;
+        
+        % Obstacle variables
+        g_max = 1; % Maximum magnitude of the vector to be followed
+        S = 4; % Sphere of influence
+        R = 2; % Radius of orbit        
+    end
+    
     
     methods
         function obj = ReferenceAvoidScenario(veh, world)
@@ -26,44 +41,31 @@ classdef ReferenceAvoidScenario < Scenario
             x_vec = -1:1:20;
             y_vec = -6:1:10;
             
-            % Vehicle variables
-            v_max = 3;
-            
             % Obstacle avoidance variables - orbit
-            S = 3; % Sphere of influence
-            R = 2; % Radius of orbit
             k_conv = 0.5; % Convergence gain
             
-            % Obstacle avoidance variables - barrier
-            S_b = 2.0; % Sphere of influence of barrier
-            R_b = 0.5; % Radius of full influence
-            
             % Weights
-            w_avoid = 0;
-            w_barrier = 5;
-            weights = zeros(veh.sensor.n_lines*2, 1);
-            weights(1:veh.sensor.n_lines) = w_avoid;
-            weights(1+veh.sensor.n_lines:end) = w_barrier;
+            w_orbit = 1;
+            w_avoid = 1;
+            weights_orbit = w_orbit*ones(veh.sensor.n_lines, 1);
+            weights_avoid = w_avoid*ones(veh.sensor.n_lines, 1);
             
             % Create a weighted field for the vector field to follow
-            fields = cell(veh.sensor.n_lines*2, 1); % object avoidance
-            avoid_indices = 1:veh.sensor.n_lines;
+            fields_orbit = cell(veh.sensor.n_lines, 1); % object orbit field
+            fields_avoid = cell(veh.sensor.n_lines, 1); % Objective avoid field
             q_inf = [10000000; 10000000];
-            for k = avoid_indices
-                fields{k} = OrbitAvoidField(x_vec, y_vec, q_inf, R, v_max, k_conv, S);  
-                fields{k+veh.sensor.n_lines} = AvoidObstacle(x_vec, y_vec, q_inf, v_max);
-                fields{k+veh.sensor.n_lines}.S = S_b;
-                fields{k+veh.sensor.n_lines}.R = R_b;
+            for k = 1:veh.sensor.n_lines
+                fields_orbit{k} = OrbitAvoidField(x_vec, y_vec, q_inf, obj.R, obj.g_max, k_conv, obj.S);
+                fields_avoid{k} = AvoidObstacleConst(x_vec, y_vec, q_inf, obj.g_max, obj.S);                
             end
             
             % Create a combined vector field
-            obj.vector_field = SummedFields(x_vec, y_vec, fields, weights, v_max);
+            obj.orbit_field = SummedFields(x_vec, y_vec, fields_orbit, weights_orbit, obj.g_max);
+            obj.avoid_field = SummedFields(x_vec, y_vec, fields_avoid, weights_avoid, obj.g_max);
             
             % Initialize sensors
             obj.n_sensors = veh.sensor.n_lines;
-            obj.avoid_indices = avoid_indices;
             obj.q_inf = q_inf;
-            
         end
     
         %%%%  Abstract Method Implementation %%%%
@@ -75,8 +77,8 @@ classdef ReferenceAvoidScenario < Scenario
                     if isinf(sum(q))
                         q = obj.q_inf;
                     end
-                    obj.vector_field.fields{obj.avoid_indices(k)}.x_o = q;
-                    obj.vector_field.fields{obj.avoid_indices(k)+obj.n_sensors}.x_o = q;
+                    obj.orbit_field.fields{k}.x_o = q;
+                    obj.avoid_field.fields{k}.x_o = q;
                 end
             else
                 warning('No sensor readings yet received');
@@ -85,11 +87,127 @@ classdef ReferenceAvoidScenario < Scenario
             % Get the desired values
             [qd, qd_dot, qd_ddot] = obj.SineReference(t);
             
-            % Get the vector
-            g = @(t_val, x_vec, th)obj.vector_field.getVector(t_val, x_vec, th);
+            % Get the avoidance vector
+            q_eps = obj.vehicle.calculateEpsilonPoint(t, x);
+            th = x(obj.vehicle.kinematics.th_ind);
+            u_o = obj.avoid_field.getVector(t, q_eps, th);
             
-            % Calculate the control
-            u = obj.vehicle.pathVectorControl(t, qd, qd_dot, qd_ddot, g, x);
+            % Calculate the epsilon point control for trajectory tracking
+            u_t = obj.vehicle.epsilonPathControl(t, qd, qd_dot, qd_ddot, x);
+            
+            % Determine the FSM state and desired direction
+               %%%TODO: May want to change qd_ddot back to u_t in updating
+               %%%state
+            obj.updateFSMState(u_o, qd_ddot, q_eps);
+            u_d = obj.calculateDesiredAcceleration(t, q_eps, u_t, th);
+            
+            % Threshold u_d so that it is not larger than u_t
+            if norm(u_d) > norm(u_t)
+                u_d = (norm(u_t)/norm(u_d)) .* u_d;
+            end
+            
+            % Calculate the vehicle control
+            u = obj.vehicle.epsilonToVehicleControl(t, x, u_d);
+        end
+        
+        function [u_s, a] = calculateSlidingModeControl(obj, u_o, u_t)
+           %calculateSlidingModeControl returns a vector orthogonal to u_o
+           %(obstacle avoidance vector) which is a convex combination of
+           %u_o and u_t (the trajectory vector)
+           
+           % Calculate the convex combination coefficient
+           a = -(u_o'*u_t) / (u_o'*u_o - u_o'*u_t); 
+           
+           % Create the combination
+           u_s = a*u_o + (1-a)*u_t;
+        end
+        
+        function updateFSMState(obj, u_o, u_t, q)
+        %updateFSMState updates the FSM State
+        %   state_track will transition to state_slide if the minimum
+        %   obstacle distance threshold is broken
+        %
+        %   state_slide will transition to state_track under three
+        %   conditions:
+        %       1. Obstacle avoidance vector field is zero
+        %       2. The formulation of the vector of the orthogonal is
+        %          not a convex combination of u_o and u_t
+        %       3. the Fillipov condition is met 
+        %
+        
+            % If statement for each possible state
+            if obj.state == obj.state_track
+                % Calculate the min distance to an obstacle using the epsilon
+                % point
+                d_min = inf;
+                for k = 1:obj.n_sensors
+                    d = norm(obj.avoid_field.fields{k}.x_o - q);
+                    if d < d_min
+                        d_min = d;
+                    end
+                end
+                
+                % If the min distance is less than transition distance,
+                % then transition
+                if d_min <= obj.R
+                    obj.state = obj.state_slide;
+                end                
+            elseif obj.state == obj.state_slide
+                % State will transition back to state_track under three
+                % conditions
+                %   1. Obstacle avoidance vector field is zero
+                %   2. The formulation of the vector of the orthogonal is
+                %      not a convex combination of u_o and u_t
+                %   3. the Fillipov condition is met
+                
+                % 1. Obstacle avoidance vector field is zero
+                if norm(u_o) == 0
+                    obj.state = obj.state_track;
+                    return;
+                end
+                
+                % Calculate the sliding mode control
+                [u_h, alpha] = obj.calculateSlidingModeControl(u_o, u_t);
+                
+                % 2. The formulation of the vector of the orthogonal is
+                %    not a convex combination of u_o and u_t
+                if alpha < 0 || alpha > 1
+                    obj.state = obj.state_track;
+                    return;
+                end
+                
+                % Calculate parameters needed to evaluate Fillipov
+                % condition
+                n = u_o; % Normal vector to 
+                n_dot_uo = n'*u_o; % product for decision
+                n_dot_ut = n'*u_t;
+                
+                % 3. the Fillipov condition is met
+                if n_dot_uo*n_dot_ut > 0
+                    obj.state = obj.state_track;
+                    return;
+                end                
+            else
+                error('Invalid state');
+            end
+        end
+        
+        function u_d = calculateDesiredAcceleration(obj, t, q, u_t, th)
+            % Desired force vector
+            %   The desired force vector is state dependent:
+            %       state_track: u_d = u_t
+            %       state_slide: u_d is the sliding mode direction. Note
+            %       that we do not use the actual sliding mode direction as
+            %       it has not restoring force. Instead, we use a behavior
+            %       which will move us into the sliding mode direction
+            
+            if obj.state == obj.state_track
+                u_d = u_t;
+            elseif obj.state == obj.state_slide
+                u_d = obj.orbit_field.getVector(t, q, th);                
+            else
+                error('Invalid state');
+            end
         end
         
         %%%% Plotting methods - Add reference %%%%
