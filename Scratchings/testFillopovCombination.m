@@ -3,11 +3,11 @@ function testFillopovCombination
         % Create the vectors
 %         u_o = randn(2,1);
 %         uo = [-1; 0]
-        u_o = [-2.8666; -0.8847];
+        u_o = [0.33736; 0.43373];
         
 %         u_t = [1; 1]
 %         ut = randn(2,1);
-        u_t = [-0.5575; 1.2214];
+        u_t = [1.567; 0.98561];
 
         % find the combination
         a = -(u_o'*u_t) / (u_o'*u_o - u_o'*u_t)
@@ -69,5 +69,16 @@ function testFillopovCombination
     legend('uo', 'ut', 'uh', 'ud', 'zero')
     axis equal
     
+    if true
+        return;
+    end
+    
+    figure;
+    plot([0 u_o(1)], [0 u_o(2)], 'r'); hold on;
+    plot([0 u_t(1)], [0 u_t(2)], 'g');
+    plot([0 u_h(1)], [0 u_h(2)], 'b');
+    plot(0, 0, 'o', 'linewidth', 2);
+    legend('uo', 'ut', 'uh', 'zero')
+    axis equal
 end
 

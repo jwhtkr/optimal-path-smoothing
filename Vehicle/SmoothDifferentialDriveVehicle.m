@@ -55,7 +55,7 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             % Calculate feedback matrix for velocity point control
             A = zeros(2);
             B = eye(2);
-            Q = diag([1, 1]);
+            Q = diag([10, 10]);
             R = diag([.1, .1]);
             obj.K_point_vel = lqr(A, B, Q, R);
             
@@ -74,8 +74,8 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
             % Calculate feedback matrix for orientation control
             A = [0 0 0; 0 0 1; 0 0 0];
             B = [r/2 r/2; 0 0; r/L -r/L];
-            Q = diag([10 100 0]);
-            R = diag([1 1]);
+            Q = diag([1 10 0]);
+            R = diag([.1 .001]);
             obj.K_orient = lqr(A, B, Q, R);
             
            
@@ -398,7 +398,7 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
         
     end
     
-    methods (Access=protected)
+    methods (Access=public)
         function eps = getEpsilon(obj, t)
             eps = obj.eps_path*exp(-t);
             eps = max(obj.eps_path_min, eps);

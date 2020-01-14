@@ -22,6 +22,10 @@ classdef RangeSensor < handle
             else
                 obj.orien_nom = linspace(0,2*pi,obj.n_lines+1);
                 obj.orien_nom = obj.orien_nom(1:end-1); % Remove the duplicate at 2pi
+                
+                % Adjust so that the first line is not straight forward
+                delta = obj.orien_nom(2) - obj.orien_nom(1);
+                obj.orien_nom = obj.orien_nom - delta/2;
             end
         end
         

@@ -56,11 +56,11 @@ classdef OrbitAvoidField < VectorField
             r_eff_sq = xhat'*xhat;
             
             % Calculate convergence gain
-            if r_eff_sq > obj.rad^2
-                gam = 0; % Don't attract vehicle to the orbit
-            else
+%             if r_eff_sq > obj.rad^2
+%                 gam = 0; % Don't attract vehicle to the orbit
+%             else
                 gam = obj.k_conv*(obj.rad^2 - r_eff_sq);            
-            end
+%             end
             
             A = [gam, w_act; -w_act, gam];
             g = A*xhat;   
