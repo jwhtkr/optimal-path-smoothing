@@ -84,6 +84,21 @@ classdef SimpleUnicycleVehicle < Vehicle
             u = R_e_inv*u_point;            
         end
         
+        function q_eps = calculateEpsilonPoint(obj, t, x)
+            % Calculate epsilon
+            eps = obj.getEpsilon(t);
+            
+            % Extract states
+            x_pos = x(obj.kinematics.x_ind);
+            y_pos = x(obj.kinematics.y_ind);
+            th = x(obj.kinematics.th_ind);
+            c = cos(th);
+            s = sin(th);
+            
+            % Calculate the epsilon state
+            q_eps = [x_pos; y_pos] + eps * [c; s];
+        end
+        
         %%%%%%%%%%%%%%%  Vector Field Following Controls %%%%%%%%%%%%%%%%
         function u = vectorFieldControl(obj, t, g, control_type, varargin)
             %vectorFieldControl will calculate the desired control to follow 
@@ -186,7 +201,7 @@ classdef SimpleUnicycleVehicle < Vehicle
         end
     end
     
-    methods (Access=protected)
+    methods (Access=public)
         function eps = getEpsilon(obj, t)
             eps = obj.eps_path*exp(-t);
             eps = max(obj.eps_path_min, eps);
