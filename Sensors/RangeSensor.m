@@ -6,12 +6,21 @@ classdef RangeSensor < handle
         max_dist = 7; % Max distance of the range measurements
     end
     
-    properties (SetAccess = protected, GetAccess = protected)
+    properties (SetAccess = protected, GetAccess = public)
         orien_nom % Stores the nominal orientation of each of the range lines
         
         % Obstacle plots
         h_obst_pos = []; % Handles to the obstacle posiiton plots
         h_obs_lines = [];% Handles to the ranging lines
+    end
+    
+    properties (SetAccess = protected, GetAccess = public)
+        ind_left = [] % indices for sensors on the left of the vehicle
+        n_left = 0 % Number of left sensors
+        ind_right = [] % indices for sensors on the right of the vehicle
+        n_right = 0 % Number of right sensors
+        ind_front = [] % indices for sensors pointing to the front of the vehicle
+        n_front = 0 % Number of sensors pointing to the front of the vehicle
     end
     
     methods (Access = public)
@@ -22,7 +31,35 @@ classdef RangeSensor < handle
             else
                 obj.orien_nom = linspace(0,2*pi,obj.n_lines+1);
                 obj.orien_nom = obj.orien_nom(1:end-1); % Remove the duplicate at 2pi
+                
+                % Adjust so that the first line is not straight forward
+                delta = obj.orien_nom(2) - obj.orien_nom(1);
+                obj.orien_nom = obj.orien_nom - delta/2;
             end
+            
+            % Initialize the sensor indices for left and right
+            for k = 1:length(obj.orien_nom)
+                % Get angle and adjust it to be between -pi and pi
+                th = obj.orien_nom(k);
+                th = atan2(sin(th), cos(th));
+                
+                % Add it to the left if orientation is positive
+                if th > 0
+                    obj.ind_left(end+1) = k;
+                else % Otherwise consider it on the right of the vehicle
+                    obj.ind_right(end+1) = k;
+                end
+                
+                % Add it to the front if the angle is less than pi/2
+                if abs(th) < (pi/2)
+                    obj.ind_front(end+1) = k;                    
+                end
+            end
+            
+            % Set the count for the left and right fields
+            obj.n_left = length(obj.ind_left);
+            obj.n_right = length(obj.ind_right);
+            obj.n_front = length(obj.ind_front);
         end
         
         function [xo, yo, dist_o] = getObstacleDetections(obj,q, th, world)
