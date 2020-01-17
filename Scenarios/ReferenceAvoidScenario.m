@@ -20,6 +20,9 @@ classdef ReferenceAvoidScenario < Scenario
         q_inf
         n_sensors; % Stores the number of sensors
         
+        % Trajectory variables
+        clothoid
+        
         % Current state of the control (slide or follow)
         state = 2; % Default to tracking        
     end
@@ -32,6 +35,8 @@ classdef ReferenceAvoidScenario < Scenario
         
         % Obstacle variables
         g_max = 1; % Maximum magnitude of the vector to be followed
+        k_max = 5; % Maximum curvature
+        sig_max = 5; % Maximum change in curvature
         S = 4; % Sphere of influence of orbit
         R_orbit = 1; % Radius of orbit
         S_avoid = 4; % Sphere of influence of avoid
@@ -40,9 +45,12 @@ classdef ReferenceAvoidScenario < Scenario
     
     
     methods
-        function obj = ReferenceAvoidScenario(veh, world)
+        function obj = ReferenceAvoidScenario(veh, world, waypoints)
             % initialize the scenario
             obj = obj@Scenario(veh, world, true); 
+            
+            % Initialize trajectory to be followed
+            obj.clothoid = CCPathGenerator(waypoints, obj.g_max, obj.dt, obj.k_max, obj.sig_max);
             
             % Plotting variables
             x_vec = -1:1:20;
@@ -91,6 +99,8 @@ classdef ReferenceAvoidScenario < Scenario
             % Initialize sensors
             obj.n_sensors = veh.sensor.n_lines;
             obj.q_inf = q_inf;
+            
+            
         end
     
         %%%%  Abstract Method Implementation %%%%
@@ -342,6 +352,10 @@ classdef ReferenceAvoidScenario < Scenario
         %%%% Reference trajectory methods %%%%
         function [qd, qd_dot, qd_ddot] = SineReference(obj, t)
             
+            if true
+                [qd, qd_dot, qd_ddot] = obj.WaypointReference(t);
+                return;
+            end
             if false
                 [qd, qd_dot, qd_ddot] = obj.LineReference(t);
                 return;
@@ -366,6 +380,10 @@ classdef ReferenceAvoidScenario < Scenario
             qd_dot = [ones(1,n); zeros(1,n)];
             qd_ddot = [zeros(1,n); zeros(1,n)];
             
+        end
+        
+        function [qd, qd_dot, qd_ddot] = WaypointReference(obj, t)
+            [qd, qd_dot, qd_ddot] = obj.clothoid.reference_traj(t);
         end
     end
     
