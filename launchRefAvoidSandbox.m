@@ -51,8 +51,8 @@ function launchRefAvoidSandbox()
     %scenario = SwithingLineScenarioObstacleAvoidBetterSwitch(BetterUnicycleVehicle, VECTOR_FOLLOWING_TYPE.POINT );       
     
     % Reference avoid scenario
-    %waypoints = [0.2 0; 7 0; 13 1; 15 0; 20 1; 25 -6; 16 -6];
-    waypoints = [0.2 1; 10 -4; 15 0; 16 6; 8 8];
+    waypoints = [0.2 0; 7 0; 13 1; 15 0; 20 1; 25 -6; 16 -6];
+    %waypoints = [0.2 1; 10 -4; 15 0; 16 6; 8 8];
     %scenario = ReferenceAvoidScenario(SmoothDifferentialDriveVehicle, PolygonWorld1, waypoints );    
     scenario = ReferenceAvoidScenario(SimpleUnicycleVehicle, PolygonWorld1, waypoints );
     scenario.tf = 30;
