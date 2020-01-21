@@ -198,27 +198,27 @@ classdef Trajectory2D < handle
             tmp_traj.ds = obj.ds;
         end
         
-        function truncate(obj,ind)
-
-            obj.s = obj.s(1:ind);
-            obj.v = obj.v(1:ind);
-            obj.a = obj.a(1:ind);
-            obj.sigma = obj.sigma(1:ind);
-            obj.transitions = [1];
-            obj.t = obj.t(1:ind);
-            obj.psi = obj.psi(1:ind);
-            obj.k = obj.k(1:ind);
+        function traj = truncate(obj,ind)
+            traj = Trajectory2D();
+            traj.s = obj.s(1:ind);
+            traj.v = obj.v(1:ind);
+            traj.a = obj.a(1:ind);
+            traj.sigma = obj.sigma(1:ind);
+            traj.transitions = [1];
+            traj.t = obj.t(1:ind);
+            traj.psi = obj.psi(1:ind);
+            traj.k = obj.k(1:ind);
             
-            obj.x = obj.x(1:ind);
-            obj.xdot = obj.xdot(1:ind);
-            obj.xddot = obj.xddot(1:ind);
-            obj.xdddot = obj.xdddot(1:ind);
+            traj.x = obj.x(1:ind);
+            traj.xdot = obj.xdot(1:ind);
+            traj.xddot = obj.xddot(1:ind);
+            traj.xdddot = obj.xdddot(1:ind);
             
-            obj.y = obj.y(1:ind);
-            obj.ydot = obj.ydot(1:ind);
-            obj.yddot = obj.yddot(1:ind);
-            obj.ydddot = obj.ydddot(1:ind);
-            obj.s_geo = 0;
+            traj.y = obj.y(1:ind);
+            traj.ydot = obj.ydot(1:ind);
+            traj.yddot = obj.yddot(1:ind);
+            traj.ydddot = obj.ydddot(1:ind);
+            traj.s_geo = 0;
         end
             
             
