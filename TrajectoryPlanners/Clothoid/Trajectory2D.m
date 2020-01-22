@@ -220,10 +220,6 @@ classdef Trajectory2D < handle
             obj.ydddot = obj.ydddot(1:ind);
             obj.s_geo = 0;
         end
-            
-            
-        
-        
         
     end
 end

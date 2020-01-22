@@ -1,5 +1,5 @@
-classdef Vehicle < handle
-    %Vehicle is a simple abstract interface to enable construction of
+classdef UncontrolledVehicle < handle
+    %UncontrolledVehicle is a simple abstract interface to enable construction of
     %different vehicles with different sensor configurations.
     %   A vehicle consists of the following elements:
     %       * Kinematic model
@@ -11,6 +11,7 @@ classdef Vehicle < handle
     properties
         % Elements of the vehicle
         kinematics
+        controller % Instance of the Controller object
         sensor
         
         % Vehicle state
@@ -18,8 +19,8 @@ classdef Vehicle < handle
         x       % State of the vehicle
         q_ind   % Indices of the position
         th_ind  % Index of the orientation
-        x_ind;
-        y_ind;
+        x_ind;  % Index of the x position
+        y_ind;  % Index of the y position
         
         % Latest sensor measurements
         xo_latest = [] % Latest x measurement
@@ -27,22 +28,21 @@ classdef Vehicle < handle
         dist_latest = [] % Latest distance
     end
     
-    methods (Abstract)
-        u = velocityControl(obj, vd, wd, varargin);
-        u = pathControl(obj, t, q_des, qd_des, qdd_des, varargin); 
-        u = vectorFieldControl(obj, t, g, control_type, varargin);
-    end
-    
     methods
         function obj = Vehicle(kinematics, x0, q_ind)
             % Store elements
             obj.kinematics = kinematics;
+            obj.controller = ZeroControl(obj, obj.kinematics.n_u);
             obj.sensor = RangeSensor;
             obj.x = x0;
             obj.q_ind = q_ind;
             obj.th_ind = kinematics.th_ind;
             obj.x_ind = kinematics.x_ind;
             obj.y_ind = kinematics.y_ind;
+        end
+        
+        function setController(obj, controller)
+            obj.controller = controller;            
         end
         
         function [xo, yo, dist] = getObstacleDetections(obj, world)
@@ -77,6 +77,10 @@ classdef Vehicle < handle
             % Plot the sensor data
 %             obj.sensor.plotMeasurements(obj.x(obj.q_ind), obj.xo_latest, obj.yo_latest);
         end        
+        
+        function u = calculateControl(obj, t, x)
+            u = obj.controller.calculateControl(obj, t, x);
+        end
     end
 end
 
