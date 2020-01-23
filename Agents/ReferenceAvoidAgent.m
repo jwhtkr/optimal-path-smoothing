@@ -130,10 +130,12 @@ classdef ReferenceAvoidAgent < SingleAgent
                 u = obj.vehicle.pathControl(t, qd, qd_dot, qd_ddot, x);
                 
             elseif obj.state == obj.state_slide_ccw
-                g_func = @(t_val, x_vec, th)obj.orbit_field_ccw.getVector(t_val, x_vec, th);                
+                g_func = @(t_val, x_vec, th)obj.orbit_field_ccw.getVector(t_val, x_vec, th) + ...
+                    obj.field_go2goal.getVector(t_val, x_vec, th);                
                 u = obj.vehicle.velocityVectorFieldControl(t, g_func, x);
             elseif obj.state == obj.state_slide_cw
-                g_func = @(t_val, x_vec, th)obj.orbit_field_cw.getVector(t_val, x_vec, th);
+                g_func = @(t_val, x_vec, th)obj.orbit_field_cw.getVector(t_val, x_vec, th)  + ...
+                    obj.field_go2goal.getVector(t_val, x_vec, th);
                 u = obj.vehicle.velocityVectorFieldControl(t, g_func, x);
             else
                 error('Invalid state');
