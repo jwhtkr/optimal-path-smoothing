@@ -3,7 +3,7 @@ classdef MultiScenario < handle
     
     properties
         % Define elements to be simulated
-        vl;
+        leader;
         agents;
         n_agents;
         vehicle % Instance of teh Vehicle class
@@ -14,7 +14,8 @@ classdef MultiScenario < handle
         plot_during_sim; % true => plot while simulating (requires euler integration)
         t0 = 0; % Initial time of simulation
         dt = 0.05; % Simulation step size
-        tf = 40; % Final time of simulation
+        tf % Final time of simulation
+        v = 1; % Simulation Velocity
         
         % Simulation results
         tmat = [] % Matrix of time values
@@ -23,6 +24,7 @@ classdef MultiScenario < handle
         % Plotting updates
         T = .2 % Plotting period
         t_latest = tic % Timer for plotting
+        video
         
         % Index variables
         x_ind % x position index
@@ -40,20 +42,36 @@ classdef MultiScenario < handle
     end
     
     methods
-        function obj = MultiScenario(leader,agents,world,plot_during_sim)
+        function obj = MultiScenario(leaderVehicle,n_agents,world,plot_during_sim, path)
             obj.world = world;
             obj.worldEmpty = EmptyWorld();
             obj.plot_during_sim = plot_during_sim;
-            obj.vl = leader;
-            obj.agents = agents;
-            obj.n_agents = length(agents);
+            obj.leader = virtual_leader(leaderVehicle, n_agents);
+            trajectory = CCPathGenerator(path,obj.v,obj.dt,.5,.5);
+            obj.leader.trajectory = trajectory.traj;
+            obj.tf = (size(obj.leader.trajectory.x,2)-1)*obj.dt;
+
+            
+            obj.n_agents = n_agents;
+            if obj.n_agents > 0
+                for k= 1:n_agents
+                    q = obj.leader.getDesiredFollowerPosition(k);
+                    theta = obj.leader.vehicle.x(obj.leader.vehicle.th_ind);
+                    agents(k) = agent(BetterUnicycleVehicle([q; theta; 0; 0]),n_agents,k);
+                    agents(k).trajectory = obj.leader.getFollowerTrajectory(k);
+                end
+                obj.agents = agents;
+            end
+            
+            
+            
             % Get the indices for the position states for easy access
-            obj.x_ind = leader.vehicle.kinematics.x_ind;
-            obj.y_ind = leader.vehicle.kinematics.y_ind;
+            obj.x_ind = obj.leader.vehicle.kinematics.x_ind;
+            obj.y_ind = obj.leader.vehicle.kinematics.y_ind;
             obj.q_ind = [obj.x_ind; obj.y_ind];
             
             % Initialize the obstacle detections
-%             obj.vl.vehicle.getObstacleDetections(obj.world);
+%             obj.leader.vehicle.getObstacleDetections(obj.world);
         end
         
         function runScenario(obj)
@@ -67,6 +85,7 @@ classdef MultiScenario < handle
             % Plot the results
             obj.plotState(obj.tf);
             obj.plotWorld(obj.tf);
+            obj.publishVideo();
             obj.plotResults();
         end
         
@@ -83,13 +102,23 @@ classdef MultiScenario < handle
             set(obj.h_state_traj, 'xdata', obj.xmat(obj.x_ind, 1:ind), 'ydata', obj.xmat(obj.y_ind,1:ind));
             
             % Plot the vehicle
-            obj.vl.plotFormation();
+            obj.leader.plotFormation();
             
             for k = 1:obj.n_agents
                 obj.agents(k).vehicle.plotVehicle();
             end
             
+            obj.video = [obj.video getframe(gcf)];
             
+            
+        end
+        
+        function publishVideo(obj)
+            vid = VideoWriter('FormationPMPC','Motion JPEG AVI');
+            vid.FrameRate = 10;
+            open(vid);
+            writeVideo(vid,obj.video)
+            close(vid)
         end
 
         
@@ -102,11 +131,12 @@ classdef MultiScenario < handle
             obj.h_state_traj = plot(0, 0, ':b', 'linewidth', 2); hold on;
             
             % Plot the vehicle
-            obj.vl.initializePlots(gca);
+            obj.leader.initializePlots(gca);
             
             for k = 1:obj.n_agents
                 obj.agents(k).vehicle.kinematics.plot_path = 0;
                 obj.agents(k).vehicle.initializePlots(gca);
+                plot(obj.agents(k).trajectory.x,obj.agents(k).trajectory.y);
             end
             
             pause();
@@ -198,8 +228,8 @@ classdef MultiScenario < handle
             % Initialize state data
             obj.tmat = [obj.t0:obj.dt:obj.tf]';
             len = length(obj.tmat);
-            obj.xmat = zeros(length(obj.vl.vehicle.x), len, obj.n_agents+1);
-            obj.xmat(:,1,1) = obj.vl.vehicle.x;
+            obj.xmat = zeros(length(obj.leader.vehicle.x), len, obj.n_agents+1);
+            obj.xmat(:,1,1) = obj.leader.vehicle.x;
             for k = 1:obj.n_agents
                 obj.xmat(:,1,k+1) = obj.agents(k).vehicle.x;
             end
@@ -208,18 +238,18 @@ classdef MultiScenario < handle
             for k = 1:len
                 % Calculate state update equation
                 t = obj.tmat(k);
-                u = obj.control(t,obj.vl.vehicle.x);
-                xdot = obj.vl.vehicle.kinematics.kinematics(t, obj.vl.vehicle.x, u(:,1));
+                u = obj.control(t,obj.leader.vehicle.x);
+                xdot = obj.leader.vehicle.kinematics.kinematics(t, obj.leader.vehicle.x, u(:,1));
 
                 % Update the state
-                obj.vl.vehicle.x = obj.vl.vehicle.x + obj.dt * xdot;
+                obj.leader.vehicle.x = obj.leader.vehicle.x + obj.dt * xdot;
 
                 % Store the state
-                obj.xmat(:,k,1) = obj.vl.vehicle.x;
+                obj.xmat(:,k,1) = obj.leader.vehicle.x;
                 
-                obj.vl.vehicle.getObstacleDetections(obj.worldEmpty);
+                obj.leader.vehicle.getObstacleDetections(obj.worldEmpty);
                 for i = 1:obj.n_agents
-                    xdot = obj.vl.vehicle.kinematics.kinematics(t, obj.agents(i).vehicle.x, u(:,i+1));
+                    xdot = obj.leader.vehicle.kinematics.kinematics(t, obj.agents(i).vehicle.x, u(:,i+1));
 
                     % Update the state
                     obj.agents(i).vehicle.x = obj.agents(i).vehicle.x + obj.dt * xdot;

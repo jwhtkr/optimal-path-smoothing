@@ -90,9 +90,9 @@ classdef Unicycle2 < CostClass
             A = zeros(2);
             B = eye(2);
             Q = eye(2);
-            Q = [1 0; 0 5];
+%             Q = [1 0; 0 5];
             R = eye(2);
-            R = [1 0; 0 5];
+%             R = [1 0; 0 5];
             obj.k_vel_ctrl = lqr(A,B,Q,R);
             
             % Create the timing variables
@@ -151,55 +151,8 @@ classdef Unicycle2 < CostClass
         function u0 = initialize(obj,u)
             min_cost = obj.cost(u);
             cost = @(var) obj.cost(var);
-            % Check if previously detected collision
-%             if obj.T < obj.tf
-%                 temp = obj.T;
-%                 
-%                 s = 0.3*obj.time_collision/obj.tf;
-%                 u0(obj.ind_a1) = u(obj.ind_a1)/s;
-%                 u0(obj.ind_alpha1) = u(obj.ind_alpha1)/s;
-%                 u0(obj.ind_a2) = u(obj.ind_a2)/s;
-%                 u0(obj.ind_alpha2) = u(obj.ind_alpha2)/s;
-%                 u0(obj.ind_a3) = u(obj.ind_a3)/s;
-%                 u0(obj.ind_alpha3) = u(obj.ind_alpha3)/s;
-%                 u0(obj.ind_time1) = u(obj.ind_time1)/s;
-%                 u0(obj.ind_time2) = u(obj.ind_time2)/s;
-%                 obj.T = round(obj.T + obj.dt,1);
-%                 
-%                 s = 0.3*1/obj.T;
-%                 u0(obj.ind_a1) = u(obj.ind_a1)*s;
-%                 u0(obj.ind_alpha1) = u(obj.ind_alpha1)*s;
-%                 u0(obj.ind_a2) = u(obj.ind_a2)*s;
-%                 u0(obj.ind_alpha2) = u(obj.ind_alpha2)*s;
-%                 u0(obj.ind_a3) = u(obj.ind_a3)*s;
-%                 u0(obj.ind_alpha3) = u(obj.ind_alpha3)*s;
-%                 u0(obj.ind_time1) = u(obj.ind_time1)*s;
-%                 u0(obj.ind_time2) = u(obj.ind_time2)*s;
-%                 obj.setTimeSpan(u,0);
-%                 
-%                 test_cost = obj.cost(u0);
-%                 
-%                 w1 = -100/obj.T*3*pi/180:100/obj.T*3*pi/180/15:100/obj.T*3*pi/180;
-%                 
-%                 for i = 1:length(w1)
-%                     u_var = [obj.vd; w1(i);obj.T/3;obj.vd;w1(i);obj.T*2/3;obj.vd;w1(i)];
-%                     %                 obj.plotTraj(u_var);
-%                     %                 pause(0.02);
-%                     if min_cost > cost(u_var)
-%                         u0 = u_var;
-%                         test_cost = cost(u_var);
-%                     end
-%                 end
-%                 
-%                 if test_cost < min_cost
-%                     u = u0;
-%                 else
-%                     obj.T = temp;
-%                 end
-%             end
-            
-            u0 = u;
-            
+           
+            u0 = u;         
             w1 = -100/obj.T*3*pi/180:100/obj.T*3*pi/180/15:100/obj.T*3*pi/180;
             
             for i = 1:length(w1)

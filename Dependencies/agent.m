@@ -26,7 +26,8 @@ classdef agent < handle
         agent_num;
         agent_position;
         planner;
-        vl;
+        trajectory;
+        leader;
         Q
     end
     
@@ -37,11 +38,15 @@ classdef agent < handle
             obj.planner.agent_num = agent_num;
             obj.n_agents = n_agents;
             obj.Q = obj.DesiredFollowerPositions();
-            obj.planner.voronoi = voronoiWrapper(obj.Q);
+            if ~isempty(obj.Q)
+                obj.planner.voronoi = voronoiWrapper(obj.Q);
+            end
         end
         
         function Q = DesiredFollowerPositions(obj)
             switch obj.n_agents
+                case 0
+                    Q = [];
                 case 2
                     Q = [-1 1; 0 0];
                 case 3
@@ -52,6 +57,12 @@ classdef agent < handle
                     disp('Unsupported Number of Agents, define formation in DesiredFollowerPositions function')
             end
         end
+        
+        function u = trackControl(obj, t, x)
+            traj = @(t) obj.trajectory.reference_traj(t);
+            u = obj.vehicle.TrackTrajectoryApproximateDiffeomorphism(t, x, traj);
+        end
+        
     end
     
 end
