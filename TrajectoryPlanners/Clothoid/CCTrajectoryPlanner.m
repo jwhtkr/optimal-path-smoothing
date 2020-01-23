@@ -121,11 +121,12 @@ classdef CCTrajectoryPlanner < handle
                 % Deflection where k_max is never achieved, so no circular
                 % arc is generated.
                 
+                
                 % Truncate clothoid region
                 clothoid_end_ind = obj.find_nearest_idx(obj.clothoid.traj.psi, deflection / 2.0);
-                obj.clothoid.traj.truncate(clothoid_end_ind);
+                temp_traj = obj.clothoid.traj.truncate(clothoid_end_ind);
                 
-                cc_turn = cc_turn.concatenate(obj.clothoid.traj);
+                cc_turn = cc_turn.concatenate(temp_traj);
                 cc_turn.s_geo = cc_turn.s(end);
                 cc_turn.y = direction * cc_turn.y;
                 cc_turn.psi = direction * cc_turn.psi;

@@ -44,14 +44,17 @@ classdef CCPathGenerator < handle
                 end
                 if k == 1
                     line_traj = line_trajectory([waypoint.x;waypoint.y], [turn_traj.x(1); turn_traj.y(1)], v, dt);
+                    obj.traj = obj.traj.concatenate(line_traj);
+                    obj.traj = obj.traj.concatenate(turn_traj); 
                 elseif k == n-1
                     line_traj = line_trajectory([obj.traj.x(end);obj.traj.y(end)],[waypoint_1.x;waypoint_1.y], v, dt);
+                    obj.traj = obj.traj.concatenate(line_traj);
                 else
                     line_traj = line_trajectory([obj.traj.x(end);obj.traj.y(end)], [turn_traj.x(1); turn_traj.y(1)], v, dt);
+                    obj.traj = obj.traj.concatenate(line_traj);
+                    obj.traj = obj.traj.concatenate(turn_traj); 
                 end
-                
-                obj.traj = obj.traj.concatenate(line_traj);
-                obj.traj = obj.traj.concatenate(turn_traj);              
+                            
             end
 %             plot(obj.traj.x, obj.traj.y);
         end
