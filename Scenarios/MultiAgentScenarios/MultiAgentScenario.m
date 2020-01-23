@@ -50,8 +50,8 @@ classdef MultiAgentScenario < handle
             obj.x0 = [];
             for i = 1:obj.n_agents
                 n = length(obj.agents{i}.vehicle.x); % Number of states in agent i
-                obj.state_ind{i} = index:n; % Indices for agent i
-                index = index+1; % Increment the indices
+                obj.state_ind{i} = index:(index-1+n); % Indices for agent i
+                index = index+n; % Increment the indices
                 obj.n_states = obj.n_states + n; % Increment the total number of states
                 obj.x0 = [obj.x0; obj.agents{i}.vehicle.x]; % Update x0
             end

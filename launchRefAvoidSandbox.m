@@ -33,9 +33,13 @@ function launchRefAvoidSandbox()
     %%%%%%%%%%%%%%%%% Create scenario (new way) %%%%%%%%%%%%%%%%%%%%%
     
     % Reference avoid scenario
-    %waypoints{1} = [0.2 0; 7 0; 13 1; 15 0; 20 1; 25 -6; 16 -6];
-    waypoints{1} = [0.2 1; 10 -4; 15 0; 16 6; 8 8];
+    waypoints{1} = [0.2 0; 7 0; 13 1; 15 0; 20 1; 25 -6; 16 -6];
+    waypoints{2} = [0.2 1; 10 -4; 15 0; 16 6; 8 8];
+    waypoints{3} = [0.2 2; 0.2 8; 10 6; 18 1; 20 -8; 0 -8];
+    
     x0{1} = [0;0;0];
+    x0{2} = [-1; 0; 0];
+    x0{3} = [1; 0; pi/2];
     %scenario = MultiReferenceAvoidScenario(@SmoothDifferentialDriveVehicle, PolygonWorld1, waypoints, x0);
     scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, PolygonWorld1, waypoints, x0);
     scenario.tf = 30;

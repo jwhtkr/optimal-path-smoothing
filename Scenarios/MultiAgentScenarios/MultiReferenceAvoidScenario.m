@@ -78,13 +78,13 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 
                 % Plot the x position vs desired position
                 subplot(2, 1, 1);
-                plot(obj.tmat, obj.qd_mat(1, :), ':r', 'linewidth', 3); hold on;
+                plot(obj.tmat, obj.qd_mat(ind_q_d(1), :), ':r', 'linewidth', 3); hold on;
                 plot(obj.tmat, obj.xmat(x_ind, :), 'b', 'linewidth', 2);
                 ylabel('x position');
                 
                 % Plot the y position vs desired position
                 subplot(2, 1, 2);
-                plot(obj.tmat, obj.qd_mat(2, :), ':r', 'linewidth', 3); hold on;
+                plot(obj.tmat, obj.qd_mat(ind_q_d(2), :), ':r', 'linewidth', 3); hold on;
                 plot(obj.tmat, obj.xmat(y_ind, :), 'b', 'linewidth', 2);
                 ylabel('y position');
                 xlabel('time (s)');
