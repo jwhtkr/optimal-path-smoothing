@@ -5,9 +5,12 @@ function launchRefAvoidSandbox()
     clc;
     
     % Configure file path
+    addpath Agents
     addpath Dependencies
     addpath Dependencies\intersections
+    addpath Plotters
     addpath Scenarios
+    addpath Scenarios\MultiAgentScenarios
     addpath Sensors
     addpath TrajectoryPlanners\Clothoid
     addpath VectorFields
