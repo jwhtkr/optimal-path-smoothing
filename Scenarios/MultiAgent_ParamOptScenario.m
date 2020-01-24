@@ -12,91 +12,27 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
     
     methods
         function obj = MultiAgent_ParamOptScenario(n_agents, world, leaderVehicle, path)
-%             leader = virtual_leader(leaderVehicle, n_agents);
-            
-%             agents = [];
-%             for k= 1:n_agents
-%                 q = leader.getDesiredFollowerPosition(k);
-%                 theta = leader.vehicle.x(leader.vehicle.th_ind);
-%                 agents(k) = agent(BetterUnicycleVehicle([q; theta; 1; 0]),n_agents,k);
-%             end
-            
 
-            
-            
             obj = obj@MultiScenario(leaderVehicle, n_agents, world, true, path);
             
             %Initialize leader and agents velocities and goals
             obj.v_d = 1;
             obj.w_d = 0.0;
-%             obj.vl.vehicle.u_init = [obj.v_d, obj.w_d, obj.vl.agent.planner.T/3, obj.v_d, obj.w_d, obj.vl.agent.planner.T/3*2, obj.v_d, obj.w_d]';
-%             obj.vl.setLeaderTerminalState(obj.vl.vehicle.x, obj.vl.vehicle.u_init);
-            
-%             for k= 1:n_agents
-%                 obj.agents(k).vehicle.v_d = obj.v_d;
-%                 obj.agents(k).vehicle.w_d = obj.w_d;
-%                 obj.agents(k).planner.qd = obj.leader.getDesiredFollowerGoal(k);
-%                 obj.agents(k).vehicle.u_init = [obj.v_d, obj.w_d, obj.agents(k).planner.T/3, obj.v_d, obj.w_d, obj.agents(k).planner.T/3*2, obj.v_d, obj.w_d]';
-%                 obj.agents(k).leader = obj.leader;
-%             end
-           
-
         end
     
         %%%%  Abstract Method Implementation %%%%
-        function u = control(obj, t, x)
-            % Calculate VL Control
-% %             u = obj.vl.planner.minimize(x,obj.vl.vehicle.u_init);
-% %             obj.setDesiredVelocities(x, t);
-% %             obj.vl.vehicle.v_d = obj.v_d; %u(obj.vl.planner.ind_a1);
-% %             obj.vl.vehicle.w_d = obj.w_d; %u(obj.vl.planner.ind_alpha1);
-% %             obj.vl.vehicle.u_init = u;
-            
-            
-            
-            % Calculate the velocity control            
-% %             u = obj.vl.vehicle.velocityControl(obj.vl.vehicle.v_d, obj.vl.vehicle.w_d, x);
-% %             obj.vl.setLeaderTerminalState(obj.vl.vehicle.x, obj.vl.vehicle.u_init);
-
+        function u = control(obj, t, x)  
             % Calc Leader Control
             u = obj.leader.trackControl(t, x);
             
             % Calculate Agent Control
             for k = 1:obj.n_agents
-%                 obj.agents(k).planner.qd = obj.vl.getDesiredFollowerGoal(k);
-%                 obj.agents(k).planner.leader_traj = obj.vl.leader_traj;
-%                 [xo,yo,do] = obj.agents(k).vehicle.getObstacleDetections(obj.world);
-%                 obj.agents(k).planner.setObstacles(xo,yo,do);
-%                 % method to calculate desired velocities
-% 
-%                 u_agent = obj.agents(k).planner.minimize(obj.agents(k).vehicle.x,obj.agents(k).vehicle.u_init);
-%                 obj.agents(k).vehicle.v_d = u_agent(obj.agents(k).planner.ind_a1);
-%                 obj.agents(k).vehicle.w_d = u_agent(obj.agents(k).planner.ind_alpha1);
-%                 obj.agents(k).vehicle.u_init = u_agent;
-%                 u(:,k+1) = obj.agents(k).vehicle.velocityControl(obj.agents(k).vehicle.v_d, obj.agents(k).vehicle.w_d, obj.agents(k).vehicle.x);
-                u(:,k+1) = obj.agents(k).trackControl(t,obj.agents(k).vehicle.x);
+                tic
+                u(:,k+1) = obj.agents(k).MPC_output(t, obj.world);
+%                 u(:,k+1) = obj.agents(k).trackControl(t);
+                toc
             end
         end
-        
-
-% %         function setDesiredVelocities(obj, x, t)
-% %             if x(1) >= 7.5
-% %                 obj.v_d = 1;
-% %                 obj.w_d = .30;
-% %             end
-% %             if x(2) >= 3.0
-% %                 obj.v_d = 1;
-% %                 obj.w_d = -.30;
-% %             end
-% %             if x(1) >= 14.25
-% %                 obj.v_d = 1;
-% %                 obj.w_d = 0.0;
-% %             end
-% %             if x(1) >= 20
-% %                 obj.v_d = 0.0;
-% %                 obj.w_d = 0.0;
-% %             end 
-% %         end
 
         
         %%%% Plotting methods - Add desired velocities %%%%

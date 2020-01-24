@@ -46,22 +46,23 @@ classdef MultiScenario < handle
             obj.world = world;
             obj.worldEmpty = EmptyWorld();
             obj.plot_during_sim = plot_during_sim;
-            obj.leader = virtual_leader(leaderVehicle, n_agents);
-            trajectory = CCPathGenerator(path,obj.v,obj.dt,.5,.5);
-            obj.leader.trajectory = trajectory.traj;
-            obj.tf = (size(obj.leader.trajectory.x,2)-1)*obj.dt;
-
+            obj.leader = virtual_leader(leaderVehicle, n_agents, path, obj.v, obj.dt);
+            
+            obj.tf = (size(obj.leader.trajectory.x,2)-1)*obj.dt - obj.leader.agent.planner.tf;
+            
+            traj = @(k) obj.leader.getFollowerTrajectory(k);
             
             obj.n_agents = n_agents;
             if obj.n_agents > 0
                 for k= 1:n_agents
                     q = obj.leader.getDesiredFollowerPosition(k);
                     theta = obj.leader.vehicle.x(obj.leader.vehicle.th_ind);
-                    agents(k) = agent(BetterUnicycleVehicle([q; theta; 0; 0]),n_agents,k);
-                    agents(k).trajectory = obj.leader.getFollowerTrajectory(k);
+                    agents(k) = agent(BetterUnicycleVehicle([q; theta; 1; 0]),n_agents,k, traj, obj.dt);
+                    agents(k).planner.leader_traj = obj.leader.trajectory;
                 end
                 obj.agents = agents;
             end
+            
             
             
             
@@ -83,10 +84,10 @@ classdef MultiScenario < handle
             obj.integrateEuler();
             
             % Plot the results
-            obj.plotState(obj.tf);
-            obj.plotWorld(obj.tf);
+%             obj.plotState(obj.tf);
+%             obj.plotWorld(obj.tf);
             obj.publishVideo();
-            obj.plotResults();
+%             obj.plotResults();
         end
         
         

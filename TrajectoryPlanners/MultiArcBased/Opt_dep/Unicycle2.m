@@ -34,11 +34,13 @@ classdef Unicycle2 < CostClass
         dt = 0.1; % Integration stepsize
         t_span % Stores the span for integration
         t_span_rev % Same as t_span but in reverse order
-        t_len % Number of time variables        
+        t_len % Number of time variables     
+        t_sim % Simulation time
         
         k_vel_ctrl;
         agent_num;
         leader_traj;
+        trajectory;
         voronoi;
         
         % Define the control variables
@@ -126,7 +128,8 @@ classdef Unicycle2 < CostClass
            end
         end
         
-        function u = minimize(obj,x,u)
+        function u = minimize(obj,t_sim,x,u)
+            obj.t_sim = t_sim;
             obj.reset(x);
             
             obj.cost(u);
@@ -214,12 +217,17 @@ classdef Unicycle2 < CostClass
             [v, w] = obj.getVelocities(x);
             q = obj.getPosition(x);
             
-            % Get portion for velocities
-            L = obj.p_global(x)*obj.p1/2*(v-obj.vd)^2 + obj.p_global(x)*obj.p2/2*w^2;
+            [v_traj, w_traj] = obj.trajectory.getVelocities(t+obj.t_sim);
             
-            x_leader = obj.evalIntResult(obj.leader_traj, t);
-            q_l = obj.getPosition(x_leader);
-            th_l = x_leader(obj.ind_theta);
+            % Get portion for velocities
+%             L = obj.p_global(x)*obj.p1/2*(v-obj.vd)^2 + obj.p_global(x)*obj.p2/2*w^2;
+            L = obj.p_global(x)*obj.p1/2*(v-v_traj)^2 + obj.p_global(x)*obj.p2/2*(w-w_traj)^2;
+            
+            %x_leader = obj.evalIntResult(obj.leader_traj, t);
+            %q_l = obj.getPosition(x_leader);
+            %th_l = x_leader(obj.ind_theta);
+            th_l = obj.leader_traj.getYaw(t+obj.t_sim); 
+            q_l = obj.leader_traj.reference_traj(t+obj.t_sim);
             d = obj.voronoi.dist_to_barrier(q,obj.agent_num,th_l,q_l);
             
             for k = 1:length(d)
@@ -262,7 +270,7 @@ classdef Unicycle2 < CostClass
             
             % Calculate cost as squared distance to goal
             err = q - obj.qd;
-            phi = obj.p_global(x)*obj.p5/2*(err'*err);
+            phi = obj.p5/2*(err'*err);
         end
         
         function zdot = costAndStateDynamics(obj, t, z, u)
@@ -361,7 +369,7 @@ classdef Unicycle2 < CostClass
             q = obj.getPosition(x);
             
             % Calculate partial
-            dphi_dx = obj.p_global(x)*obj.p5.*[(q-obj.qd)', 0, 0, 0];
+            dphi_dx = obj.p5.*[(q-obj.qd)', 0, 0, 0];
         end
             
         function dL_dx = instStatePartial(obj, t, x, u)
@@ -373,9 +381,12 @@ classdef Unicycle2 < CostClass
             dL_dx = zeros(1, obj.n);
             dq_dx = [eye(2), [0; 0], [0; 0], [0; 0]];
             
-            x_leader = obj.evalIntResult(obj.leader_traj, t);
-            q_l = obj.getPosition(x_leader);
-            th_l = x_leader(obj.ind_theta);
+            %x_leader = obj.evalIntResult(obj.leader_traj, t);
+            %q_l = obj.getPosition(x_leader);
+            %th_l = x_leader(obj.ind_theta);
+            
+            th_l = obj.leader_traj.getYaw(t+obj.t_sim); 
+            q_l = obj.leader_traj.reference_traj(t+obj.t_sim);
             [d_barrier, n] = obj.voronoi.dist_and_norm(q,obj.agent_num,th_l,q_l);
             
             dLvor_dd = 0;
@@ -421,8 +432,9 @@ classdef Unicycle2 < CostClass
                 dLavoid_dx = dLavoid_dd * dd_dq * dq_dx;
                 dL_dx = dL_dx + dLavoid_dx;
             end
-            
-            dL_dx = dL_dx + obj.p_global(x).*[0 0 0 obj.p1*(v-obj.vd) obj.p2*w];
+            [v_traj, w_traj] = obj.trajectory.getVelocities(t+obj.t_sim);
+            % dL_dx = dL_dx + obj.p_global(x).*[0 0 0 obj.p1*(v-obj.vd) obj.p2*w];
+            dL_dx = dL_dx + obj.p_global(x).*[0 0 0 obj.p1*(v-v_traj) obj.p2*(w-w_traj)];
             
         end
         

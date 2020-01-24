@@ -40,11 +40,13 @@ classdef virtual_leader < handle
     end
     
     methods
-        function obj = virtual_leader(vehicle, n_agents)
+        function obj = virtual_leader(vehicle, n_agents, path, v, dt)
             obj.vehicle = vehicle;
             obj.n_agents = n_agents;
             obj.agent_num = 0;
-            obj.agent = agent(vehicle, n_agents, obj.agent_num);
+            obj.trajectory = CCPathGenerator(path, v, dt, .5, .5).traj;
+            traj = @(k) obj.getFollowerTrajectory(k);
+            obj.agent = agent(vehicle, n_agents, obj.agent_num, 0, dt);
         end       
         
         % Might not need

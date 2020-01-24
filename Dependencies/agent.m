@@ -28,18 +28,25 @@ classdef agent < handle
         planner;
         trajectory;
         leader;
-        Q
+        Q;
+        dt
     end
     
     methods
-        function obj = agent(vehicle, n_agents, agent_num)
+        function obj = agent(vehicle, n_agents, agent_num, traj, dt)
             obj.vehicle = vehicle;
-            obj.planner = Unicycle2(obj.vehicle.x);
-            obj.planner.agent_num = agent_num;
             obj.n_agents = n_agents;
             obj.Q = obj.DesiredFollowerPositions();
+            obj.dt = dt;
+            obj.planner = Unicycle2(obj.vehicle.x);
+            obj.planner.agent_num = agent_num;
             if ~isempty(obj.Q)
                 obj.planner.voronoi = voronoiWrapper(obj.Q);
+            end
+            if ~(agent_num == 0)
+                obj.trajectory = traj(agent_num);
+                obj.setInitialControlFromTraj(0);
+                obj.planner.trajectory = obj.trajectory;
             end
         end
         
@@ -58,9 +65,33 @@ classdef agent < handle
             end
         end
         
-        function u = trackControl(obj, t, x)
+        function u = trackControl(obj, t)
             traj = @(t) obj.trajectory.reference_traj(t);
-            u = obj.vehicle.TrackTrajectoryApproximateDiffeomorphism(t, x, traj);
+            u = obj.vehicle.TrackTrajectoryApproximateDiffeomorphism(t, obj.vehicle.x, traj);
+        end
+        
+        function u = MPC_output(obj, t, world)
+            
+            obj.planner.qd = obj.trajectory.reference_traj(t+obj.planner.tf); %obj.leader.getDesiredFollowerGoal(k);
+%             obj.planner.leader_traj = obj.leader.trajectory;
+            [xo,yo,do] = obj.vehicle.getObstacleDetections(world);
+            obj.planner.setObstacles(xo,yo,do);
+            % method to calculate desired velocities
+
+            u_agent = obj.planner.minimize(t,obj.vehicle.x,obj.vehicle.u_init);
+            obj.vehicle.v_d = u_agent(obj.planner.ind_a1);
+            obj.vehicle.w_d = u_agent(obj.planner.ind_alpha1);
+            obj.vehicle.u_init = u_agent;
+            u = obj.vehicle.velocityControl(obj.vehicle.v_d, obj.vehicle.w_d, obj.vehicle.x);
+        end
+        
+        function setInitialControlFromTraj(obj,t)
+            ind1 = round(t/obj.dt+1,0);
+            ind2 = round((obj.planner.T/3+t)/obj.dt+1,0);
+            ind3 = round((obj.planner.T*2/3+t)/obj.dt+1,0);
+            obj.vehicle.u_init = [obj.trajectory.v(ind1); obj.trajectory.w(ind1); obj.planner.T/3; ...
+                    obj.trajectory.v(ind2); obj.trajectory.w(ind2); obj.planner.T*2/3; ...
+                    obj.trajectory.v(ind3); obj.trajectory.w(ind3)];
         end
         
     end
