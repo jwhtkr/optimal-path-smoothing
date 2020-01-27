@@ -23,7 +23,7 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
         %%%%  Abstract Method Implementation %%%%
         function u = control(obj, t, x)  
             % Calc Leader Control
-            u = obj.leader.trackControl(t, x);
+            u = obj.leader.trackControl(t);
             
             % Calculate Agent Control
             for k = 1:obj.n_agents

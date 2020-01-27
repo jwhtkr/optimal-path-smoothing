@@ -466,7 +466,7 @@ classdef Unicycle2 < CostClass
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %%% State and Dynamics functions %%%%
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        function [a, alpha] = getAccelerations(obj,u,t)
+        function [a, alpha] = getDesiredVelocity(obj,u,t)
             if t < u(obj.ind_time1)
                 a = u(obj.ind_a1);
                 alpha = u(obj.ind_alpha1);
@@ -502,7 +502,7 @@ classdef Unicycle2 < CostClass
         function xdot = unicycleDynamics(obj, t, x, u)
             % Extract states and velocities
             [v, w] = obj.getVelocities(x);
-            [a, alpha] = obj.getAccelerations(u,t);
+            [a, alpha] = obj.getDesiredVelocity(u,t);
             theta = x(obj.ind_theta);
             
             % Calculate derivative
@@ -510,6 +510,24 @@ classdef Unicycle2 < CostClass
             xdot(obj.ind_x) = v*cos(theta);
             xdot(obj.ind_y) = v*sin(theta);
             xdot(obj.ind_theta) = w;
+            xdot(obj.ind_v) = -obj.k_vel_ctrl(1,1)*(v-a);
+            xdot(obj.ind_w) = -obj.k_vel_ctrl(2,2)*(w-alpha);
+        end
+        
+        function xdot = unicycleTracking(obj, t, x, u)
+            % Extract states and velocities
+            [v, w] = obj.getVelocities(x);
+            [a, alpha] = obj.getDesiredVelocity(u,t);
+            theta = x(obj.ind_theta);
+            
+            % Calculate derivative
+            xdot = zeros(obj.n, 1);
+            xdot(obj.ind_x) = v*cos(theta);
+            xdot(obj.ind_y) = v*sin(theta);
+            xdot(obj.ind_theta) = w;
+            
+            
+            
             xdot(obj.ind_v) = -obj.k_vel_ctrl(1,1)*(v-a);
             xdot(obj.ind_w) = -obj.k_vel_ctrl(2,2)*(w-alpha);
         end

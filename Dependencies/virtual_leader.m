@@ -108,9 +108,10 @@ classdef virtual_leader < handle
             obj.V = R*obj.agent.planner.voronoi.V + q_l*ones(1,length(obj.agent.planner.voronoi.V));
         end
         
-        function u = trackControl(obj, t, x)
+        function u = trackControl(obj, t)
+            
             traj = @(t) obj.trajectory.reference_traj(t);
-            u = obj.vehicle.TrackTrajectoryApproximateDiffeomorphism(t, x, traj);
+            u = obj.vehicle.TrackTrajectoryApproximateDiffeomorphism(t, obj.vehicle.x, traj);
         end
         
         function traj = getFollowerTrajectory(obj,agent_num)
