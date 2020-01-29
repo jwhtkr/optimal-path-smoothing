@@ -14,7 +14,7 @@ classdef MultiScenario < handle
         plot_during_sim; % true => plot while simulating (requires euler integration)
         t0 = 0; % Initial time of simulation
         dt = 0.05; % Simulation step size
-        tf = 40; % Final time of simulation
+        tf = 15; % Final time of simulation
         
         % Simulation results
         tmat = [] % Matrix of time values
@@ -23,6 +23,7 @@ classdef MultiScenario < handle
         % Plotting updates
         T = .2 % Plotting period
         t_latest = tic % Timer for plotting
+        video
         
         % Index variables
         x_ind % x position index
@@ -67,6 +68,7 @@ classdef MultiScenario < handle
             % Plot the results
             obj.plotState(obj.tf);
             obj.plotWorld(obj.tf);
+            obj.publishVideo();
             obj.plotResults();
         end
         
@@ -89,7 +91,16 @@ classdef MultiScenario < handle
                 obj.agents(k).vehicle.plotVehicle();
             end
             
+            obj.video = [obj.video getframe(gcf)];
             
+            
+        end
+        
+        function publishVideo(obj)
+            vid = VideoWriter('FormationPMPC','Motion JPEG AVI');
+            open(vid);
+            writeVideo(vid,obj.video)
+            close(vid)
         end
 
         

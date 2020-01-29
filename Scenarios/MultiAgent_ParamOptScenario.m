@@ -58,6 +58,7 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
             
             % Calculate Agent Control
             for k = 1:obj.n_agents
+                tic
                 obj.agents(k).planner.qd = obj.vl.getDesiredFollowerGoal(k);
                 obj.agents(k).planner.leader_traj = obj.vl.leader_traj;
                 [xo,yo,do] = obj.agents(k).vehicle.getObstacleDetections(obj.world);
@@ -69,17 +70,18 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
                 obj.agents(k).vehicle.w_d = u_agent(obj.agents(k).planner.ind_alpha1);
                 obj.agents(k).vehicle.u_init = u_agent;
                 u(:,k+1) = obj.agents(k).vehicle.velocityControl(obj.agents(k).vehicle.v_d, obj.agents(k).vehicle.w_d, obj.agents(k).vehicle.x);
+                toc
             end
         end
         
         function setDesiredVelocities(obj, x, t)
             if x(1) >= 7.5
                 obj.v_d = 1;
-                obj.w_d = .30;
+                obj.w_d = .29;
             end
             if x(2) >= 3.0
                 obj.v_d = 1;
-                obj.w_d = -.30;
+                obj.w_d = -.29;
             end
             if x(1) >= 14.25
                 obj.v_d = 1;

@@ -12,6 +12,8 @@ classdef Trajectory2D < handle
         yddot;
         xdddot;
         ydddot;
+        xddddot;
+        yddddot;
         
         ds;
         k;
@@ -45,11 +47,13 @@ classdef Trajectory2D < handle
             obj.xdot = [];
             obj.xddot = [];
             obj.xdddot = [];
+            obj.xddddot = [];
             
             obj.y = [];
             obj.ydot = [];
             obj.yddot = [];
             obj.ydddot = [];
+            obj.yddddot = [];
             obj.s_geo = 0;
         end
         
@@ -73,10 +77,12 @@ classdef Trajectory2D < handle
             obj.xdot = obj.v .* cos(obj.psi);
             obj.xddot = -obj.v.^2 .* obj.k .* sin(obj.psi) - 2 * obj.v .* obj.a .* obj.k .* sin(obj.psi);
             obj.xdddot = - obj.v.^2 .* obj.sigma .* sin(obj.psi) - obj.v.^3 .* obj.k .^ 2 .* cos(obj.psi);
+            obj.xddddot = obj.v.^3 .* obj.k .* (obj.v.*obj.k.^2.*sin(obj.psi) - obj.sigma.*cos(obj.psi) - 2*obj.sigma.*cos(obj.psi));
             
             obj.ydot = obj.v .* sin(obj.psi);
             obj.yddot = obj.v .^ 2 .* obj.k .* cos(obj.psi) - 2 * obj.v .* obj.a .* obj.k .* cos(obj.psi);
             obj.ydddot = obj.v .^ 2 .* obj.sigma .* cos(obj.psi) - obj.v .^ 3 .* obj.k .^ 2 .* sin(obj.psi);
+            obj.yddddot = -obj.v.^3 .* obj.k .* (obj.v.*obj.k.^2.*cos(obj.psi) + obj.sigma.*sin(obj.psi) + 2*obj.sigma.*sin(obj.psi));
         end
         
         function temp_traj = concatenate(obj, new_traj)
