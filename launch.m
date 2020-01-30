@@ -32,7 +32,7 @@ function launch()
     % Scenario Path
     path = [0 0; 12 0; 12 8; 20.5 8];
     % Only supports n = 0,3,4
-    scenario = MultiAgent_ParamOptScenario(4, CorridorWorld, BetterUnicycleVehicle([0; 0; 0; 1; 0]), path);
+    scenario = MultiAgent_ParamOptScenario(3, CorridorWorld, BetterUnicycleVehicle([0; 0; 0; 1; 0]), path);
 %     scenario = MultiAgent_ParamOptScenario(0, CorridorWorld, BetterUnicycleVehicle([0; 0; 0; 0; 0]), path);
     
     % Create a vector field

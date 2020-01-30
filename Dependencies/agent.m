@@ -59,7 +59,7 @@ classdef agent < handle
                 case 3
                     Q = [1 cos(2*pi/3) cos(4*pi/3); 0 sin(2*pi/3) sin(4*pi/3)];
                 case 4
-                    Q = [1.5 0 0 -1.5; 0 .75 -.75 0];
+                    Q = [1.5 0 0 -1.5; 0 1 -1 0];
                 otherwise
                     disp('Unsupported Number of Agents, define formation in DesiredFollowerPositions function')
             end
@@ -79,19 +79,32 @@ classdef agent < handle
             % method to calculate desired velocities
 
             u_agent = obj.planner.minimize(t,obj.vehicle.x,obj.vehicle.u_init);
-            obj.vehicle.v_d = u_agent(obj.planner.ind_a1);
-            obj.vehicle.w_d = u_agent(obj.planner.ind_alpha1);
+            obj.vehicle.v_d = u_agent(obj.planner.ind_v1);
+            obj.vehicle.w_d = u_agent(obj.planner.ind_w1);
+            if u_agent(obj.planner.ind_time1) == 0 
+                obj.vehicle.v_d = u_agent(obj.planner.ind_v2);
+                obj.vehicle.w_d = u_agent(obj.planner.ind_w2);
+                if u_agent(obj.planner.ind_time2) == 0 
+                    obj.vehicle.v_d = u_agent(obj.planner.ind_v3);
+                    obj.vehicle.w_d = u_agent(obj.planner.ind_w3);
+                end
+            end
             obj.vehicle.u_init = u_agent;
-            u = obj.vehicle.velocityControl(obj.vehicle.v_d, obj.vehicle.w_d, obj.vehicle.x);
+            if u_agent(obj.planner.ind_time1) == 0 && u_agent(obj.planner.ind_time2) == 0 && u_agent(obj.planner.ind_time3) == 0 
+                u = obj.trackControl(t);
+            else
+                u = obj.vehicle.velocityControl(obj.vehicle.v_d, obj.vehicle.w_d, obj.vehicle.x);
+            end
         end
         
         function setInitialControlFromTraj(obj,t)
             ind1 = round(t/obj.dt+1,0);
-            ind2 = round((obj.planner.T/3+t)/obj.dt+1,0);
-            ind3 = round((obj.planner.T*2/3+t)/obj.dt+1,0);
-            obj.vehicle.u_init = [obj.trajectory.v(ind1); obj.trajectory.w(ind1); obj.planner.T/3; ...
-                    obj.trajectory.v(ind2); obj.trajectory.w(ind2); obj.planner.T*2/3; ...
-                    obj.trajectory.v(ind3); obj.trajectory.w(ind3)];
+            ind2 = round((obj.planner.T/4+t)/obj.dt+1,0);
+            ind3 = round((obj.planner.T/2+t)/obj.dt+1,0);
+            ind4 = round((obj.planner.T*3/4+t)/obj.dt+1,0);
+            obj.vehicle.u_init = [obj.trajectory.v(ind1); obj.trajectory.w(ind1); obj.planner.T/4; ...
+                    obj.trajectory.v(ind2); obj.trajectory.w(ind2); obj.planner.T/2; ...
+                    obj.trajectory.v(ind3); obj.trajectory.w(ind3); obj.planner.T*3/4];
         end
         
     end
