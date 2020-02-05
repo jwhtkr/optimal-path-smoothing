@@ -10,9 +10,9 @@ classdef Unicycle2 < CostClass
         
         p1 = 0.85; % weight on velocity
         p2 = 0.85; % weight on angular velocity
-        p3 = 0.20; % weight of avoidance
-        p4 = 0.20; % weight of voronoi barrier
-        p5 = 1.0; % weight on go to goal
+        p3 = 0.15; % weight of avoidance
+        p4 = 0.15; % weight of voronoi barrier
+        p5 = 1.2; % weight on go to goal
         
         % Operational flags
         numericalPartialLogic = false;
