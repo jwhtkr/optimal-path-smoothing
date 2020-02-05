@@ -34,8 +34,6 @@ classdef ReferenceAvoidAgent < SingleAgent
         
         % Obstacle variables
         g_max = 1; % Maximum magnitude of the vector to be followed
-        k_max = 5; % Maximum curvature
-        sig_max = 5; % Maximum change in curvature
         S = 4; % Sphere of influence of orbit
         R_orbit = 1; % Radius of orbit
         S_avoid = 4; % Sphere of influence of avoid
@@ -48,13 +46,13 @@ classdef ReferenceAvoidAgent < SingleAgent
     
     
     methods
-        function obj = ReferenceAvoidAgent(veh, world, waypoints, dt)
+        function obj = ReferenceAvoidAgent(veh, world, trajectory)
             % initialize the scenario
             obj = obj@SingleAgent(veh, world);
             obj.vehicle.sensor.initializeSensor(obj.n_sensors, obj.max_sensor_range);
             
             % Initialize trajectory to be followed
-            obj.trajectory = CCPathGenerator(waypoints, obj.g_max, dt, obj.k_max, obj.sig_max).traj;
+            obj.trajectory = trajectory; 
             
             % Plotting variables
             x_vec = -1:1:20;

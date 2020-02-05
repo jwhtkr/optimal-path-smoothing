@@ -19,7 +19,12 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             %   x0: Cell structure of initial states, one for each agent to
             %   be run
             
+            
+            % Define desired trajectory pamameters
             dt = 0.01;
+            vd = 1;
+            k_max = 5; % Maximum curvature
+            sig_max = 5; % Maximum change in curvature
             
             % Create each agent and its corresponding plotter
             n_agents = length(x0);
@@ -28,7 +33,8 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             for i = 1:length(agents)
                 % Create the agents
                 veh_i = veh(x0{i});
-                agents{i} = ReferenceAvoidAgent(veh_i, world, waypoints{i}, dt);
+                traj = CCPathGenerator(waypoints{i}, vd, dt, k_max, sig_max).traj;
+                agents{i} = ReferenceAvoidAgent(veh_i, world, traj);
                 
                 % Create a vehicle plotter
                 plotters{end+1} = SingleAgentPlotter(veh_i);
