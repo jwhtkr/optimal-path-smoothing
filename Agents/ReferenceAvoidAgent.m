@@ -18,10 +18,9 @@ classdef ReferenceAvoidAgent < SingleAgent
         w_g2g = 1 % weight on the go to goal field
         
         q_inf
-        n_sensors; % Stores the number of sensors
         
         % Trajectory variables
-        clothoid
+        trajectory % Instance of the Trajectory2D class
         
         % Current state of the control (slide or follow)
         state = 2; % Default to tracking        
@@ -41,16 +40,21 @@ classdef ReferenceAvoidAgent < SingleAgent
         R_orbit = 1; % Radius of orbit
         S_avoid = 4; % Sphere of influence of avoid
         R_avoid = 1; % Radius of full avoid
+        
+        % Sensing variables
+        n_sensors = 30; % Number of sensor lines
+        max_sensor_range = 4; % Maximum range of the sensor
     end
     
     
     methods
         function obj = ReferenceAvoidAgent(veh, world, waypoints, dt)
             % initialize the scenario
-            obj = obj@SingleAgent(veh, world); 
+            obj = obj@SingleAgent(veh, world);
+            obj.vehicle.sensor.initializeSensor(obj.n_sensors, obj.max_sensor_range);
             
             % Initialize trajectory to be followed
-            obj.clothoid = CCPathGenerator(waypoints, obj.g_max, dt, obj.k_max, obj.sig_max);
+            obj.trajectory = CCPathGenerator(waypoints, obj.g_max, dt, obj.k_max, obj.sig_max).traj;
             
             % Plotting variables
             x_vec = -1:1:20;
@@ -97,7 +101,6 @@ classdef ReferenceAvoidAgent < SingleAgent
             obj.avoid_field = SummedFields(x_vec, y_vec, fields_avoid, weights_avoid, obj.g_max);
             
             % Initialize sensors
-            obj.n_sensors = veh.sensor.n_lines;
             obj.q_inf = q_inf;
         end
         
@@ -334,7 +337,7 @@ classdef ReferenceAvoidAgent < SingleAgent
         end
         
         function [qd, qd_dot, qd_ddot] = WaypointReference(obj, t)
-            [qd, qd_dot, qd_ddot] = obj.clothoid.reference_traj(t);
+            [qd, qd_dot, qd_ddot] = obj.trajectory.reference_traj(t);
         end
     end
     

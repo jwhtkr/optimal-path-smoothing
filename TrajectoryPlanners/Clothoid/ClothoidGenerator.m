@@ -1,4 +1,6 @@
 classdef ClothoidGenerator < handle
+    %BetterUnicycle Implements a unicycle with direct control over the
+    %accleration
     
     properties
        dt;
@@ -37,19 +39,17 @@ classdef ClothoidGenerator < handle
             obj.traj.s_geo = obj.traj.s;
             
             obj.t_span = obj.traj.s ./ obj.traj.v;
-            
-            [x, t] = obj.calc_clothoid(v,max_sigma);
-            obj.traj.update(x,t);
+            x = obj.calc_clothoid(v,max_sigma);
+            obj.traj.update(x);
         end
         
-        function [x, t] = calc_clothoid(obj,v,sigma)
+        function clothoid = calc_clothoid(obj,v,sigma)
             x = zeros(4,1);
             
             % Numerical Integration
             [t_vec,x_vec] = ode45(@(t,x) obj.xdot(x,v,sigma), obj.t_span, x);
-            % plot(x_vec(:,1),x_vec(:,2))
-            x = x_vec';
-            t = t_vec';
+%             plot(x_vec(:,1),x_vec(:,2))
+            clothoid = x_vec';
         end
         
         function x_dot = xdot(obj,x,v,sigma)

@@ -5,8 +5,6 @@ classdef CCPathGenerator < handle
         planner;
         deflection_angle;
         traj;
-        
-        
     end
     
     methods
@@ -23,6 +21,7 @@ classdef CCPathGenerator < handle
             [n m ] = size(path);
 %             plot(path(:,1),path(:,2)); hold on;
             
+
             obj.planner = CCTrajectoryPlanner(dt,v,k,sig);
             obj.traj = Trajectory2D();
             [waypoints, deflection_angles] = obj.path_to_waypoints(path);
@@ -44,29 +43,25 @@ classdef CCPathGenerator < handle
                 end
                 if k == 1
                     line_traj = line_trajectory([waypoint.x;waypoint.y], [turn_traj.x(1); turn_traj.y(1)], v, dt);
-                    obj.traj = obj.traj.concatenate(line_traj);
-                    obj.traj = obj.traj.concatenate(turn_traj); 
                 elseif k == n-1
                     line_traj = line_trajectory([obj.traj.x(end);obj.traj.y(end)],[waypoint_1.x;waypoint_1.y], v, dt);
-                    obj.traj = obj.traj.concatenate(line_traj);
                 else
                     line_traj = line_trajectory([obj.traj.x(end);obj.traj.y(end)], [turn_traj.x(1); turn_traj.y(1)], v, dt);
-                    obj.traj = obj.traj.concatenate(line_traj);
-                    obj.traj = obj.traj.concatenate(turn_traj); 
                 end
-                            
+                
+                if k == n-1
+                    obj.traj = obj.traj.concatenate(line_traj);
+                else
+                    obj.traj = obj.traj.concatenate(line_traj);
+                    obj.traj = obj.traj.concatenate(turn_traj);
+                end
             end
+            obj.traj.update_derivatives();
+            obj.traj.dt = dt;
 %             plot(obj.traj.x, obj.traj.y);
         end
         
-        function [q, qdot, qddot, qdddot] = reference_traj(obj,t)
-            % This function organizes the 3 times diff trajectory
-            ind = round(t/obj.planner.dt+1,0);
-            q = [obj.traj.x(ind); obj.traj.y(ind)];
-            qdot = [obj.traj.xdot(ind); obj.traj.ydot(ind)];
-            qddot = [obj.traj.xddot(ind); obj.traj.yddot(ind)];
-            qdddot = [obj.traj.xdddot(ind); obj.traj.ydddot(ind)];
-        end
+        
         
         function [waypoints, deflection_angles] = path_to_waypoints(obj, path)
             % Function takes a path and creates mock waypoints at each

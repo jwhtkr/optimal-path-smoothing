@@ -14,7 +14,7 @@ function launch()
     addpath Vehicle/Kinematics
     addpath World
     addpath TrajectoryPlanners/MultiArcBased/Opt_dep
-
+    addpath TrajectoryPlanners/EpsilonTracking
     
     %%%%%%%%%%%%%%%%% Create scenario %%%%%%%%%%%%%%%%%%%%%
     % Reference tracking scenario
@@ -28,8 +28,12 @@ function launch()
     %scenario = VelocityTrackingScenario(SimpleUnicycleVehicle);
 %     scenario = ParamOptScenario(BetterUnicycleVehicle);
 %     scenario = MultiParamOptScenario(BetterUnicycleVehicle);
-    % Only supports n = 3,4
-    scenario = MultiAgent_ParamOptScenario(3, CorridorWorld, BetterUnicycleVehicle([7.5; 0; 0; 1; 0]));
+
+    % Scenario Path
+    path = [0 0; 12 0; 12 8; 20.5 8];
+    % Only supports n = 0,3,4
+    scenario = MultiAgent_ParamOptScenario(3, CorridorWorld, BetterUnicycleVehicle([0; 0; 0; 1; 0]), path);
+%     scenario = MultiAgent_ParamOptScenario(0, CorridorWorld, BetterUnicycleVehicle([0; 0; 0; 0; 0]), path);
     
     % Create a vector field
     x_vec = -5:.5:5;
@@ -42,7 +46,7 @@ function launch()
     
     % Vector field scenario
     %scenario = VectorFieldScenario(field, BetterUnicycleVehicle, EmptyWorld, VECTOR_FOLLOWING_TYPE.POINT );
-    scenario = VectorFieldScenario(field, SimpleUnicycleVehicle, EmptyWorld, VECTOR_FOLLOWING_TYPE.POINT );
+    %scenario = VectorFieldScenario(field, SimpleUnicycleVehicle, EmptyWorld, VECTOR_FOLLOWING_TYPE.POINT );
     %scenario = VectorFieldScenario(field, SmoothDifferentialDriveVehicle, EmptyWorld, VECTOR_FOLLOWING_TYPE.POINT);
     
     % Summed vector fields
@@ -58,4 +62,5 @@ function launch()
     % Run the scenario
     scenario.runScenario();
 end
+
 

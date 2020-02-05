@@ -2,8 +2,8 @@ classdef RangeSensor < handle
     %RangeSensor Creates a sensor based on a limited range
     
     properties (SetAccess = protected, GetAccess = public)
-        n_lines = 30; % Number of range measurements
-        max_dist = 7; % Max distance of the range measurements
+        n_lines = 100; % Number of range measurements
+        max_dist = 4; % Max distance of the range measurements
     end
     
     properties (SetAccess = protected, GetAccess = public)
@@ -28,7 +28,27 @@ classdef RangeSensor < handle
     end
     
     methods (Access = public)
-        function obj = RangeSensor()
+        function obj = RangeSensor(varargin)
+            %RangeSensor create an instance of this class
+            %
+            % Inputs:
+            %   varargin{1}: number of lines on the range sensor
+            %   varargin{2}: max distance for the range sensor
+            if nargin > 0
+                obj.n_lines = varargin{1};
+            end
+            if nargin > 1
+                obj.max_dist = varargin{2};
+            end
+            obj.initializeSensor(obj.n_lines, obj.max_dist);
+        end
+        
+        function initializeSensor(obj, n_lines, max_dist)
+            % Store the initialization variables
+            obj.resetProperties();
+            obj.n_lines = n_lines;
+            obj.max_dist = max_dist;
+            
             % Create the nominal orientations of the range lines
             if obj.n_lines <= 1 % Single line sensor directly out front
                 obj.orien_nom = 0;
@@ -211,6 +231,19 @@ classdef RangeSensor < handle
             end
             
 %             plot(xo, yo, 'ro', 'linewidth', 2);
+        end
+        
+        function resetProperties(obj)
+            obj.ind_left = []; % indices for sensors on the left of the vehicle
+            obj.n_left = 0; % Number of left sensors
+            obj.ind_right = []; % indices for sensors on the right of the vehicle
+            obj.n_right = 0; % Number of right sensors
+            obj.ind_front = []; % indices for sensors pointing to the front of the vehicle
+            obj.n_front = 0; % Number of sensors pointing to the front of the vehicle
+            obj.ind_front_left = []; % indices for sensors on the front left of the vehicle
+            obj.n_front_left = 0; % Number of front left sensors
+            obj.ind_front_right = []; % indices for the sensors on the front right of the vehicle
+            obj.n_front_right = 0; % Number of front right sensors
         end
     end
 end

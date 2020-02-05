@@ -34,6 +34,7 @@ classdef CCTrajectoryPlanner < handle
             
             % See fig 3 Fraichard
             r_inner = 1/obj.max_k;
+            
             obj.q_i = [obj.clothoid.traj.x(end); obj.clothoid.traj.y(end)];
             angle_perp_to_q_i = pi/2 + obj.clothoid.traj.psi(end);
             R = rotation(angle_perp_to_q_i);
@@ -121,12 +122,11 @@ classdef CCTrajectoryPlanner < handle
                 % Deflection where k_max is never achieved, so no circular
                 % arc is generated.
                 
-                
                 % Truncate clothoid region
                 clothoid_end_ind = obj.find_nearest_idx(obj.clothoid.traj.psi, deflection / 2.0);
-                temp_traj = obj.clothoid.traj.truncate(clothoid_end_ind);
+                obj.clothoid.traj.truncate(clothoid_end_ind);
                 
-                cc_turn = cc_turn.concatenate(temp_traj);
+                cc_turn = cc_turn.concatenate(obj.clothoid.traj);
                 cc_turn.s_geo = cc_turn.s(end);
                 cc_turn.y = direction * cc_turn.y;
                 cc_turn.psi = direction * cc_turn.psi;

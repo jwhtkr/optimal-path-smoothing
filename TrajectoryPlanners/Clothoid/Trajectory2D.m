@@ -12,6 +12,8 @@ classdef Trajectory2D < handle
         yddot;
         xdddot;
         ydddot;
+        xddddot;
+        yddddot;
         
         ds;
         k;
@@ -24,8 +26,10 @@ classdef Trajectory2D < handle
         
         v;
         a;
+        j;
         w;
         alpha;
+        zeta;
         sigma;
     end
         
@@ -45,15 +49,17 @@ classdef Trajectory2D < handle
             obj.xdot = [];
             obj.xddot = [];
             obj.xdddot = [];
+            obj.xddddot = [];
             
             obj.y = [];
             obj.ydot = [];
             obj.yddot = [];
             obj.ydddot = [];
+            obj.yddddot = [];
             obj.s_geo = 0;
         end
         
-        function update(obj,x,t)
+        function update(obj,x)
             obj.x = x(1,:);
             obj.y = x(2,:);
             obj.psi = x(3,:);
@@ -62,21 +68,50 @@ classdef Trajectory2D < handle
             obj.v = ones(1,obj.cloth_len)*obj.v;
             obj.sigma = ones(1,obj.cloth_len)*obj.sigma;
             obj.a = zeros(1,obj.cloth_len);
+            obj.j = zeros(1,obj.cloth_len);
             obj.s_geo = obj.s;
-%             obj.t = obj.s ./ obj.v;
-            obj.t = t;
+            obj.t = obj.s ./ obj.v;
             
             obj.update_derivatives();
+        end
+        
+        function update_new(obj)
+            obj.psi = atan2(obj.ydot,obj.xdot);
+            obj.v = sqrt(obj.xdot.^2 + obj.ydot.^2);
+%             obj.sigma = ones(1,obj.cloth_len)*obj.sigma;
+            obj.cloth_len = length(obj.x);
+            obj.a = zeros(1,obj.cloth_len);
+            obj.j = zeros(1,obj.cloth_len);
+%             obj.s_geo = obj.s;
+            obj.t = 0:obj.dt:(obj.cloth_len-1)*obj.dt;
+            
+            obj.j = (obj.xddot.^2 + obj.xdddot.*obj.xdot + obj.yddot.^2 + obj.ydddot.*obj.ydot - obj.a.^2)./obj.v;
+            
+            obj.w = (obj.xdot.*obj.yddot - obj.ydot.*obj.xddot)./obj.v;
+            obj.alpha = (obj.xdot.*obj.ydddot - obj.ydot.*obj.xdddot)./obj.v - 2*obj.a.*obj.w./obj.v;
+            obj.zeta = (obj.yddddot.*obj.xdot + obj.ydddot.*obj.xddot - obj.xdddot.*obj.yddot - obj.xddddot.*obj.ydot)./obj.v ...
+                        -2*obj.a.*(obj.ydddot.*obj.xdot - obj.xdddot.*obj.ydot)./obj.v.^3 ...
+                        +(2*obj.a.^2.*obj.w -2*obj.w.*obj.j - 2*obj.a.*obj.alpha)./obj.v;
         end
         
         function update_derivatives(obj)
             obj.xdot = obj.v .* cos(obj.psi);
             obj.xddot = -obj.v.^2 .* obj.k .* sin(obj.psi) - 2 * obj.v .* obj.a .* obj.k .* sin(obj.psi);
             obj.xdddot = - obj.v.^2 .* obj.sigma .* sin(obj.psi) - obj.v.^3 .* obj.k .^ 2 .* cos(obj.psi);
+            obj.xddddot = obj.v.^3 .* obj.k .* (obj.v.*obj.k.^2.*sin(obj.psi) - obj.sigma.*cos(obj.psi) - 2*obj.sigma.*cos(obj.psi));
             
             obj.ydot = obj.v .* sin(obj.psi);
             obj.yddot = obj.v .^ 2 .* obj.k .* cos(obj.psi) - 2 * obj.v .* obj.a .* obj.k .* cos(obj.psi);
             obj.ydddot = obj.v .^ 2 .* obj.sigma .* cos(obj.psi) - obj.v .^ 3 .* obj.k .^ 2 .* sin(obj.psi);
+            obj.yddddot = -obj.v.^3 .* obj.k .* (obj.v.*obj.k.^2.*cos(obj.psi) + obj.sigma.*sin(obj.psi) + 2*obj.sigma.*sin(obj.psi));
+            
+            obj.j = (obj.xddot.^2 + obj.xdddot.*obj.xdot + obj.yddot.^2 + obj.ydddot.*obj.ydot - obj.a.^2)./obj.v;
+            
+            obj.w = (obj.xdot.*obj.yddot - obj.ydot.*obj.xddot)./obj.v;
+            obj.alpha = (obj.xdot.*obj.ydddot - obj.ydot.*obj.xdddot)./obj.v - 2*obj.a.*obj.w./obj.v;
+            obj.zeta = (obj.yddddot.*obj.xdot + obj.ydddot.*obj.xddot - obj.xdddot.*obj.yddot - obj.xddddot.*obj.ydot)./obj.v.^2 ...
+                        -2*obj.a.*(obj.ydddot.*obj.xdot - obj.xdddot.*obj.ydot)./obj.v.^3 ...
+                        +(2*obj.a.^2.*obj.w -2*obj.w.*obj.j - 2*obj.a.*obj.alpha)./obj.v;
         end
         
         function temp_traj = concatenate(obj, new_traj)
@@ -198,28 +233,48 @@ classdef Trajectory2D < handle
             tmp_traj.ds = obj.ds;
         end
         
-        function traj = truncate(obj,ind)
-            traj = Trajectory2D();
-            traj.s = obj.s(1:ind);
-            traj.v = obj.v(1:ind);
-            traj.a = obj.a(1:ind);
-            traj.sigma = obj.sigma(1:ind);
-            traj.transitions = [1];
-            traj.t = obj.t(1:ind);
-            traj.psi = obj.psi(1:ind);
-            traj.k = obj.k(1:ind);
+        function truncate(obj,ind)
+
+            obj.s = obj.s(1:ind);
+            obj.v = obj.v(1:ind);
+            obj.a = obj.a(1:ind);
+            obj.sigma = obj.sigma(1:ind);
+            obj.transitions = [1];
+            obj.t = obj.t(1:ind);
+            obj.psi = obj.psi(1:ind);
+            obj.k = obj.k(1:ind);
             
-            traj.x = obj.x(1:ind);
-            traj.xdot = obj.xdot(1:ind);
-            traj.xddot = obj.xddot(1:ind);
-            traj.xdddot = obj.xdddot(1:ind);
+            obj.x = obj.x(1:ind);
+            obj.xdot = obj.xdot(1:ind);
+            obj.xddot = obj.xddot(1:ind);
+            obj.xdddot = obj.xdddot(1:ind);
             
-            traj.y = obj.y(1:ind);
-            traj.ydot = obj.ydot(1:ind);
-            traj.yddot = obj.yddot(1:ind);
-            traj.ydddot = obj.ydddot(1:ind);
-            traj.s_geo = 0;
+            obj.y = obj.y(1:ind);
+            obj.ydot = obj.ydot(1:ind);
+            obj.yddot = obj.yddot(1:ind);
+            obj.ydddot = obj.ydddot(1:ind);
+            obj.s_geo = 0;
+        end
+            
+        function [q, qdot, qddot, qdddot, qddddot] = reference_traj(obj,t)
+            % This function organizes the 3 times diff trajectory
+            ind = round(t/obj.dt+1,0);
+            q = [obj.x(ind); obj.y(ind)];
+            qdot = [obj.xdot(ind); obj.ydot(ind)];
+            qddot = [obj.xddot(ind); obj.yddot(ind)];
+            qdddot = [obj.xdddot(ind); obj.ydddot(ind)];
+            qddddot = [obj.xdddot(ind); obj.ydddot(ind)];
         end
         
+        function yaw = getYaw(obj,t)
+            ind = round(t/obj.dt+1,0);
+            yaw = obj.psi(ind);
+        end
+        
+        function [v, w] = getVelocities(obj,t)
+            ind = round(t/obj.dt+1,0);
+            v = obj.v(ind);
+            w = obj.w(ind);
+        end
     end
 end

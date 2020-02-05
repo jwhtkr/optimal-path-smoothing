@@ -4,8 +4,8 @@ close all;
 
     path = [0 4; 10 0; 0 -10; 10 -14; 20 -4];
 %     path = -[0 0; 5 1; 10 -1; 15 1; 20 -1];
-    k = 5;
-    sig = 5;
+    k = 1;
+    sig = 1;
     v = 1;
     dt = 0.01;
     clothoid = CCPathGenerator(path,v,dt,k,sig);
@@ -18,8 +18,9 @@ close all;
     K = lqr(A, B, Q, R);
     
     % Create the vehicle and desired values
-    veh = BetterUnicycle;    
-    eps = 2.1;
+%     veh = BetterUnicycle;    
+    veh = ContinuousSteeringBicycle;
+    eps = .51;
      
     % Create reference trajectory
     a = 5; % Amplitude
@@ -41,7 +42,7 @@ close all;
     % Integrate the state
     t0 = 0; 
 %     dt = 0.01;
-    tf = 40;
+    tf = 20;
     t = t0:dt:tf;
     for k = 1:length(t)
         epsilonTraj(:,k)= q_d(t(k));
@@ -55,7 +56,7 @@ close all;
     qd_traj = q_r(tmat);
     plot(qd_traj(1,:), qd_traj(2,:), 'r'); hold on;
     plot(epsilonTraj(1,:), epsilonTraj(2,:), 'b')
-    plot(path(:,1),path(:,2),'o')
+%     plot(path(:,1),path(:,2),'o')
 %     ylim([-15 5])
 %     axis equal
   
@@ -198,5 +199,5 @@ function u = TrackTrajectoryApproximateDiffeomorphismUnicycle(t, x, veh, traj, e
     u_point = -K*(q - [qd; qd_dot]) + qd_ddot;
     
     % Calculate the control inputs
-    u = R_e_inv*u_point - w_hat_e*[v; w];    
+    u = R_e_inv*u_point - w_hat_e*[v; w];  
 end
