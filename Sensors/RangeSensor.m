@@ -21,6 +21,10 @@ classdef RangeSensor < handle
         n_right = 0 % Number of right sensors
         ind_front = [] % indices for sensors pointing to the front of the vehicle
         n_front = 0 % Number of sensors pointing to the front of the vehicle
+        ind_front_left = [] % indices for sensors on the front left of the vehicle
+        n_front_left = 0; % Number of front left sensors
+        ind_front_right = [] % indices for the sensors on the front right of the vehicle
+        n_front_right = 0; % Number of front right sensors
     end
     
     methods (Access = public)
@@ -42,24 +46,46 @@ classdef RangeSensor < handle
                 % Get angle and adjust it to be between -pi and pi
                 th = obj.orien_nom(k);
                 th = atan2(sin(th), cos(th));
+                obj.orien_nom(k) = th; % adjust to be between -pi and pi
+                
+                % Add it to the front if the angle is less than pi/2
+                if abs(th) < (pi/2)
+                    obj.ind_front(end+1) = k;
+                    front = true;
+                else
+                    front = false;
+                end
                 
                 % Add it to the left if orientation is positive
                 if th > 0
                     obj.ind_left(end+1) = k;
+                    if front
+                        obj.ind_front_left(end+1) = k;
+                    end
                 else % Otherwise consider it on the right of the vehicle
                     obj.ind_right(end+1) = k;
-                end
-                
-                % Add it to the front if the angle is less than pi/2
-                if abs(th) < (pi/2)
-                    obj.ind_front(end+1) = k;                    
+                    if front
+                        obj.ind_front_right(end+1) = k;
+                    end
                 end
             end
+            
+            % Sort the left indices from front to back
+            th_left = obj.orien_nom(obj.ind_left);
+            [~, ind] = sort(th_left);
+            obj.ind_left = obj.ind_left(ind);
+            
+            % Sort the right indices from front to back
+            th_right = abs(obj.orien_nom(obj.ind_right));
+            [~, ind] = sort(th_right);
+            obj.ind_right = obj.ind_right(ind);
             
             % Set the count for the left and right fields
             obj.n_left = length(obj.ind_left);
             obj.n_right = length(obj.ind_right);
             obj.n_front = length(obj.ind_front);
+            obj.n_front_left = length(obj.ind_front_left);
+            obj.n_front_right = length(obj.ind_front_right);
         end
         
         function [xo, yo, dist_o] = getObstacleDetections(obj,q, th, world)

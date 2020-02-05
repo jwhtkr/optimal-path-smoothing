@@ -60,7 +60,7 @@ classdef Vehicle < handle
         end
         
         function initializePlots(obj, ax)
-%             obj.sensor.initializePlots(ax);
+            obj.sensor.initializePlots(ax);
             obj.kinematics.initializeStatePlot(ax, obj.x);
         end
         
@@ -75,7 +75,7 @@ classdef Vehicle < handle
             obj.kinematics.plotState(obj.t, obj.x);
             
             % Plot the sensor data
-%             obj.sensor.plotMeasurements(obj.x(obj.q_ind), obj.xo_latest, obj.yo_latest);
+            obj.sensor.plotMeasurements(obj.x(obj.q_ind), obj.xo_latest, obj.yo_latest);
         end        
     end
 end

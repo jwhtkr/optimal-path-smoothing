@@ -60,6 +60,7 @@ classdef MultiAgentScenario < handle
         function runScenario(obj)
             % Initialize plots
             obj.initializePlots();
+            pause();
             
             % Simulate forward while plotting
             obj.integrateEuler();
@@ -156,10 +157,11 @@ classdef MultiAgentScenario < handle
                 obj.xmat(:,k) = x_t;
                 
                 % Plot the state
-                if obj.isPlotReady()
+                if true % obj.isPlotReady()
                     obj.plotState(t);
                     obj.plotWorld(t); 
                     pause(obj.dt/4);
+                    %t
                 end
             end
         end
