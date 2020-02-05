@@ -59,7 +59,7 @@ classdef agent < handle
                 case 3
                     Q = [1 cos(2*pi/3) cos(4*pi/3); 0 sin(2*pi/3) sin(4*pi/3)];
                 case 4
-                    Q = [1.5 0 0 -1.5; 0 1 -1 0];
+                    Q = [1.75 0 0 -1.75; 0 1.0 -1.0 0];
                 otherwise
                     disp('Unsupported Number of Agents, define formation in DesiredFollowerPositions function')
             end

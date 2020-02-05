@@ -2,11 +2,17 @@ classdef Unicycle2 < CostClass
     
     properties
         % Cost weights
+%         p1 = 0.50; % weight on velocity
+%         p2 = 0.50; % weight on angular velocity
+%         p3 = 0.20; % weight of avoidance
+%         p4 = 0.30; % weight of voronoi barrier
+%         p5 = 1.0; % weight on go to goal
+        
         p1 = 0.85; % weight on velocity
         p2 = 0.85; % weight on angular velocity
-        p3 = 0.15; % weight of avoidance
-        p4 = 0.15; % weight of voronoi barrier
-        p5 = 1.2; % weight on go to goal
+        p3 = 0.20; % weight of avoidance
+        p4 = 0.20; % weight of voronoi barrier
+        p5 = 1.0; % weight on go to goal
         
         % Operational flags
         numericalPartialLogic = false;
@@ -147,25 +153,27 @@ classdef Unicycle2 < CostClass
             obj.cost(u);
             step = @(u) obj.armijo_step(u);
             u = obj.initialize(u);
+
             while ~obj.armijo_stop(u) 
                 u = u + step(u);
             end
+
             
             obj.plotTraj(u);
             pause(0.3);
-            % Move time horizons one time step closer while command was
+            % Move time horizons one time step closer while command is
             % executed
-            if u(obj.ind_time1) > obj.dt
+            if u(obj.ind_time1) >= obj.dt
                 u(obj.ind_time1) = u(obj.ind_time1) - obj.dt;
             elseif u(obj.ind_time1) < obj.dt
                 u(obj.ind_time1) = 0;
             end
-            if u(obj.ind_time2) > obj.dt
+            if u(obj.ind_time2) >= obj.dt
                 u(obj.ind_time2) = u(obj.ind_time2) - obj.dt;
             elseif u(obj.ind_time2) < obj.dt
                 u(obj.ind_time2) = 0;
             end
-            if u(obj.ind_time3) > obj.dt
+            if u(obj.ind_time3) >= obj.dt
                 u(obj.ind_time3) = u(obj.ind_time3) - obj.dt;
             elseif u(obj.ind_time3) < obj.dt
                 u(obj.ind_time3) = 0;
@@ -185,7 +193,7 @@ classdef Unicycle2 < CostClass
             
             for i = 1:length(w1)
                 % Initialize a u to explore, T-tau3 = dt
-                u_var = [obj.vd; w1(i);obj.T/3;obj.vd;w1(i);obj.T*2/3;obj.vd;w1(i); obj.T-obj.dt];
+                u_var = [obj.vd; w1(i);obj.T/3;obj.vd;w1(i);obj.T*2/3;obj.vd;w1(i); obj.T];
 %                 obj.plotTraj(u_var);
 %                 pause(0.02);
                 if min_cost > cost(u_var)
@@ -201,7 +209,7 @@ classdef Unicycle2 < CostClass
                 
                 if ~obj.collision_detection
                     % Scale parameters to avoid collision
-                    s = 0.3*obj.time_collision/obj.T;
+                    s = 1.0%*obj.time_collision/obj.T;
                     u0(obj.ind_v1) = u0(obj.ind_v1)*s;
                     u0(obj.ind_w1) = u0(obj.ind_w1)*s;
                     u0(obj.ind_v2) = u0(obj.ind_v2)*s;
@@ -301,7 +309,7 @@ classdef Unicycle2 < CostClass
             x = z(1:obj.n);
             
             % Calculate Dual Mode time derivative
-            if t >= u(obj.ind_time3)
+            if t > u(obj.ind_time3)
                 xdot = obj.unicycleTracking(t,x,u);
             else
                 xdot = obj.unicycleDynamics(t, x, u);
@@ -326,15 +334,20 @@ classdef Unicycle2 < CostClass
             end
             
             % Simulate state forward in time from 0 to tau3
-            obj.setTimeSpan(u,5);
-            x_sol1 = obj.integrate(@(t,x)obj.unicycleDynamics(t, x, u), obj.x0, true, false);
-            x_tau3 = x_sol1(:,end); %obj.evalIntResult(x_sol1,u(obj.ind_time3));
-            
-            % Simulate state forward in time from tau3 to T
-            obj.setTimeSpan(u,4);
-            x_sol2 = obj.integrate(@(t,x)obj.unicycleTracking(t, x, u), x_tau3, true, false);
-            
-            x_sol = [x_sol1 x_sol2];
+            obj.setTimeSpan(u,0);
+            x_sol = obj.integrate(@(t,x)obj.unicycleDualModeDynamics(t, x, u), obj.x0, true, false);
+%             obj.setTimeSpan(u,5);
+%             x_sol1 = obj.integrate(@(t,x)obj.unicycleDynamics(t, x, u), obj.x0, true, false);
+%             x_tau3 = x_sol1(:,end); %obj.evalIntResult(x_sol1,u(obj.ind_time3));
+%             
+%             % Simulate state forward in time from tau3 to T
+%             obj.setTimeSpan(u,4);
+%             x_sol2 = obj.integrate(@(t,x)obj.unicycleTracking(t, x, u), x_tau3, true, false);
+%             
+%             x_sol = [x_sol1 x_sol2];
+%             if length(x_sol) > obj.T/obj.dt+1
+%                 x_sol = [x_sol1 x_sol2(:,2:end)];
+%             end
             
             % Create costateT initial conditions
             xT = obj.evalIntResult(x_sol, obj.T);
@@ -360,11 +373,19 @@ classdef Unicycle2 < CostClass
             
             % Evaluate Results, extract xi values and reset for next time
             % interval
-            costate2 = costates_3(:,1); %obj.evalIntResult(costates_3, u(obj.ind_time2));
-            xi2 = costate2(obj.n+1:end);
-            lam2 = costate2(1:obj.n);
-            % Setting xi inital condition to 0
-            costate2(4:end) = 0;
+            if ~isempty(costates_3)
+                costate2 = costates_3(:,1); %obj.evalIntResult(costates_3, u(obj.ind_time2));
+                xi2 = costate2(obj.n+1:end);
+                lam2 = costate2(1:obj.n);
+                % Setting xi inital condition to 0
+                costate2(4:end) = 0;
+            else
+                % If previous time window doesn't exist set initials to previous
+                % values
+                costate2 = costate3; 
+                xi2 = xi3;
+                lam2 = lam3;
+            end
             
             % Simulate costates backwards in time tau2 to tau1
             obj.setTimeSpan(u,2);
@@ -372,11 +393,19 @@ classdef Unicycle2 < CostClass
 
             % Evaluate Results, extract xi values and reset for next time
             % interval
-            costate1 = costates_2(:,1); %obj.evalIntResult(costates_2, u(obj.ind_time1));
-            xi1 = costate1(obj.n+1:end);
-            lam1 = costate1(1:obj.n);
-            % Setting xi inital condition to 0
-            costate1(4:end) = 0;
+            if ~isempty(costates_2)
+                costate1 = costates_2(:,1); %obj.evalIntResult(costates_2, u(obj.ind_time1));
+                xi1 = costate1(obj.n+1:end);
+                lam1 = costate1(1:obj.n);
+                % Setting xi inital condition to 0
+                costate1(4:end) = 0;
+            else
+                % If previous time window doesn't exist set initials to previous
+                % values
+                costate1 = costate2; 
+                xi1 = xi2;
+                lam1 = lam2;
+            end
             
             % Simulate costates backwards in time tau1 to 0
             obj.setTimeSpan(u,1);
@@ -386,10 +415,18 @@ classdef Unicycle2 < CostClass
             
             % Evaluate results, extract xi values and reset time span to 0
             % to T
-            costate0 = costates_1(:,1); %obj.evalIntResult(costates_1, 0);
-            xi0 = costate0(obj.n+1:end);
-            %             lam0 = costate0(1:obj.n);
-            
+            if ~isempty(costates_1)
+                costate0 = costates_1(:,1); %obj.evalIntResult(costates_1, 0);
+                xi0 = costate0(obj.n+1:end);
+                % lam0 = costate0(1:obj.n);
+            else
+                % If previous time window doesn't exist set initials to previous
+                % values
+                costate0 = costate1; 
+                xi0 = xi1;
+                % lam0 = lam1;
+            end
+                
             % Reset t_span from 0 to T
             obj.setTimeSpan(u,0);
             
@@ -409,6 +446,9 @@ classdef Unicycle2 < CostClass
             dJ_dtau2 = cost1(obj.ind_cost) - cost2(obj.ind_cost) + lam2'*(cost1(1:obj.n) - cost2(1:obj.n));
             dJ_dtau3 = cost2(obj.ind_cost) - cost3(obj.ind_cost) + lam3'*(cost2(1:obj.n) - cost3(1:obj.n));
             
+            if isnan(xi0(1)) || isnan(xi0(2)) || isnan(dJ_dtau1) || isnan(xi1(1)) || isnan(xi1(2)) || isnan(dJ_dtau2) || isnan(xi2(1)) || isnan(xi2(2)) || isnan(dJ_dtau3)
+                test = 1;
+            end
             % Compile Partial 1x9
             dJ_du = [xi0' dJ_dtau1 xi1' dJ_dtau2 xi2' dJ_dtau3];
         end
@@ -496,7 +536,7 @@ classdef Unicycle2 < CostClass
             theta = x(obj.ind_theta);
             
             % Calculate partial
-            if t >= u(obj.ind_time3)
+            if t > u(obj.ind_time3)
                 c = cos(theta);
                 s = sin(theta);
                 e = obj.eps_vel;
@@ -524,7 +564,7 @@ classdef Unicycle2 < CostClass
         
         function df_du = dynamicsInputPartial(obj, t, x, u)
             % Calculate partial
-            if t >= u(obj.ind_time3)
+            if t > u(obj.ind_time3)
                 % Partial for unicycle epsilon tracking of control [u_v;
                 % u_w]
                 df_du = [0, 0; 0, 0; 0, 0; 1 0; 0 1];
@@ -571,6 +611,14 @@ classdef Unicycle2 < CostClass
         
         function setGoal(obj, q)
             obj.qd = q;
+        end
+        
+        function xdot = unicycleDualModeDynamics(obj,t,x,u)
+            if t > u(obj.ind_time3)
+                xdot = obj.unicycleTracking(t,x,u);
+            else
+                xdot = obj.unicycleDynamics(t,x,u);
+            end
         end
         
         function xdot = unicycleDynamics(obj, t, x, u)
@@ -709,8 +757,6 @@ classdef Unicycle2 < CostClass
             
             xvec = [xvec1 xvec2];
             obj.setTimeSpan(u,0);
-%             [tvec, xvec] = ode45(@(t,x)obj.unicycleDynamics(t,x,u), [0 obj.T], obj.x0);
-%             xvec = xvec';
             tvec = obj.t_span;
             j = 1;
             k = 1;

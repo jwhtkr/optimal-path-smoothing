@@ -261,8 +261,14 @@ classdef (Abstract) CostClass < handle
                     dc_dx(obj.ind_time1) = -x(obj.ind_time1)/(-obj.beta^obj.k);
                     dtau1 = -x(obj.ind_time1);
                 end
-                
-                
+                if x(obj.ind_time2) + dtau2 < x(obj.ind_time1) + dtau1 && ~(obj.beta^obj.k == 0) 
+                    dc_dx(obj.ind_time2) = (x(obj.ind_time1) + dtau1 - x(obj.ind_time2))/(-obj.beta^obj.k);
+                    dtau2 = (x(obj.ind_time1) + dtau1 - x(obj.ind_time2));
+                end
+                if x(obj.ind_time3) + dtau3 < x(obj.ind_time2) + dtau2 && ~(obj.beta^obj.k == 0)
+                    dc_dx(obj.ind_time3) = (x(obj.ind_time2) + dtau2 - x(obj.ind_time3))/(-obj.beta^obj.k);
+                    dtau3 = x(obj.ind_time2) + dtau2 - x(obj.ind_time3);
+                end
                 
                 
                 
