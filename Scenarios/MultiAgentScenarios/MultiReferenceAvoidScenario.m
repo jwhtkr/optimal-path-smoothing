@@ -26,14 +26,19 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             k_max = 5; % Maximum curvature
             sig_max = 5; % Maximum change in curvature
             
-            % Create each agent and its corresponding plotter
+            % Create the formation
             n_agents = length(x0);
+            leader = virtual_leader(veh(), n_agents, waypoints{1}, vd, dt);
+            traj_fun = @(k) leader.getFollowerTrajectory(k);
+            
+            % Create each agent and its corresponding plotter
             agents = cell(n_agents, 1);
             plotters = {};
             for i = 1:length(agents)
                 % Create the agents
                 veh_i = veh(x0{i});
-                traj = CCPathGenerator(waypoints{i}, vd, dt, k_max, sig_max).traj;
+                leader.getDesiredFollowerPosition(i);
+                traj = traj_fun(i); %CCPathGenerator(waypoints{i}, vd, dt, k_max, sig_max).traj;
                 agents{i} = ReferenceAvoidAgent(veh_i, world, traj);
                 
                 % Create a vehicle plotter
