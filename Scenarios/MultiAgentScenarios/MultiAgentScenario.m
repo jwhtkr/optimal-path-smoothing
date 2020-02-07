@@ -58,6 +58,9 @@ classdef MultiAgentScenario < handle
         end
         
         function runScenario(obj)
+            % Initialize time vector
+            obj.tmat = [obj.t0:obj.dt:obj.tf]';
+            
             % Initialize plots
             obj.initializePlots();
             pause();
@@ -121,7 +124,6 @@ classdef MultiAgentScenario < handle
     methods (Access=protected)
         function integrateEuler(obj)
             % Initialize state data
-            obj.tmat = [obj.t0:obj.dt:obj.tf]';
             len = length(obj.tmat);
             obj.xmat = zeros(obj.n_states, len);
             obj.xmat(:,1) = obj.x0;

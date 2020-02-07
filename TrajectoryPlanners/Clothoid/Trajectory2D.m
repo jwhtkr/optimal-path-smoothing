@@ -258,12 +258,16 @@ classdef Trajectory2D < handle
             
         function [q, qdot, qddot, qdddot, qddddot] = reference_traj(obj,t)
             % This function organizes the 3 times diff trajectory
-            ind = round(t/obj.dt+1,0);
+            ind = obj.getIndex(t);
             q = [obj.x(ind); obj.y(ind)];
             qdot = [obj.xdot(ind); obj.ydot(ind)];
             qddot = [obj.xddot(ind); obj.yddot(ind)];
             qdddot = [obj.xdddot(ind); obj.ydddot(ind)];
             qddddot = [obj.xdddot(ind); obj.ydddot(ind)];
+        end
+        
+        function ind = getIndex(obj, t)
+            ind = round(t/obj.dt+1,0);
         end
         
         function yaw = getYaw(obj,t)

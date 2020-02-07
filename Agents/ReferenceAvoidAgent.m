@@ -2,7 +2,7 @@ classdef ReferenceAvoidAgent < SingleAgent
     %ReferenceAvoidAgent Creates an agent that will avoid obstacles while
     %trying to follow a reference trajectory
     
-    properties
+    properties(SetAccess = protected)
         % Sinusoid properties
         a = 2 % Amplitude
         f = 1 % Frequency (in radians)
@@ -20,7 +20,8 @@ classdef ReferenceAvoidAgent < SingleAgent
         q_inf
         
         % Trajectory variables
-        trajectory % Instance of the Trajectory2D class
+        traj_act % The actual trajectory to be followed
+        traj_eps % The trajectory followed by the epsilon point
         
         % Current state of the control (slide or follow)
         state = 2; % Default to tracking        
@@ -46,13 +47,14 @@ classdef ReferenceAvoidAgent < SingleAgent
     
     
     methods
-        function obj = ReferenceAvoidAgent(veh, world, trajectory)
+        function obj = ReferenceAvoidAgent(veh, world, traj_act, traj_eps)
             % initialize the scenario
             obj = obj@SingleAgent(veh, world);
             obj.vehicle.sensor.initializeSensor(obj.n_sensors, obj.max_sensor_range);
             
             % Initialize trajectory to be followed
-            obj.trajectory = trajectory; 
+            obj.traj_act = traj_act;
+            obj.traj_eps = traj_eps;
             
             % Plotting variables
             x_vec = -1:1:20;
@@ -105,7 +107,7 @@ classdef ReferenceAvoidAgent < SingleAgent
         %%%%  Superclass Method Implementation %%%%
         function u = control(obj, t, x, ~)
             % Get the desired values
-            [qd, qd_dot, qd_ddot] = obj.ReferenceTraj(t);
+            [qd, qd_dot, ~] = obj.traj_act.reference_traj(t);
             
             % Set the desired point as the goal point
             obj.field_go2goal.x_g = qd;
@@ -128,7 +130,9 @@ classdef ReferenceAvoidAgent < SingleAgent
             u_h = obj.updateFSMState(u_o, u_t_switch, q_eps);
 
             if obj.state == obj.state_track
-                u = obj.vehicle.pathControl(t, qd, qd_dot, qd_ddot, x);
+                % Calculate the desired movement of the epsilon point
+                [qd_eps, qd_dot_eps, qd_ddot_eps] = obj.traj_eps.reference_traj(t);                
+                u = obj.vehicle.pathControl(t, qd_eps, qd_dot_eps, qd_ddot_eps, x);
                 
             elseif obj.state == obj.state_slide_ccw
                 g_func = @(t_val, x_vec, th)obj.orbit_field_ccw.getVector(t_val, x_vec, th) + ...
@@ -297,45 +301,17 @@ classdef ReferenceAvoidAgent < SingleAgent
     %%% Reference trajectory methods
     methods (Access = public)
         function [qd, qd_dot, qd_ddot] = ReferenceTraj(obj, t)
-            [qd, qd_dot, qd_ddot] = obj.WaypointReference(t);
+            [qd, qd_dot, qd_ddot] = obj.traj_act.reference_traj(t);
         end
         
     end
     methods (Access = protected)
-        function [qd, qd_dot, qd_ddot] = SineReference(obj, t)
-            
-            if true
-                [qd, qd_dot, qd_ddot] = obj.WaypointReference(t);
-                return;
-            end
-            if false
-                [qd, qd_dot, qd_ddot] = obj.LineReference(t);
-                return;
-            end
-            
-            % Get length of the time vector
-            n = length(t);
-            t = reshape(t, 1, n);
-
-            % Get the reference
-            qd = [t; obj.a.*sin(obj.f.*t)];                     % Desired position
-            qd_dot = [ones(1,n); obj.a*obj.f*cos(obj.f.*t)];        % Desired velocity vector
-            qd_ddot = [zeros(1,n); -obj.a.*obj.f^2.*sin(obj.f.*t)]; % Desired acceleration vector
+        function [qd, qd_dot, qd_ddot] = WaypointReferenceActual(obj, t)
+            [qd, qd_dot, qd_ddot] = obj.traj_act.reference_traj(t);
         end
         
-        function [qd, qd_dot, qd_ddot] = LineReference(obj, t)
-            % Get length of the time vector
-            n = length(t);
-            t = reshape(t, 1, n);
-            
-            qd = [t; zeros(1,n)];
-            qd_dot = [ones(1,n); zeros(1,n)];
-            qd_ddot = [zeros(1,n); zeros(1,n)];
-            
-        end
-        
-        function [qd, qd_dot, qd_ddot] = WaypointReference(obj, t)
-            [qd, qd_dot, qd_ddot] = obj.trajectory.reference_traj(t);
+        function [qd, qd_dot, qd_ddot] = WaypointReferenceEpsilon(obj, t)
+            [qd, qd_dot, qd_ddot] = obj.traj_eps.reference_traj(t);
         end
     end
     

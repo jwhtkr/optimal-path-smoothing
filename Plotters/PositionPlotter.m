@@ -3,13 +3,14 @@ classdef PositionPlotter < Plotter
     
     properties
         positionFunction % handle to a function to get a desired position
-        
+        color % 1x3 color vector indicating the color to plot
         h_pos = [] % handle to the position plot
     end
     
     methods
-        function obj = PositionPlotter(positionFunction)
+        function obj = PositionPlotter(positionFunction, color)
             obj.positionFunction = positionFunction;
+            obj.color = color;
         end
         
         function initializePlot(obj, t)
@@ -17,7 +18,7 @@ classdef PositionPlotter < Plotter
             qd = obj.positionFunction(t);
             
             % Plot the desired position
-            obj.h_pos = plot(qd(1), qd(2), 'o', 'linewidth', 2);
+            obj.h_pos = plot(qd(1), qd(2), 'o', 'color', obj.color, 'linewidth', 2);
         end
         
         function plot(obj, t)

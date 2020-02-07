@@ -32,30 +32,31 @@ function launchRefAvoidSandbox()
     
     %%%%%%%%%%%%%%%%% Create scenario (new way) %%%%%%%%%%%%%%%%%%%%%
     
-    % Reference avoid scenario: PolygonWorld1
-    waypoints{1} = [0.2 0; 7 0; 13 1; 15 0; 20 1; 25 -6; 16 -6];
-    waypoints{2} = [0.2 1; 10 -4; 15 0; 16 6; 8 8];
-    waypoints{3} = [0.2 2; 0.2 8; 20 1; 20 -8; 0 -8];
+%     % Reference avoid scenario: PolygonWorld1
+%     waypoints{1} = [0.2 0; 7 0; 13 1; 15 0; 20 1; 25 -6; 16 -6];
+%     waypoints{2} = [0.2 1; 10 -4; 15 0; 16 6; 8 8];
+%     waypoints{3} = [0.2 2; 0.2 8; 20 1; 20 -8; 0 -8];
+%     
+%     x0{1} = [0;0;0];
+%     x0{2} = [-1; 0; 0];
+%     x0{3} = [1; 0; pi/2];
+%     %scenario = MultiReferenceAvoidScenario(@SmoothDifferentialDriveVehicle, PolygonWorld1, waypoints, x0);
+%     %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, PolygonWorld1, waypoints, x0);
+% %     scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorld, waypoints, x0);
+%     scenario.tf = 30;
     
-    x0{1} = [0;0;0];
-    x0{2} = [-1; 0; 0];
-    x0{3} = [1; 0; pi/2];
-    %scenario = MultiReferenceAvoidScenario(@SmoothDifferentialDriveVehicle, PolygonWorld1, waypoints, x0);
-    %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, PolygonWorld1, waypoints, x0);
-    scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorld, waypoints, x0);
-    scenario.tf = 30;
     
-    
-    % Reference avoid scenario: CorridorWorld
-    waypoints{1} = [0.2 1; 11 1; 11 9; 21 9; 21 -7; 0 -7];
-    waypoints{2} = [0.2 0; 12 0; 12 8; 20 8; 20 -6; 0 -6];
-    waypoints{3} = [0.2 -1; 13 -1; 13 7; 19 7; 19 -5; 0 -5];
+    % Create formation structure
+    waypoints = [0.2 0; 12 0; 12 8; 20 8; 20 -6; 0 -6]; % Waypoints of the virtual leader
+    Q = [ [0;0], [-1.5; 1.5], [-1.5; -1.5], [-3; 0], [2; 0]]; % Offsets for each agent
     
     x0{1} = [0.5;0;0];
     x0{2} = [0; 0; 0];
     x0{3} = [-0.5; 0; 0];
-    scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorldStraight, waypoints, x0);
-    scenario.tf = 30;
+    x0{4} = [-0.25; 0; 0];
+    x0{5} = [-0.4; 0; 0];
+    scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorldStraight, waypoints, x0, Q);
+    scenario.tf = 45;
     
 %     % Wall following scenario
 %     x0 = cell(1,0);

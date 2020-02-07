@@ -2,11 +2,12 @@ classdef SingleAgentPlotter < Plotter
     %SingleAgentPlotter plots a single agent
     
     properties
-        vehicle % Instance of teh Vehicle class        
+        vehicle % Instance of teh Vehicle class   
+        color % 1x3 color vector
     end
     
     methods
-        function obj = SingleAgentPlotter(vehicle)
+        function obj = SingleAgentPlotter(vehicle, color)
             obj = obj@Plotter();
             obj.vehicle = vehicle;
         end
