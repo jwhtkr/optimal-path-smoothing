@@ -24,7 +24,14 @@ classdef ReferenceAvoidAgent < SingleAgent
         traj_eps % The trajectory followed by the epsilon point
         
         % Current state of the control (slide or follow)
-        state = 2; % Default to tracking        
+        state = 2; % Default to tracking 
+        
+        
+        %Temporary plotting variables
+        h_orbit = []
+        h_g2g = []
+        h_obs = []
+        h_ut = []
     end
     
     properties (Constant)
@@ -108,6 +115,7 @@ classdef ReferenceAvoidAgent < SingleAgent
         function u = control(obj, t, x, ~)
             % Get the desired values
             [qd, qd_dot, ~] = obj.traj_act.reference_traj(t);
+            [qd_eps, qd_dot_eps, qd_ddot_eps] = obj.traj_eps.reference_traj(t);
             
             % Set the desired point as the goal point
             obj.field_go2goal.x_g = qd;
@@ -119,8 +127,9 @@ classdef ReferenceAvoidAgent < SingleAgent
             u_o = obj.avoid_field.getVector(t, x(1:2), th);
             
             % Calculate the epsilon point control for trajectory tracking
-            u_t_switch = qd-q_eps;
-            if norm(u_t_switch) < 2*obj.vehicle.getEpsilon(t)
+            %u_t_switch = qd-q_eps;
+            u_t_switch = qd_eps-x(1:2);
+            if false% norm(u_t_switch) < 2*obj.vehicle.getEpsilon(t)
                 u_t_switch = qd_dot;
             end
             
@@ -134,14 +143,22 @@ classdef ReferenceAvoidAgent < SingleAgent
                 [qd_eps, qd_dot_eps, qd_ddot_eps] = obj.traj_eps.reference_traj(t);                
                 u = obj.vehicle.pathControl(t, qd_eps, qd_dot_eps, qd_ddot_eps, x);
                 
+                obj.plotVectors(x(1:2), [0;0], [0;0], u_o);
+                
             elseif obj.state == obj.state_slide_ccw
-                g_func = @(t_val, x_vec, th)obj.orbit_field_ccw.getVector(t_val, x_vec, th) + ...
-                    obj.field_go2goal.getVector(t_val, x_vec, th);                
+                g_func = @(t_val, x_vec, th)obj.orbit_field_ccw.getVector(t_val, x_vec, th) ; % + ...
+                    %obj.field_go2goal.getVector(t_val, x_vec, th);                
                 u = obj.vehicle.velocityVectorFieldControl(t, g_func, x);
+                
+                obj.plotVectors(x(1:2), obj.orbit_field_ccw.getVector(t, x(1:2), th), ...
+                    obj.field_go2goal.getVector(t, x(1:2), th), u_o);
             elseif obj.state == obj.state_slide_cw
-                g_func = @(t_val, x_vec, th)obj.orbit_field_cw.getVector(t_val, x_vec, th) + ...
-                    obj.field_go2goal.getVector(t_val, x_vec, th);
+                g_func = @(t_val, x_vec, th)obj.orbit_field_cw.getVector(t_val, x_vec, th) ; %+ ...
+                    %obj.field_go2goal.getVector(t_val, x_vec, th);
                 u = obj.vehicle.velocityVectorFieldControl(t, g_func, x);
+                
+                obj.plotVectors(x(1:2), obj.orbit_field_cw.getVector(t, x(1:2), th), ...
+                    obj.field_go2goal.getVector(t, x(1:2), th), u_o);
             else
                 error('Invalid state');
             end
@@ -221,6 +238,8 @@ classdef ReferenceAvoidAgent < SingleAgent
         %       3. the Fillipov condition is met 
         %
         
+            obj.plotUt(u_t);
+            
             % 1. Obstacle avoidance vector field is zero
             state_start = obj.state; % Used to check if condition changed
             if norm(u_o) == 0
@@ -298,22 +317,54 @@ classdef ReferenceAvoidAgent < SingleAgent
         end
     end
     
-    %%% Reference trajectory methods
+    %%% Temporary plotting methods methods
     methods (Access = public)
-        function [qd, qd_dot, qd_ddot] = ReferenceTraj(obj, t)
-            [qd, qd_dot, qd_ddot] = obj.traj_act.reference_traj(t);
+        function plotVectors(obj, q, g_orb, g_g2g, g_obs)
+            % Get the data for each vector
+            x_orb = [q(1) q(1) + g_orb(1)]; % Orbit vector
+            y_orb = [q(2) q(2) + g_orb(2)];
+            x_g2g = [q(1) q(1) + g_g2g(1)]; % g2g vector
+            y_g2g = [q(2) q(2) + g_g2g(2)];
+            x_obs = [q(1) q(1) + g_obs(1)]; % obs vector
+            y_obs = [q(2) q(2) + g_obs(2)];
+            
+            % Plot the vectors
+            if isempty(obj.h_orbit)
+                obj.h_orbit = plot(x_orb, y_orb, 'b', 'linewidth', 2); hold on;
+                obj.h_g2g = plot(x_g2g, y_g2g, 'k', 'linewidth', 2);
+                obj.h_obs = plot(x_obs, y_obs, 'r', 'linewidth', 2);
+            else
+                set(obj.h_orbit, 'xdata', x_orb, 'ydata', y_orb);
+                set(obj.h_g2g, 'xdata', x_g2g, 'ydata', y_g2g);
+                set(obj.h_obs, 'xdata', x_obs, 'ydata', y_obs);
+            end
+            
         end
         
-    end
-    methods (Access = protected)
-        function [qd, qd_dot, qd_ddot] = WaypointReferenceActual(obj, t)
-            [qd, qd_dot, qd_ddot] = obj.traj_act.reference_traj(t);
-        end
-        
-        function [qd, qd_dot, qd_ddot] = WaypointReferenceEpsilon(obj, t)
-            [qd, qd_dot, qd_ddot] = obj.traj_eps.reference_traj(t);
+        function plotUt(obj, ut)
+            if isempty(obj.h_ut)
+                ax = gca;
+                
+                figure;
+                subplot(2,1,1);
+                obj.h_ut(1) = plot(1, ut(1));
+                
+                subplot(2,1,2);
+                obj.h_ut(2) = plot(1, ut(2));
+                
+                axes(ax);
+            else
+                xdata = get(obj.h_ut(1), 'xdata');
+                xdata = [xdata xdata(end)+1];
+                
+                y_ut1 = [get(obj.h_ut(1), 'ydata') ut(1)];
+                y_ut2 = [get(obj.h_ut(2), 'ydata') ut(2)];
+                
+                set(obj.h_ut(1), 'xdata', xdata, 'ydata', y_ut1);
+                set(obj.h_ut(2), 'xdata', xdata, 'ydata', y_ut2);
+                
+            end
         end
     end
     
 end
-

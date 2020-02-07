@@ -51,11 +51,12 @@ function launchRefAvoidSandbox()
     Q = [ [0;0], [-1.5; 1.5], [-1.5; -1.5], [-3; 0], [2; 0]]; % Offsets for each agent
     
     x0{1} = [0.5;0;0];
-    x0{2} = [0; 0; 0];
-    x0{3} = [-0.5; 0; 0];
-    x0{4} = [-0.25; 0; 0];
-    x0{5} = [-0.4; 0; 0];
-    scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorldStraight, waypoints, x0, Q);
+%     x0{2} = [0; 0; 0];
+%     x0{3} = [-0.5; 0; 0];
+%     x0{4} = [-0.25; 0; 0];
+%     x0{5} = [-0.4; 0; 0];
+    %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorldStraight, waypoints, x0, Q);
+    scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorld, waypoints, x0, Q);
     scenario.tf = 45;
     
 %     % Wall following scenario
