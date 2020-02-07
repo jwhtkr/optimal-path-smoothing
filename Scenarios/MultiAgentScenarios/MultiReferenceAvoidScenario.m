@@ -49,7 +49,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 agents{i} = ReferenceAvoidAgent(veh_i, world, traj_follow{i}, traj_eps{i});
                 
                 % Create a vehicle plotter
-                plotters{end+1} = SingleAgentPlotter(veh_i, agent_colors(i,:));
+                plotters{end+1} = SingleAgentPlotter(@(t)veh_i.getConfiguration(t), agent_colors(i,:));
                 
                 % Createa a plotter for the desired position
                 %plotters{end+1} = PositionPlotter(@(t)agents{i}.ReferenceTraj(t));

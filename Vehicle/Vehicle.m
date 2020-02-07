@@ -76,7 +76,31 @@ classdef Vehicle < handle
             
             % Plot the sensor data
             obj.sensor.plotMeasurements(obj.x(obj.q_ind), obj.xo_latest, obj.yo_latest);
-        end        
+        end
+        
+        function x_config = getConfiguration(obj, t, varargin)
+            %getConfiguration returns the configuration of the vehicle
+            %(x,y,theta)
+            %
+            % Inputs:
+            %   t: time index of concern (not used by default)
+            %   varargin{1}: state (uses vehicle stored state if this is
+            %   not input
+            %
+            % Ouput:
+            %   x_config: Configuration of the vehicle in the configuration
+            %   space (position, orientation)
+            
+            % Get the state
+            if nargin > 2
+                state = varargin{1};
+            else
+                state = obj.x;
+            end
+            
+            % Return the configuration
+            x_config = [state(obj.q_ind); state(obj.th_ind)];
+        end
     end
 end
 
