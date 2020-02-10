@@ -22,14 +22,16 @@ classdef MultiWallFollowScenario < MultiAgentScenario
             n_agents = 1;
             agents = cell(n_agents, 1);
             plotters = {};
+            agent_colors = distinguishable_colors(n_agents);
             
             % Create the agents
             veh_i = veh(x0{1});
             agents{1} = WallFollowAgent(veh_i, world, true);                
             
             % Create a vehicle plotter
-            plotters{end+1} = SingleAgentPlotter(veh_i);
-            plotters{end+1} = VectorFieldPlotter(agents{1}.line_vf);            
+            plotters{end+1} = SingleAgentPlotter(@(t)veh_i.getConfiguration(t), agent_colors(1,:));
+            plotters{end+1} = VectorFieldPlotter(agents{1}.line_vf);  
+            plotters{end+1} = TwoDRangePlotter(veh_i);
             
             % Initialize the object
             obj = obj@MultiAgentScenario(agents, world, plotters, true);            

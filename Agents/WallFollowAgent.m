@@ -9,8 +9,6 @@ classdef WallFollowAgent < SingleAgent
         avoid_field % Uses avoid on sensors
         total_field % Summation of line_vf and avoid_vf
         
-        n_sensors; % Stores the number of sensors
-        
         % sensor indices to use
         ind_left = [];
         n_left
@@ -26,6 +24,13 @@ classdef WallFollowAgent < SingleAgent
         
         
         q_inf
+        
+        % Line side identifications
+        wall_left % Instance of ObstacleSideIdentification, used for left side of vehicle
+        h_left = [] % Hande for plotting left wall
+        wall_right % Instance of ObstacleSideIdentification for right side of vehicle
+        h_right = [] % Handle for plotting right wall
+        dist_cont = 0.7;
     end
     
     properties (Constant)
@@ -38,6 +43,10 @@ classdef WallFollowAgent < SingleAgent
         
         S_avoid = 1; % Sphere of influence of avoid
         R_avoid = 0.25; % Radius of full avoid
+        
+        % Sensing variables
+        n_sensors = 30; % Number of sensor lines
+        max_sensor_range = 4; % Maximum range of the sensor
     end
     
     
@@ -47,15 +56,19 @@ classdef WallFollowAgent < SingleAgent
             obj = obj@SingleAgent(veh, world); 
             obj.follow_left = follow_left;
             
+            % Initialize sensors
+            obj.vehicle.sensor.initializeSensor(obj.n_sensors, obj.max_sensor_range);
+            
+            % Initialize wall variables
+            obj.wall_left = ObstacleSideIdentification(obj.dist_cont);
+            obj.wall_right = ObstacleSideIdentification(obj.dist_cont);
+            
             % Plotting variables
             x_vec = -1:1:20;
             y_vec = -6:1:10;
             
             % Initialize vector field
             obj.line_vf = LineVectorField(x_vec, y_vec, [0;0], 0, obj.slope, obj.vd);
-            
-            % Initialize sensors
-            obj.n_sensors = veh.sensor.n_lines;
             
             % Get the middle three sensors on the left to use for wall
             % following
@@ -101,20 +114,73 @@ classdef WallFollowAgent < SingleAgent
         function processSensors(obj, t, x, agents)
             % Process sensor readings
             processSensors@SingleAgent(obj, t, x, agents);
+            q_veh = x(obj.vehicle.q_ind);
+            th = x(obj.vehicle.th_ind);
             
             % Load sensor readings into the vector field functions
             % Get obstacle avoidance readings into the vector fields
             if ~isempty(obj.vehicle.xo_latest) && ~isempty(obj.vehicle.yo_latest)
                 
-                % Set avoid vector fields
-                for k = 1:obj.vehicle.sensor.n_front
-                    ind = obj.vehicle.sensor.ind_front(k);                
-                    q = [obj.vehicle.xo_latest(ind); obj.vehicle.yo_latest(ind)];
+                % Extract all points
+                q_all = zeros(2, obj.n_sensors);
+                ind_inf = zeros(1, obj.n_sensors);
+                n_inf = 0;
+                for k = 1:obj.n_sensors
+                    q = [obj.vehicle.xo_latest(k); obj.vehicle.yo_latest(k)];
                     if isinf(sum(q))
                         q = obj.q_inf;
+                        
+                        n_inf = n_inf + 1;
+                        ind_inf(n_inf) = k;
                     end
-                    obj.avoid_field.fields{k}.x_o = q;
+                    q_all(:,k) = q;
                 end
+                ind_inf = ind_inf(1:n_inf);
+                
+                % Set avoid vector fields
+                for k = 1:obj.vehicle.sensor.n_front
+                    ind = obj.vehicle.sensor.ind_front(k);
+                    obj.avoid_field.fields{k}.x_o = q_all(:,ind);
+                end
+                
+                % Find left wall
+                if ~obj.wall_left.initialized
+                    % Get front left obstacles
+                    q_left = [];
+                    n_left_i = 0;
+                    for k = 1:obj.vehicle.sensor.n_front_left
+                        ind = obj.vehicle.sensor.ind_front_left(k);
+                        if isempty(find(ind_inf == ind))
+                            n_left_i = n_left_i + 1;
+                            q_left(:, n_left_i) = q_all(:, ind);
+                        end
+                    end
+                    
+                    % Initialize the left side
+                    obj.wall_left.initializePointOnWall(q_left, q_veh, th);
+                end
+                [q_left_wall, ind_left] = obj.wall_left.findContinguousWall(q_all, q_veh);
+                obj.h_left = obj.plotWall(q_left_wall, obj.h_left, 'b');                
+                
+%                 % Find right wall
+%                 if ~obj.wall_right.initialized
+%                     % Get front left obstacles
+%                     q_right = [];
+%                     n_right_i = 0;
+%                     for k = 1:obj.vehicle.sensor.n_front_right
+%                         ind = obj.vehicle.sensor.ind_front_right(k);
+%                         if isempty(find(ind_inf == ind))
+%                             n_right_i = n_right_i + 1;
+%                             q_right(:, n_right_i) = q_all(:, ind);
+%                         end
+%                     end
+%                     
+%                     % Initialize the left side
+%                     obj.wall_right.initializePointOnWall(q_right, q_veh, th);
+%                 end
+%                 [q_right_wall, ind_right] = obj.wall_right.findContinguousWall(q_all, q_veh);
+%                 obj.h_right = obj.plotWall(q_right_wall, obj.h_right, 'g');
+                
                 
                 % Left wall following
                 q_wall = [];
@@ -216,6 +282,18 @@ classdef WallFollowAgent < SingleAgent
         end
         
         
+    end
+    
+    methods
+        function h_plot = plotWall(obj, q_wall, h_plot, color)
+            xdata = q_wall(1, :);
+            ydata = q_wall(2, :);
+            if isempty(h_plot)
+                h_plot = plot(xdata, ydata, 'o', 'color', color, 'linewidth', 3);                
+            else
+                set(h_plot, 'xdata', xdata, 'ydata', ydata);
+            end
+        end
     end
 end
 
