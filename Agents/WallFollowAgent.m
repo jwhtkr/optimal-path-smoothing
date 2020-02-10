@@ -30,18 +30,18 @@ classdef WallFollowAgent < SingleAgent
         h_left = [] % Hande for plotting left wall
         wall_right % Instance of ObstacleSideIdentification for right side of vehicle
         h_right = [] % Handle for plotting right wall
-        dist_cont = 0.7;
+        dist_cont = 0.3;
     end
     
     properties (Constant)
         % Line variables
         vd = 1; % Desired velocity
         slope = 1; % Slope of sigmoid to the line
-        offset = 1; % Offset from wall to follow
+        offset = 0.5; % Offset from wall to follow
         gap_thresh = 20; % Threshold the distance to gap
         
         
-        S_avoid = 1; % Sphere of influence of avoid
+        S_avoid = .4; % Sphere of influence of avoid
         R_avoid = 0.25; % Radius of full avoid
         
         % Sensing variables
@@ -159,7 +159,9 @@ classdef WallFollowAgent < SingleAgent
                     % Initialize the left side
                     obj.wall_left.initializePointOnWall(q_left, q_veh, th);
                 end
+                
                 [q_left_wall, ind_left] = obj.wall_left.findContinguousWall(q_all, q_veh);
+                %[q_left_wall, ind_left] = obj.wall_left.findContinguousWall(q_all(:, obj.vehicle.sensor.ind_left), q_veh);
                 obj.h_left = obj.plotWall(q_left_wall, obj.h_left, 'b');                
                 
 %                 % Find right wall
@@ -180,60 +182,79 @@ classdef WallFollowAgent < SingleAgent
 %                 end
 %                 [q_right_wall, ind_right] = obj.wall_right.findContinguousWall(q_all, q_veh);
 %                 obj.h_right = obj.plotWall(q_right_wall, obj.h_right, 'g');
+
+                  if obj.follow_left
+                      q_wall = q_left_wall;
+                  else
+                      error('Not yet implemented');
+                  end
                 
                 
-                % Left wall following
-                q_wall = [];
-                if obj.follow_left
-                    %for k = 1:obj.vehicle.sensor.n_front_left
-                    count = 0;
-                    for k = 1:obj.n_left
-                        %ind = obj.vehicle.sensor.ind_front_left(k); % Index for the sensor
-                        ind = obj.vehicle.sensor.ind_left(obj.ind_left(k));
-                        q = [obj.vehicle.xo_latest(ind); obj.vehicle.yo_latest(ind)]; % position of sensor reading
-                        count = count + 1; % increment the sensor count
-                        if isinf(sum(q))
-                            if count > 5
-                                break;
-                            else
-                                continue;
-                            end
-                        end
-                        
-                        if count > 5 && obj.line_detected
-                            % Create vector from line to sensor point
-                            qs = q - obj.q0;
-                            
-                            % Check for threshold violation
-                            if qs'*obj.v_orth < -obj.gap_thresh
-                                break;
-                            end                            
-                        end                        
-                        q_wall = [q_wall q];
-                    end
-                
-                % Right wall following
-                else                
-                    for k = 1:obj.vehicle.sensor.n_front_right
-                        ind = obj.vehicle.sensor.ind_front_right(k); % Index for the sensor
-                        q = [obj.vehicle.xo_latest(ind); obj.vehicle.yo_latest(ind)]; % position of sensor reading
-                        if isinf(sum(q))
-                            continue;
-                        end
-                        q_wall = [q_wall q];
-                    end
-                end
+%                 % Left wall following
+%                 q_wall = [];
+%                 if obj.follow_left
+%                     %for k = 1:obj.vehicle.sensor.n_front_left
+%                     count = 0;
+%                     for k = 1:obj.n_left
+%                         %ind = obj.vehicle.sensor.ind_front_left(k); % Index for the sensor
+%                         ind = obj.vehicle.sensor.ind_left(obj.ind_left(k));
+%                         q = [obj.vehicle.xo_latest(ind); obj.vehicle.yo_latest(ind)]; % position of sensor reading
+%                         count = count + 1; % increment the sensor count
+%                         if isinf(sum(q))
+%                             if count > 5
+%                                 break;
+%                             else
+%                                 continue;
+%                             end
+%                         end
+%                         
+%                         if count > 5 && obj.line_detected
+%                             % Create vector from line to sensor point
+%                             qs = q - obj.q0;
+%                             
+%                             % Check for threshold violation
+%                             if qs'*obj.v_orth < -obj.gap_thresh
+%                                 break;
+%                             end                            
+%                         end                        
+%                         q_wall = [q_wall q];
+%                     end
+%                 
+%                 % Right wall following
+%                 else                
+%                     for k = 1:obj.vehicle.sensor.n_front_right
+%                         ind = obj.vehicle.sensor.ind_front_right(k); % Index for the sensor
+%                         q = [obj.vehicle.xo_latest(ind); obj.vehicle.yo_latest(ind)]; % position of sensor reading
+%                         if isinf(sum(q))
+%                             continue;
+%                         end
+%                         q_wall = [q_wall q];
+%                     end
+%                 end
                 
                 % Calculate the line to follow
                 if size(q_wall, 2) > 1
                     % Calculate the line
-                    [obj.q0, obj.vl] = leastSquaresLine(q_wall);                    
+%                     [obj.q0, obj.vl] = leastSquaresLine(q_wall);  
+                    
+%                     % Adjust v to point in same direction as vehicle
+%                     th = x(obj.vehicle.th_ind); % Orientation angle
+%                     orien_vec = [cos(th) sin(th)]; % Orientation vector
+%                     if orien_vec*obj.vl < 0 % The line is pointing in the wrong direction
+%                         obj.vl = -obj.vl;
+%                     end
+                    
+                    % Calculate line using first and last point
+                    obj.q0 = q_wall(:, 1);
+                    obj.vl = q_wall(:, end) - obj.q0;
+                    obj.vl = obj.vl ./norm(obj.vl);
                     
                     % Adjust v to point in same direction as vehicle
                     th = x(obj.vehicle.th_ind); % Orientation angle
                     orien_vec = [cos(th) sin(th)]; % Orientation vector
                     if orien_vec*obj.vl < 0 % The line is pointing in the wrong direction
                         obj.vl = -obj.vl;
+                        obj.q0 = q_wall(:, end);
                     end
                     
                     % Calculate offset orthogonal vector. If follow left
@@ -259,7 +280,7 @@ classdef WallFollowAgent < SingleAgent
                         obj.h_line = plot([obj.q0(1) q1(1)], [obj.q0(2) q1(2)], 'k', 'linewidth', 2);
                         
                         % Plot the data points
-                        obj.h_sensors = plot(q_wall(1,:), q_wall(2,:), 'ko', 'linewidth', 2);
+%                         obj.h_sensors = plot(q_wall(1,:), q_wall(2,:), 'ko', 'linewidth', 2);
                     else
                         % Plot the line
                         obj.vehicle.plotVehicle();
@@ -267,7 +288,7 @@ classdef WallFollowAgent < SingleAgent
                         set(obj.h_line, 'xdata', [obj.q0(1) q1(1)], 'ydata', [obj.q0(2) q1(2)]);
                         
                         % Plot the data points
-                        set(obj.h_sensors, 'xdata', q_wall(1,:), 'ydata', q_wall(2,:));
+%                         set(obj.h_sensors, 'xdata', q_wall(1,:), 'ydata', q_wall(2,:));
                     end
                     
                 else

@@ -121,37 +121,42 @@ classdef ObstacleSideIdentification < handle
             end
             
             % Find the continuous portion going forward
+            ind_added = zeros(1, n_pnts);
+            ind_added(ind_closest) = true;
             q_wall_forward = zeros(2, n_pnts); % Initialize point storage to as big as possible
             q_wall_forward(:,1) = q_close_sense;
             ind_wall_forward = zeros(1, n_pnts); % Index storage for wall points
             ind_wall_forward(1) = ind_closest;
             n_forward = 1;
-            wrap_around = true; % Flag indicating whether or not we need to wrap around to keep going
             for k = (ind_closest+1):n_pnts % Search to the end of the sensor list
+                % Don't look at the point if it has already been added
+                if ind_added(k)
+                    continue;
+                end
+                
                 % See if the point is within twice the continous distance
                 d = norm(q_sens(:,k) - q_wall_forward(:,n_forward));
                 if d < obj.dist_cont_x2
                     n_forward = n_forward+1; % Increment the index of the forward point
                     q_wall_forward(:,n_forward) = q_sens(:,k); % Store point
                     ind_wall_forward(n_forward) = k; % Store index
-                else % No need to keep searching
-                    wrap_around = false;
-                    break;
+                    ind_added(k) = true;
                 end
             end
-            if wrap_around % Continue searching from first index
-                for k = 1:(ind_closest-1) % Search from the start to the 
-                    % See if the point is within twice the continous distance
-                    d = norm(q_sens(:,k) - q_wall_forward(:,n_forward));
-                    if d < obj.dist_cont_x2
-                        n_forward = n_forward+1; % Increment the index of the forward point
-                        q_wall_forward(:,n_forward) = q_sens(:,k);
-                        ind_wall_forward(n_forward) = k; % Store index
-                    else % No need to keep searching
-                        break;
-                    end
+            for k = 1:(ind_closest-1) % Search from the start to the 
+                if ind_added(k)
+                    continue;
                 end
-            end
+                
+                % See if the point is within twice the continous distance
+                d = norm(q_sens(:,k) - q_wall_forward(:,n_forward));
+                if d < obj.dist_cont_x2
+                    n_forward = n_forward+1; % Increment the index of the forward point
+                    q_wall_forward(:,n_forward) = q_sens(:,k);
+                    ind_wall_forward(n_forward) = k; % Store index
+                    ind_added(k) = true;
+                end
+            end            
             
             % Find the continous section going backward
             q_wall_backward = zeros(2, n_pnts); % Initialize point storage to as big as possible
@@ -159,32 +164,35 @@ classdef ObstacleSideIdentification < handle
             ind_wall_back = zeros(1, n_pnts); % Index storage for wall points
             ind_wall_back(1) = ind_closest;
             n_back = 1;
-            wrap_around = true; % Flag indicating whether or not we need to wrap around to keep going
             for k = (ind_closest-1):-1:1 % Search to the end of the sensor list going backwards
+                if ind_added(k)
+                    continue;
+                end
+                
                 % See if the point is within twice the continous distance
                 d = norm(q_sens(:,k) - q_wall_backward(:,n_back));
                 if d < obj.dist_cont_x2
                     n_back = n_back+1; % Increment the index of the forward point
                     q_wall_backward(:,n_back) = q_sens(:,k); % Store point
                     ind_wall_back(n_back) = k; % Store index
-                else % No need to keep searching
-                    wrap_around = false;
-                    break;
+                    ind_added(k) = true;
                 end
             end
-            if wrap_around % Continue searching from final index
-                for k = n_pnts:-1:(ind_closest+1) % Search from the final to the closest
-                    % See if the point is within twice the continous distance
-                    d = norm(q_sens(:,k) - q_wall_backward(:,n_back));
-                    if d < obj.dist_cont_x2
-                        n_back = n_back+1; % Increment the index of the forward point
-                        q_wall_backward(:,n_back) = q_sens(:,k);
-                        ind_wall_back(n_back) = k; % Store index
-                    else % No need to keep searching
-                        break;
-                    end
+            for k = n_pnts:-1:(ind_closest+1) % Search from the final to the closest
+                if ind_added(k)
+                    continue;
+                end
+                
+                % See if the point is within twice the continous distance
+                d = norm(q_sens(:,k) - q_wall_backward(:,n_back));
+                if d < obj.dist_cont_x2
+                    n_back = n_back+1; % Increment the index of the forward point
+                    q_wall_backward(:,n_back) = q_sens(:,k);
+                    ind_wall_back(n_back) = k; % Store index
+                    ind_added(k) = true;
                 end
             end
+            
             
             % Merge the lists together
             q_wall = [q_wall_backward(:, n_back:-1:2), q_wall_forward(:,1:n_forward)];
