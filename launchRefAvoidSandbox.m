@@ -62,6 +62,7 @@ function launchRefAvoidSandbox()
 %     % Wall following scenario
 %     x0 = cell(1,0);
 %     x0{1} = [0.5;0;0];
+%     %x0{1} = [6;-4;0];
 %     scenario = MultiWallFollowScenario(@SimpleUnicycleVehicle, CorridorWorld, x0);
 %     scenario.tf = 60;
     

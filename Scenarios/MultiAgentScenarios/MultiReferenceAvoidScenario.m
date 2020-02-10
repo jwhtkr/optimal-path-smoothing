@@ -55,6 +55,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 %plotters{end+1} = PositionPlotter(@(t)agents{i}.ReferenceTraj(t));
                 plotters{end+1} = PositionPlotter(@(t)traj_follow{i}.reference_traj(t), agent_colors(i,:));
                 plotters{end+1} = PositionPlotter(@(t)traj_eps{i}.reference_traj(t), agent_colors(i,:));
+                plotters{end+1} = TwoDRangePlotter(veh_i);
             end
             
             % Initialize the object

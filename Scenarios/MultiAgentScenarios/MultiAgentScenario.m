@@ -163,7 +163,7 @@ classdef MultiAgentScenario < handle
                     obj.plotState(t);
                     obj.plotWorld(t); 
                     pause(obj.dt/4);
-                    %t
+                    t
                 end
             end
         end
