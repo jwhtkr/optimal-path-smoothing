@@ -46,7 +46,8 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 veh_i = veh(x0{i}); veh_i.use_dim_eps = false;
                 traj_follow{i} = TrajUtil.createOffsetTrajectory(vl_traj, Q(:,i)); % Desired trajectory for follower
                 traj_eps{i} = TrajUtil.createOffsetTrajectory(traj_follow{i}, [veh_i.eps_path; 0]); % Desired trajectory for the epsilon point of the follower
-                agents{i} = ReferenceAvoidAgent(veh_i, world, traj_follow{i}, traj_eps{i});
+                %agents{i} = ReferenceOrbitAvoidAgent(veh_i, world, traj_follow{i}, traj_eps{i});
+                agents{i} = ReferenceLineAvoidAgent(veh_i, world, traj_follow{i}, traj_eps{i});
                 
                 % Create a vehicle plotter
                 plotters{end+1} = SingleAgentPlotter(@(t)veh_i.getConfiguration(t), agent_colors(i,:));

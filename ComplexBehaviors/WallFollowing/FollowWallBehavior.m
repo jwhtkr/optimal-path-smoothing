@@ -26,8 +26,7 @@ classdef FollowWallBehavior < handle
         % Plotting variables
         h_line = [] % Used to plot the line denoting the wall
         h_wall = [] % Handle for plotting wall
-        color = [] % Color used for plotting the vector field
-        
+        color = [] % Color used for plotting the vector field        
     end
     
     properties(Constant)
@@ -181,6 +180,15 @@ classdef FollowWallBehavior < handle
             %   q: 2x1 position vector
             %   th: scalar orientation variable
             g = obj.total_field.getVector(t, q, th);
+        end
+        
+        function setWallPoint(obj, q_wall)
+            %setClosestPoint sets a point on the wall to be considered for
+            %following
+            %
+            % Inputs:
+            %   q_wall: 2x1 point on the wall of interest
+            obj.wall.setClosestPoint(q_wall);
         end
     end
     

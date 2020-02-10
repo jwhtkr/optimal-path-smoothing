@@ -33,7 +33,7 @@ classdef WallFollowAgent < SingleAgent
             % Initialize sensors
             obj.vehicle.sensor.initializeSensor(obj.n_sensors, obj.max_sensor_range);
             
-            % Initialize the left follow wall behavior
+            % Initialize the follow wall behavior
             if follow_left
                 obj.wall = FollowWallBehavior(true, obj.vd, obj.dist_cont, ...
                     veh.sensor.ind_front, veh.sensor.ind_left, obj.dist_to_wall, 'b');

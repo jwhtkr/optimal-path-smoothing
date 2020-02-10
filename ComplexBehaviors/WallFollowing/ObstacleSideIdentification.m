@@ -216,6 +216,17 @@ classdef ObstacleSideIdentification < handle
                 end
             end
         end
+        
+        function setClosestPoint(obj, q_closest)
+            %setClosestPoint sets the closest point to be used to find a
+            %continguous wall
+            %
+            % Inputs:
+            %   q_closest: 2x1 position of a point on the wall of interest
+            
+            obj.q_closest = q_closest;
+            obj.initialized = true;
+        end
     end
 end
 

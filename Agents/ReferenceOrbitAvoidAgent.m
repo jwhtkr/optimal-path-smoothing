@@ -1,6 +1,6 @@
-classdef ReferenceAvoidAgent < SingleAgent
-    %ReferenceAvoidAgent Creates an agent that will avoid obstacles while
-    %trying to follow a reference trajectory
+classdef ReferenceOrbitAvoidAgent < SingleAgent
+    %ReferenceOrbitAvoidAgent Creates an agent that will avoid obstacles using
+    % an orbit avoidance field while trying to follow a reference trajectory
     
     properties(SetAccess = protected)
         % Sinusoid properties
@@ -54,7 +54,7 @@ classdef ReferenceAvoidAgent < SingleAgent
     
     
     methods
-        function obj = ReferenceAvoidAgent(veh, world, traj_act, traj_eps)
+        function obj = ReferenceOrbitAvoidAgent(veh, world, traj_act, traj_eps)
             % initialize the scenario
             obj = obj@SingleAgent(veh, world);
             obj.vehicle.sensor.initializeSensor(obj.n_sensors, obj.max_sensor_range);
