@@ -14,7 +14,7 @@ classdef ReferenceLineAvoidAgent < SingleAgent
         % Line side identifications
         wall_left % Instance of FollowWallBehavior, used for creating vector to be followed on the left side
         wall_right % Instance of FollowWallBehavior, used for creating vector to be followed on the right side
-        kv = 5 % Gain on position error for velocity term
+        kv = 10 % Gain on position error for velocity term
                 
         % Trajectory variables
         traj_act % The actual trajectory to be followed
@@ -98,27 +98,13 @@ classdef ReferenceLineAvoidAgent < SingleAgent
         function u = control(obj, t, x, ~)
             % Get the desired values
             [qd, qd_dot, ~] = obj.traj_act.reference_traj(t);
-            [qd_eps, qd_dot_eps, qd_ddot_eps] = obj.traj_eps.reference_traj(t);
             
-            % Get the avoidance vector
+            % Get the avoidance vector (purely for visualization purposes)
             q = x(1:2);
-            %q_eps = obj.vehicle.calculateEpsilonPoint(t, x);
             th = x(obj.vehicle.kinematics.th_ind);
-            %u_o = obj.avoid_field.getVector(t, q_eps, th);
-            %u_o = obj.avoid_field.getVector(t, q, th);
             u_o = obj.calculateRepellantClosestVector(q);
             
-            % Calculate the epsilon point control for trajectory tracking            
-            u_t_switch = qd_eps-x(1:2);
-%             if false% norm(u_t_switch) < 2*obj.vehicle.getEpsilon(t)
-%                 u_t_switch = qd_dot;
-%             end
-            
-            % Determine the FSM state and desired direction
-               %%%TODO: May want to change qd_ddot back to u_t in updating
-               %%%state
-            %obj.updateFSMState(u_o, u_t_switch, q);
-
+            % Calculate the control based upon the state of the system
             if obj.state == obj.state_track
                 % Calculate the desired movement of the epsilon point
                 [qd_eps, qd_dot_eps, qd_ddot_eps] = obj.traj_eps.reference_traj(t);                
@@ -129,24 +115,27 @@ classdef ReferenceLineAvoidAgent < SingleAgent
             elseif obj.state == obj.state_slide_ccw
                 % Calculate the desired velocity
                 vl = obj.wall_left.v_line;
-                v_proj = vl'*qd_dot + obj.kv*(vl'*(qd-q))
+                v_proj = vl'*qd_dot + obj.kv*(vl'*(qd-q));
+                obj.wall_left.setDesiredVelocity(v_proj);
                 
                 % Calculate the vector to follow
                 g_func = @(t_val, x_vec, th) obj.wall_left.getVector(t_val, x_vec, th); 
                 u = obj.vehicle.velocityVectorFieldControl(t, g_func, x);
                 
+                % Plot obstacle, tracking, and wall following vectors
                 obj.plotVectors(q, obj.wall_left.getVector(t, x(1:2), th), ...
                     qd-x(1:2), u_o);
             elseif obj.state == obj.state_slide_cw
                 % Calculate the desired velocity
                 vl = obj.wall_right.v_line;
                 v_proj = vl'*qd_dot + obj.kv*(vl'*(qd-q));
-                %v_proj = 0; %obj.kv*(vl'*(qd-q));
                 obj.wall_right.setDesiredVelocity(v_proj);
                 
+                % Calculate the vector field to follow
                 g_func = @(t_val, x_vec, th) obj.wall_right.getVector(t_val, x_vec, th); 
                 u = obj.vehicle.velocityVectorFieldControl(t, g_func, x);
                 
+                % Plot obstacle, tracking, and wall following vectors
                 obj.plotVectors(q, obj.wall_right.getVector(t, x(1:2), th), ...
                     qd-x(1:2), u_o);
             else
@@ -243,7 +232,7 @@ classdef ReferenceLineAvoidAgent < SingleAgent
         %       3. the Fillipov condition is met 
         %
         
-            obj.plotUt(u_t);
+            %obj.plotUt(u_t);
             
             % 1. Obstacle avoidance vector field is zero
             state_start = obj.state; % Used to check if condition changed
@@ -368,6 +357,9 @@ classdef ReferenceLineAvoidAgent < SingleAgent
     %%% Temporary plotting methods methods
     methods (Access = public)
         function plotVectors(obj, q, g_orb, g_g2g, g_obs)
+            % Adjust the obstacle vector to be a unit vector
+            g_obs = g_obs ./ norm(g_obs);
+            
             % Get the data for each vector
             x_orb = [q(1) q(1) + g_orb(1)]; % Orbit vector
             y_orb = [q(2) q(2) + g_orb(2)];

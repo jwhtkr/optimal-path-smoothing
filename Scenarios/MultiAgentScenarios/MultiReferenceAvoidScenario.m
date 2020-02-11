@@ -55,8 +55,8 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 % Createa a plotter for the desired position
                 %plotters{end+1} = PositionPlotter(@(t)agents{i}.ReferenceTraj(t));
                 plotters{end+1} = PositionPlotter(@(t)traj_follow{i}.reference_traj(t), agent_colors(i,:));
-                plotters{end+1} = PositionPlotter(@(t)traj_eps{i}.reference_traj(t), agent_colors(i,:));
-                plotters{end+1} = TwoDRangePlotter(veh_i);
+                %plotters{end+1} = PositionPlotter(@(t)traj_eps{i}.reference_traj(t), agent_colors(i,:));
+                %plotters{end+1} = TwoDRangePlotter(veh_i);
             end
             
             % Initialize the object
@@ -85,7 +85,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             ind_q_i = 1:2; % Iteratively stores the position indices for each agent
             for i = 1:obj.n_agents
                 % Plot the epsilon trajectory
-                plot(obj.traj_eps{i}.x(ind), obj.traj_eps{i}.y(ind), ':', 'linewidth', 1, 'color', obj.agent_colors(i,:));
+                %plot(obj.traj_eps{i}.x(ind), obj.traj_eps{i}.y(ind), ':', 'linewidth', 1, 'color', obj.agent_colors(i,:));
                 
                 % Plot the actual trajectory
                 plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), ':', 'linewidth', 2, 'color', obj.agent_colors(i,:));

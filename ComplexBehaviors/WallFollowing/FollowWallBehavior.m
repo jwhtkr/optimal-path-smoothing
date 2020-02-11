@@ -51,7 +51,7 @@ classdef FollowWallBehavior < handle
             % Store input variables
             obj.follow_left = follow_left;
             obj.vd = vd;
-            obj.vd_min = vd/2;
+            obj.vd_min = 0.8*vd;
             obj.vd_max = 1.5*vd;
             obj.dist_to_wall = dist_to_wall;
             obj.ind_avoid = ind_avoid;
@@ -132,7 +132,7 @@ classdef FollowWallBehavior < handle
             
             % Find the contiguous portion of the wall
             [q_wall, ~] = obj.wall.findContinguousWall(q_sensors, q_veh);
-            obj.h_wall = obj.plotWall(q_wall, obj.h_wall);            
+            %obj.h_wall = obj.plotWall(q_wall, obj.h_wall);            
             
             % Calculate the line to follow
             if size(q_wall, 2) > 1
@@ -163,15 +163,15 @@ classdef FollowWallBehavior < handle
                 % Set the line parameters
                 obj.line_vf.setLineParameters(ql, atan2(vl(2), vl(1)));
 
-                if isempty(obj.h_line)
-                    % Plot the line
-                    q1 = q0 + vl*5;
-                    obj.h_line = plot([q0(1) q1(1)], [q0(2) q1(2)], 'k', 'linewidth', 2);
-                else
-                    % Plot the line
-                    q1 = q0 + vl*5;
-                    set(obj.h_line, 'xdata', [q0(1) q1(1)], 'ydata', [q0(2) q1(2)]);                        
-                end
+%                 if isempty(obj.h_line)
+%                     % Plot the line
+%                     q1 = q0 + vl*5;
+%                     obj.h_line = plot([q0(1) q1(1)], [q0(2) q1(2)], 'k', 'linewidth', 2);
+%                 else
+%                     % Plot the line
+%                     q1 = q0 + vl*5;
+%                     set(obj.h_line, 'xdata', [q0(1) q1(1)], 'ydata', [q0(2) q1(2)]);                        
+%                 end
                 
                 % Store the line parameters
                 obj.q_line = ql;
