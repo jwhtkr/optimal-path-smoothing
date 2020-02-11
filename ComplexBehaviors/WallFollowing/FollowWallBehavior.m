@@ -10,8 +10,12 @@ classdef FollowWallBehavior < handle
         
         % Line variables
         vd % desired velocity
+        vd_min % Minimum command velocity allowed
+        vd_max % Maximum command velocity allowed
         ind_side % Indices of sensors to be used for initialization
         n_side % Number of side sensors used for wall detection
+        q_line % A point on the line
+        v_line % A vector parallel to the line
         
         % Avoidance variables
         n_avoid_sensors % number of sensors to be used (needed for the
@@ -47,6 +51,8 @@ classdef FollowWallBehavior < handle
             % Store input variables
             obj.follow_left = follow_left;
             obj.vd = vd;
+            obj.vd_min = vd/2;
+            obj.vd_max = 1.5*vd;
             obj.dist_to_wall = dist_to_wall;
             obj.ind_avoid = ind_avoid;
             obj.n_avoid_sensors = length(ind_avoid);
@@ -166,6 +172,10 @@ classdef FollowWallBehavior < handle
                     q1 = q0 + vl*5;
                     set(obj.h_line, 'xdata', [q0(1) q1(1)], 'ydata', [q0(2) q1(2)]);                        
                 end
+                
+                % Store the line parameters
+                obj.q_line = ql;
+                obj.v_line = vl;
             else
                 warning('Insufficient data points for line calculation');
             end
@@ -189,6 +199,18 @@ classdef FollowWallBehavior < handle
             % Inputs:
             %   q_wall: 2x1 point on the wall of interest
             obj.wall.setClosestPoint(q_wall);
+        end
+        
+        function setDesiredVelocity(obj, vd)
+            % Set the desired velocity in line following (but threshold the
+            % velocity to a min and max value)
+            
+            % Threshold the commanded value
+            vd = min(obj.vd_max, vd);
+            vd = max(obj.vd_min, vd);
+            
+            % Set the desired value in the line following vector field
+            obj.line_vf.v_d = vd;
         end
     end
     

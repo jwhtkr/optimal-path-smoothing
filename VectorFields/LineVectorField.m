@@ -7,11 +7,12 @@ classdef LineVectorField < VectorField
         psi_l % The orientation of the line
         R_lc % The rotation matrix to rotate a cartesian point to line frame
         R_cl % The rotation matrix to rotate a line point to the cartesian frame
-        
+    end
+    
+    properties(Access = public)        
         % Vector field variables
         slope % Slope of the sigmoid function defining the line
-        v_d % Desired velocity / length of the vector field line
-        
+        v_d % Desired velocity / length of the vector field line        
     end
     
     methods

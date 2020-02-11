@@ -14,6 +14,7 @@ classdef ReferenceLineAvoidAgent < SingleAgent
         % Line side identifications
         wall_left % Instance of FollowWallBehavior, used for creating vector to be followed on the left side
         wall_right % Instance of FollowWallBehavior, used for creating vector to be followed on the right side
+        kv = 5 % Gain on position error for velocity term
                 
         % Trajectory variables
         traj_act % The actual trajectory to be followed
@@ -101,23 +102,22 @@ classdef ReferenceLineAvoidAgent < SingleAgent
             
             % Get the avoidance vector
             q = x(1:2);
-            q_eps = obj.vehicle.calculateEpsilonPoint(t, x);
+            %q_eps = obj.vehicle.calculateEpsilonPoint(t, x);
             th = x(obj.vehicle.kinematics.th_ind);
             %u_o = obj.avoid_field.getVector(t, q_eps, th);
             %u_o = obj.avoid_field.getVector(t, q, th);
             u_o = obj.calculateRepellantClosestVector(q);
             
-            % Calculate the epsilon point control for trajectory tracking
-            %u_t_switch = qd-q_eps;
+            % Calculate the epsilon point control for trajectory tracking            
             u_t_switch = qd_eps-x(1:2);
-            if false% norm(u_t_switch) < 2*obj.vehicle.getEpsilon(t)
-                u_t_switch = qd_dot;
-            end
+%             if false% norm(u_t_switch) < 2*obj.vehicle.getEpsilon(t)
+%                 u_t_switch = qd_dot;
+%             end
             
             % Determine the FSM state and desired direction
                %%%TODO: May want to change qd_ddot back to u_t in updating
                %%%state
-            u_h = obj.updateFSMState(u_o, u_t_switch, q);
+            %obj.updateFSMState(u_o, u_t_switch, q);
 
             if obj.state == obj.state_track
                 % Calculate the desired movement of the epsilon point
@@ -127,12 +127,23 @@ classdef ReferenceLineAvoidAgent < SingleAgent
                 obj.plotVectors(q, [0;0], [0;0], u_o);
                 
             elseif obj.state == obj.state_slide_ccw
+                % Calculate the desired velocity
+                vl = obj.wall_left.v_line;
+                v_proj = vl'*qd_dot + obj.kv*(vl'*(qd-q))
+                
+                % Calculate the vector to follow
                 g_func = @(t_val, x_vec, th) obj.wall_left.getVector(t_val, x_vec, th); 
                 u = obj.vehicle.velocityVectorFieldControl(t, g_func, x);
                 
                 obj.plotVectors(q, obj.wall_left.getVector(t, x(1:2), th), ...
                     qd-x(1:2), u_o);
             elseif obj.state == obj.state_slide_cw
+                % Calculate the desired velocity
+                vl = obj.wall_right.v_line;
+                v_proj = vl'*qd_dot + obj.kv*(vl'*(qd-q));
+                %v_proj = 0; %obj.kv*(vl'*(qd-q));
+                obj.wall_right.setDesiredVelocity(v_proj);
+                
                 g_func = @(t_val, x_vec, th) obj.wall_right.getVector(t_val, x_vec, th); 
                 u = obj.vehicle.velocityVectorFieldControl(t, g_func, x);
                 
@@ -178,6 +189,12 @@ classdef ReferenceLineAvoidAgent < SingleAgent
                     end
                 end
                 ind_inf = ind_inf(1:n_inf);
+                
+                % Update the finite state machine
+                [qd_eps, ~, ~] = obj.traj_eps.reference_traj(t);
+                u_t = qd_eps - q_veh;
+                u_o = obj.calculateRepellantClosestVector(q_veh);
+                obj.updateFSMState(u_o, u_t, q_veh);
                 
                 % Set avoid vector fields
                 for k = 1:obj.vehicle.sensor.n_front
