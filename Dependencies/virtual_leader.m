@@ -116,24 +116,32 @@ classdef virtual_leader < handle
         
         function traj = getFollowerTrajectory(obj,agent_num)
             traj_leader = obj.trajectory;
+            % Extract terms for easier code writing
             q_leader = [traj_leader.x; traj_leader.y];
             qdot_leader = [traj_leader.xdot; traj_leader.ydot];
             qddot_leader = [traj_leader.xddot; traj_leader.yddot];
             qdddot_leader = [traj_leader.xdddot; traj_leader.ydddot];
+            
+            % Grab the offset position from the leader (x_offset, y_offset)
             q_fd = obj.Q(:,agent_num);
             
-            for k = 1:length(traj_leader.psi)
+            % Calculate each index of the follower trajectory
+            for k = 1:length(traj_leader.psi) 
+                % Calculate parameters needed to calculate follower
+                % trajectory
                 R = [cos(traj_leader.psi(k)), -sin(traj_leader.psi(k)); sin(traj_leader.psi(k)), cos(traj_leader.psi(k))];
                 w_hat = [0 -traj_leader.w(k); traj_leader.w(k) 0];
                 alpha_hat = [0 -traj_leader.alpha(k); traj_leader.alpha(k) 0];
                 zeta_hat = [0 -traj_leader.zeta(k); traj_leader.zeta(k) 0];
                 
+                % Calculate Follower trajectory
                 q_follower(:,k) = R*q_fd + q_leader(:,k);
                 qdot_follower(:,k) = R*w_hat*q_fd + qdot_leader(:,k);
                 qddot_follower(:,k) = R*(w_hat^2 + alpha_hat)*q_fd + qddot_leader(:,k);
                 qdddot_follower(:,k) = R*(w_hat^3 + zeta_hat + 3*w_hat*alpha_hat)*q_fd + qdddot_leader(:,k);
             end
             
+            % Create and propogate follower trajectory
             traj = Trajectory2D();
             traj.x = q_follower(1,:);
             traj.y = q_follower(2,:);
@@ -146,9 +154,9 @@ classdef virtual_leader < handle
             traj.xddddot = zeros(1,length(traj.x));
             traj.yddddot = zeros(1,length(traj.y));
             traj.dt = traj_leader.dt;
+            
+            % Update the values for vel, accel, jerk.
             traj.update_new();
-%             traj.w = (traj.xdot.*traj.yddot - traj.ydot.*traj.xddot)./sqrt(traj.x.^2 + traj.y.^2);
-            t = 0:traj.dt:24.845;
             
 
         end
