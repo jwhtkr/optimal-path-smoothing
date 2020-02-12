@@ -14,7 +14,7 @@ function launch()
     addpath Vehicle/Kinematics
     addpath World
     addpath TrajectoryPlanners/MultiArcBased/Opt_dep
-    addpath TrajectoryPlanners/EpsilonTracking
+    addpath TrajectoryPlanners/Clothoid
     
     %%%%%%%%%%%%%%%%% Create scenario %%%%%%%%%%%%%%%%%%%%%
     % Reference tracking scenario
