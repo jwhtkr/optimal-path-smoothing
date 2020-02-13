@@ -46,6 +46,7 @@ classdef ReferenceLineAvoidAgent < SingleAgent
         dist_cont = 0.3; % Distance considered continuous for wall
         S_avoid = 0.7; % Sphere of influence of avoid
         R_avoid = 0.3; % Radius of full avoid
+        switch_threshold = cos(85*pi/180);
         
         % Sensing variables
         n_sensors = 30; % Number of sensor lines
@@ -182,8 +183,7 @@ classdef ReferenceLineAvoidAgent < SingleAgent
                 % Update the finite state machine
                 [qd_eps, ~, ~] = obj.traj_eps.reference_traj(t);
                 u_t = qd_eps - q_veh;
-                u_o = obj.calculateRepellantClosestVector(q_veh);
-                obj.updateFSMState(u_o, u_t, q_veh);
+                obj.updateFSMState(u_t, q_veh);
                 
                 % Set avoid vector fields
                 for k = 1:obj.vehicle.sensor.n_front
@@ -207,19 +207,7 @@ classdef ReferenceLineAvoidAgent < SingleAgent
     
     %%% Control functions
     methods (Access = protected)
-        function [u_s, a] = calculateSlidingModeControl(obj, u_o, u_t)
-           %calculateSlidingModeControl returns a vector orthogonal to u_o
-           %(obstacle avoidance vector) which is a convex combination of
-           %u_o and u_t (the trajectory vector)
-           
-           % Calculate the convex combination coefficient
-           a = -(u_o'*u_t) / (u_o'*u_o - u_o'*u_t); 
-           
-           % Create the combination
-           u_s = a*u_o + (1-a)*u_t;
-        end
-        
-        function u_h = updateFSMState(obj, u_o, u_t, q)
+        function updateFSMState(obj, u_t, q)
         %updateFSMState updates the FSM State
         %   state_track will transition to state_slide if the minimum
         %   obstacle distance threshold is broken
@@ -234,54 +222,47 @@ classdef ReferenceLineAvoidAgent < SingleAgent
         
             %obj.plotUt(u_t);
             
-            % 1. Obstacle avoidance vector field is zero
+            % Store the state at the beginning of the function
             state_start = obj.state; % Used to check if condition changed
-            [d_min, q_min] = calculateClosestObstaclePoint(obj, q);
-            if norm(u_o) == 0 
-                obj.state = obj.state_track;
-                u_h = [0;0];
-            else
-                % Calculate the sliding mode control
-                [u_h, alpha] = obj.calculateSlidingModeControl(u_o, u_t);
-                alpha_valid = alpha >= 0 && alpha <= 1;
-
-                % Calculate parameters needed to evaluate Fillipov
-                % condition
-                n = u_o; % Normal vector to 
-                n_dot_uo = n'*u_o; % product for decision
-                n_dot_ut = n'*u_t;
-
-                % Evaluate Fillipov condition
-                if n_dot_uo*n_dot_ut > 0
-                    track = true;
-                else
-                    track = false;
-                end 
-
-                %%% State machine
-                if obj.state == obj.state_track
-                    if alpha_valid && (~track) && d_min < obj.S_avoid
-                        % Determine which side to slide
-                        th_uh = atan2(u_h(2), u_h(1));
-                        th_ut = atan2(u_t(2), u_t(1));
-                        th_e = th_uh - th_ut;
-                        th_e = atan2(sin(th_e), cos(th_e));
-
-                        if th_e > 0
-                            obj.state = obj.state_slide_cw;
-                            obj.wall_right.setWallPoint(q_min);
-                        else
-                            obj.state = obj.state_slide_ccw;
-                            obj.wall_left.setWallPoint(q_min);
-                        end
+            
+            % Calculate the obstacle avoidance information and normalize
+            % the vectors
+            [u_o, d_o, q_o] = obj.calculateRepellantClosestVector(q);
+            u_t = u_t ./ norm(u_t);
+            if norm(u_o)>0
+                u_o = u_o ./norm(u_o);
+            end
+                            
+            % Current state is tracking
+            if obj.state == obj.state_track
+                % Determine whether to switch to wall following
+                if (d_o <= obj.dist_to_wall) && (u_o'*u_t < 0) % Fillipov conditions met for switching
+                    % Determine which wall side to track
+                    % Calculate vector pointing to the right of the obstacle
+                    % avoidance
+                    right = [0 1; -1 0]*u_o;
+                    
+                    % Determine the side
+                    if right'*u_t >= 0 % In same half plane as the right vector
+                        obj.state = obj.state_slide_cw;
+                        obj.wall_right.setWallPoint(q_o);
+                    else % In same half plane as the left vector
+                        obj.state = obj.state_slide_ccw;
+                        obj.wall_left.setWallPoint(q_o);
                     end
-                elseif obj.state == obj.state_slide_cw || obj.state == obj.state_slide_ccw
-                    if ~alpha_valid || track
-                        obj.state = obj.state_track;
-                    end
-                else
-                    error('Invalid state');
                 end
+            elseif obj.state == obj.state_slide_cw || obj.state == obj.state_slide_ccw
+                if u_o'*u_t >= obj.switch_threshold % Trajectory is in the same half plane as the obstacle
+                    obj.state = obj.state_track;
+                    
+                    % Indicate whether the obstacle was simply lost (this
+                    % could lead to jitter)
+                    if norm(u_o) == 0
+                        warning('Lost sight of obstacles while following wall, switching to tracking behavior');
+                    end
+                end
+            else
+                error('Invalid state');
             end
 
             % Output message if condition changes
@@ -293,42 +274,11 @@ classdef ReferenceLineAvoidAgent < SingleAgent
                     else
                         output = 'Track to slide - left';
                     end
-
                 else
                     output = 'Slide to track';
                 end
                 disp(output);
             end
-
-        end
-        
-        function [d_min, q_min] = calculateClosestObstaclePoint(obj, q)
-            %calculateClosestObstaclePoint calculates the closest obstacle
-            %point to q and returns the distance and the point
-            %
-            % Inputs:
-            %   q: 2x1 position point
-            %   
-            % Outputs:
-            %   d_min: distance between q and q_min
-            %   q_min: 2x1 position point indicating the position of the
-            %   closest obstacle
-            
-            % Calculate the min distance to an obstacle 
-            d_min = inf;
-            q_min = [0;0];
-%             for k = 1:obj.vehicle.sensor.n_front
-%                 % Calculate the distance to the position q
-%                 d = norm(obj.avoid_field.fields{k}.x_o - q);
-%                 
-%                 % If it is closer than previous points then store it
-%                 if d < d_min && d < obj.S_avoid
-%                     d_min = d;
-%                     q_min = obj.avoid_field.fields{k}.x_o;
-%                 end
-%             end
-            d_min = norm(q - obj.q_closest);
-            q_min = obj.q_closest;
         end
         
         function [u_o, d_min, q_min] = calculateRepellantClosestVector(obj, q)
@@ -342,8 +292,9 @@ classdef ReferenceLineAvoidAgent < SingleAgent
             %   d_min: distance between q and q_min
             %   u_o: vector pointing from q to q_min
             
-            % Calculate the closest point
-            [d_min, q_min] = obj.calculateClosestObstaclePoint(q);
+            % Calculate the min distance to an obstacle 
+            d_min = norm(q - obj.q_closest);
+            q_min = obj.q_closest;
             
             % Get the repelling vector
             if isinf(d_min)
