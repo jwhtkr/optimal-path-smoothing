@@ -320,13 +320,13 @@ classdef ReferenceLineAvoidAgent < SingleAgent
             y_obs = [q(2) q(2) + g_obs(2)];
             
             % Plot the vectors
-            if isempty(obj.h_orbit)
-                obj.h_orbit = plot(x_orb, y_orb, 'b', 'linewidth', 2); hold on;
-                obj.h_g2g = plot(x_g2g, y_g2g, 'k', 'linewidth', 2);
+            if isempty(obj.h_obs)
+%                 obj.h_orbit = plot(x_orb, y_orb, 'b', 'linewidth', 2); hold on;
+%                 obj.h_g2g = plot(x_g2g, y_g2g, 'k', 'linewidth', 2);
                 obj.h_obs = plot(x_obs, y_obs, 'r', 'linewidth', 2);
             else
-                set(obj.h_orbit, 'xdata', x_orb, 'ydata', y_orb);
-                set(obj.h_g2g, 'xdata', x_g2g, 'ydata', y_g2g);
+%                 set(obj.h_orbit, 'xdata', x_orb, 'ydata', y_orb);
+%                 set(obj.h_g2g, 'xdata', x_g2g, 'ydata', y_g2g);
                 set(obj.h_obs, 'xdata', x_obs, 'ydata', y_obs);
             end
             

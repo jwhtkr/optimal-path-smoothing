@@ -30,7 +30,7 @@ classdef MultiWallFollowScenario < MultiAgentScenario
             
             % Create a vehicle plotter
             plotters{end+1} = SingleAgentPlotter(@(t)veh_i.getConfiguration(t), agent_colors(1,:));
-            plotters{end+1} = VectorFieldPlotter(agents{1}.wall.line_vf);  
+%             plotters{end+1} = VectorFieldPlotter(agents{1}.wall.line_vf);  
             plotters{end+1} = TwoDRangePlotter(veh_i);
             
             % Initialize the object

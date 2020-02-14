@@ -132,7 +132,7 @@ classdef FollowWallBehavior < handle
             
             % Find the contiguous portion of the wall
             [q_wall, ~] = obj.wall.findContinguousWall(q_sensors, q_veh);
-            %obj.h_wall = obj.plotWall(q_wall, obj.h_wall);            
+            obj.h_wall = obj.plotWall(q_wall, obj.h_wall);            
             
             % Calculate the line to follow
             if size(q_wall, 2) > 1
