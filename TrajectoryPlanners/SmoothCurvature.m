@@ -71,8 +71,8 @@ classdef SmoothCurvature < handle
             obj.x_kappa_max = kappaStateConstControl(obj.t_kappa_max, obj.t_decel_2_accel, obj.x_decel_2_accel, umax); % State when kappa_max is achieved    
         end
         
-        function [t_vec, x_mat] = calculateClothoidCurvature(obj, dt)
-        %computeClothoidCurvature returns a vector of kappa states that converge to
+        function x_mat = calculateClothoidCurvature(obj, t_vec)
+        %calculateClothoidCurvature returns a vector of kappa states that converge to
         %kappa_max as fast as possible using umax
         %
         % The kappa state is a 3x1 vector:
@@ -81,38 +81,84 @@ classdef SmoothCurvature < handle
         %         [gamma]
         %
         % Inputs:
-        %   umax: maximum third derivative of curvature
-        %   sig_max: maximum first derivative of curvature
-        %   kappa_max: maximum curvature
-        %   dt: time step for simulation
+        %   t_vec: 1xm vector of time values   
         %
         % Outputs:
-        %   t_vec: 1xm vector of time values
         %   x_mat: 3xm matrix of kappa states where each column corresponds to the
         %          t_vec time value        
 
-            % Simulation variables - note: ode45 has a hard time matching when obj.tau
-            % is not a multiple of dt
-            tf = obj.t_decel_2_accel+obj.tau; % final time
-            t_vec = 0:dt:tf; % time vector
+            % Get number of time values
             len = length(t_vec); % number of states
 
-            %% Calculate kappa state
+            % Calculate kappa state
             x_mat = zeros(3,len); % Storage for calculated states
             for k = 1:len
                 t = t_vec(k);
-                if t < obj.t_accel_2_decel
-                    x_mat(:,k) = kappaStateConstControl(t, obj.t_0, obj.x_0, obj.umax);
-                elseif t < obj.t_sig_max
-                    x_mat(:,k) = kappaStateConstControl(t, obj.t_accel_2_decel, obj.x_accel_2_decel, -obj.umax);
-                elseif t < obj.t_sigma_const_final
-                    x_mat(:,k) = kappaStateConstSigma(t, obj.t_sig_max, obj.x_sig_max(1), obj.sig_max);
-                elseif t < obj.t_decel_2_accel
-                    x_mat(:,k) = kappaStateConstControl(t, obj.t_sigma_const_final, obj.x_sigma_const_final, -obj.umax);
-                else
-                    x_mat(:,k) = kappaStateConstControl(t, obj.t_decel_2_accel, obj.x_decel_2_accel, obj.umax);
-                end
+                x_mat(:,k) = obj.getCurvatureStateVector(t);
             end
+        end
+        
+        function t_span = getCurvatureTimeSpan(obj, dt)
+        %getCurvatureTimeSpan returns a time span that will include the
+        %entire curvature spaced at time intervales of dt
+            t_span = obj.t_0:dt:obj.t_kappa_max; % time vector            
+        end
+        
+        function x_k = getCurvatureStateVector(obj, t)
+            %calculateClothoidCurvature returns a vector of kappa states
+            %for a given time value
+            %
+            % The kappa state is a 3x1 vector:
+            %         [kappa]
+            %   x_k = [sigma]
+            %         [gamma]
+            %
+            % Inputs:
+            %   t: time value of interest (must be greater than or equal to zero)
+            %
+            % Outputs:
+            %   x_k: curvature state at time t
+            
+            % Calculate the curvature state
+            if t < obj.t_0
+                x_k = zeros(3,1);
+            elseif t < obj.t_accel_2_decel
+                x_k = kappaStateConstControl(t, obj.t_0, obj.x_0, obj.umax);
+            elseif t < obj.t_sig_max
+                x_k = kappaStateConstControl(t, obj.t_accel_2_decel, obj.x_accel_2_decel, -obj.umax);
+            elseif t < obj.t_sigma_const_final
+                x_k = kappaStateConstSigma(t, obj.t_sig_max, obj.x_sig_max(1), obj.sig_max);
+            elseif t < obj.t_decel_2_accel
+                x_k = kappaStateConstControl(t, obj.t_sigma_const_final, obj.x_sigma_const_final, -obj.umax);
+            else
+                x_k = kappaStateConstControl(t, obj.t_decel_2_accel, obj.x_decel_2_accel, obj.umax);
+            end
+        end
+        
+        function [kappa, sigma, gamma] = getCurvatureState(obj, t)
+            %calculateClothoidCurvature returns a vector of kappa states
+            %for a given time value
+            %
+            % The kappa state is a 3x1 vector:
+            %         [kappa]
+            %   x_k = [sigma]
+            %         [gamma]
+            %
+            % Inputs:
+            %   t: time value of interest (must be greater than or equal to zero)
+            %
+            % Outputs:
+            %   kappa: curvature at time t
+            %   sigma: curvature rate at time t
+            %   gamma: curvature acceleration at time t
+            
+            % Calculate the curvature state
+            x_k = obj.getCurvatureStateVector(t);
+            
+            % Output the curvature state
+            kappa = x_k(1);
+            sigma = x_k(2);
+            gamma = x_k(3);            
         end
         
         function [t_switch, u_switch] = extractSwitchTimesAndControl(obj)

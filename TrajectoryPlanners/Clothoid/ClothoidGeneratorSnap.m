@@ -20,9 +20,7 @@ classdef ClothoidGeneratorSnap < handle
        
        max_sig_accel % Maximum acceleration of sigma
        
-       % Switch time intervals
-       t_sig_max % Time at which max curvature change rate achieved
-       t_kappa_max % Time at which maximum curvature achieved
+       curvature % Instance of the SmoothCurvature object
     end
     
     properties
@@ -38,7 +36,8 @@ classdef ClothoidGeneratorSnap < handle
         s_ind = 5; % Index of the curvature change rate (first derivative)
         g_ind = 6; % Index of the second derivative of curvature
         
-        n_states = 6; % Number of states
+        n_states = 6; % Number of total states
+        n_states_wo_curvature = 3; % Number of states not including the curvature states
     end
         
     methods
@@ -63,19 +62,9 @@ classdef ClothoidGeneratorSnap < handle
                 obj.max_sig_accel = 100;
             end
             
-            % Calculate the time to go from zero sigma to maximum sigma
-            obj.t_sig_max = sqrt(2*max_sigma/obj.max_sig_accel);
-            
-            % Calculate the time to go from curvature at obj.t_sig_max to
-            % maximum kurvature
-            k_sig_max = 1/6 * obj.t_sig_max^3;
-            delta_t_curv = (max_k - k_sig_max)/max_sigma;
-            obj.t_kappa_max = obj.t_sig_max + delta_t_curv;
-            
-            % Initialize the simulation variables
-            obj.t_span = 0:obj.dt:(delta_t_curv+obj.t_sig_max); % time vector
-            
             % Calculate the full clothoid
+            obj.curvature = SmoothCurvature(obj.max_sig_accel, obj.max_sigma, obj.max_k);
+            obj.t_span = obj.curvature.getCurvatureTimeSpan(obj.dt);
             x = obj.calcClothoid();
             
             % Set the trajectory variables
@@ -83,42 +72,22 @@ classdef ClothoidGeneratorSnap < handle
         end
         
         function clothoid = calcClothoid(obj)
-            x0 = zeros(obj.n_states,1);
+            x0 = zeros(obj.n_states_wo_curvature,1);
             
-            % Numerical Integration
+            % Integrate the bicycle dynamics
             [t_vec,x_vec] = ode45(@(t,x) obj.xdot(t, x), obj.t_span, x0);
-%             plot(x_vec(:,1),x_vec(:,2))
-            clothoid = x_vec';
-        end
-        
-        function x_dot = xdot(obj, t, x)
-            % Extract states
-            psi = x(obj.psi_ind);
-            kappa = x(obj.k_ind);
-            sigma = x(obj.s_ind);
-            gamma = x(obj.g_ind);
+
+            % Get the curvature states
+            x_k = obj.curvature.calculateClothoidCurvature(t_vec);
             
-            % Calcualte the time derivative of all the states
-            x_dot = zeros(obj.n_states, 1);
-            x_dot(obj.q1_ind) = obj.v*cos(psi);
-            x_dot(obj.q2_ind) = obj.v*sin(psi);
-            x_dot(obj.psi_ind) = obj.v*kappa;
-            x_dot(obj.k_ind) = sigma;
-            x_dot(obj.s_ind) = gamma;
-            
-            % Calculate the input to the system
-            if t < obj.t_sig_max
-                x_dot(obj.g_ind) = obj.max_sig_accel;
-            else
-                x_dot(obj.g_ind) = 0;
-            end            
+            clothoid = [x_vec'; x_k];
         end
         
         function storeTrajectoryData(obj, x)
             % Initialize the trajectory
             obj.traj = Trajectory2D();
             obj.traj.ds = obj.v*obj.dt;
-            s_len = obj.v*obj.t_kappa_max;
+            s_len = obj.v*obj.curvature.t_kappa_max;
             obj.traj.s = 0:obj.traj.ds:s_len;
             obj.traj.cloth_len = length(obj.t_span);
             obj.traj.sigma = x(obj.s_ind,:);
@@ -182,6 +151,22 @@ classdef ClothoidGeneratorSnap < handle
             obj.traj.w = obj.v.*x(obj.k_ind); % velocity
             obj.traj.alpha = obj.v.*x(obj.s_ind); % acceleration
             obj.traj.zeta = obj.v.*x(obj.g_ind); % jerk
+        end
+    end
+    
+    methods(Access=protected)
+        function x_dot = xdot(obj, t, x)
+            % Extract the orientation
+            psi = x(obj.psi_ind);
+            
+            % Calculate the curvature
+            kappa = obj.curvature.getCurvatureState(t);
+            
+            % Calcualte the time derivative of all the states
+            x_dot = zeros(obj.n_states_wo_curvature, 1);
+            x_dot(obj.q1_ind) = obj.v*cos(psi);
+            x_dot(obj.q2_ind) = obj.v*sin(psi);
+            x_dot(obj.psi_ind) = obj.v*kappa;
         end
     end
 end

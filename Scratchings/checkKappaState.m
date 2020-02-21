@@ -1,13 +1,14 @@
 function checkKappaState
     % Set time values for switching on bang-bang control
     umax = 100; % max control input
-    sig_max = 5; % Max value for sigma
-    kappa_max = 5; % Maximum desired curvature value
+    sig_max = .35; % Max value for sigma
+    kappa_max = .35; % Maximum desired curvature value
     dt = 0.001;
     
     % Compute the clothoid curvature
     curvature = SmoothCurvature(umax, sig_max, kappa_max);
-    [t_vec, x_vec_calc] = curvature.calculateClothoidCurvature(dt);
+    t_vec = curvature.getCurvatureTimeSpan(dt);
+    x_vec_calc = curvature.calculateClothoidCurvature(t_vec);
     [t_switch, u_switch] = curvature.extractSwitchTimesAndControl();
     
     % Simulate forward in time
