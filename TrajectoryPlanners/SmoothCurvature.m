@@ -1,4 +1,4 @@
-classdef computeClothoidCurvature < handle
+classdef SmoothCurvature < handle
     % curvature parameters
     properties (SetAccess=protected)
         umax % maximum third derivative of curvature
@@ -28,7 +28,7 @@ classdef computeClothoidCurvature < handle
     end
     
     methods
-        function obj = computeClothoidCurvature(umax, sig_max, kappa_max)
+        function obj = SmoothCurvature(umax, sig_max, kappa_max)
             %computeClothoidCurvature: Create instance of this class
             %
             % Inputs:

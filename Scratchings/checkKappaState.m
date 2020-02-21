@@ -6,7 +6,7 @@ function checkKappaState
     dt = 0.001;
     
     % Compute the clothoid curvature
-    curvature = computeClothoidCurvature(umax, sig_max, kappa_max);
+    curvature = SmoothCurvature(umax, sig_max, kappa_max);
     [t_vec, x_vec_calc] = curvature.calculateClothoidCurvature(dt);
     [t_switch, u_switch] = curvature.extractSwitchTimesAndControl();
     
