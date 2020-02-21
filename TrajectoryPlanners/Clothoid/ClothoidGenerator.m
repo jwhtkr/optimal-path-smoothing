@@ -2,12 +2,12 @@ classdef ClothoidGenerator < handle
     %BetterUnicycle Implements a unicycle with direct control over the
     %accleration
     
-    properties
+    properties(Access = protected)
        dt;
        v;
        max_k;
        max_sigma; 
-       traj;
+       
        
        clothoid;
        t_span;
@@ -18,6 +18,10 @@ classdef ClothoidGenerator < handle
        waypoints_directon;
        max_clothoid_deflection;
        
+    end
+    
+    properties
+        traj;
     end
         
     methods

@@ -15,22 +15,22 @@ classdef Trajectory2D < handle
         xddddot;
         yddddot;
         
-        ds;
-        k;
-        s;
-        t;
-        transitions;
-        s_geo;
-        dt;
-        cloth_len;
+        ds; % v*dt, used in calculation of length of clothoid
+        k; % Curvature
+        s; % path length
+        t; % time
+        transitions; % indicies in which transition from clothoid to line to arc
+        s_geo; % ???
+        dt; % time step
+        cloth_len; % total index length of clothoid
         
-        v;
-        a;
-        j;
-        w;
-        alpha;
-        zeta;
-        sigma;
+        v; % Velocity
+        a; % Acceleration
+        j; % Jerk
+        w; % Angular velocity
+        alpha; % Angular acceleration
+        zeta; % Angular jerk
+        sigma; % kurvature rate
     end
         
     methods

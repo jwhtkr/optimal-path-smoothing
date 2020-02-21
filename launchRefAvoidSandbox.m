@@ -59,8 +59,8 @@ function launchRefAvoidSandbox()
     x0{4} = [-0.25; 0; 0];
     x0{5} = [-0.4; 0; 0];
     %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, PolygonWorld1, waypoints, x0, Q);
-    scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorld, waypoints, x0, Q);
-    %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorldStraight, waypoints, x0, Q);
+    %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorld, waypoints, x0, Q);
+    scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorldStraight, waypoints, x0, Q);
     scenario.tf = 45;
     
 %     % Wall following scenario

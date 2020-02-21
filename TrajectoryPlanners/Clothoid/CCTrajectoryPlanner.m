@@ -29,7 +29,8 @@ classdef CCTrajectoryPlanner < handle
             obj.max_k = max_k;
             obj.max_sigma = max_sigma;
             
-            obj.clothoid = ClothoidGenerator(max_k, v, dt, max_sigma);
+            %obj.clothoid = ClothoidGenerator(max_k, v, dt, max_sigma);
+            obj.clothoid = ClothoidGeneratorSnap(max_k, v, dt, max_sigma);            
             obj.max_clothoid_deflection = 2 * obj.clothoid.traj.psi(end);
             
             % See fig 3 Fraichard
