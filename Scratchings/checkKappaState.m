@@ -3,10 +3,12 @@ function checkKappaState
     umax = 100; % max control input
     sig_max = 5; % Max value for sigma
     kappa_max = 5; % Maximum desired curvature value
-    dt = 0.01;
+    dt = 0.001;
     
     % Compute the clothoid curvature
-    [t_vec, x_vec_calc, t_switch, u_switch] = computeClothoidCurvature(umax, sig_max, kappa_max, dt);
+    curvature = computeClothoidCurvature(umax, sig_max, kappa_max);
+    [t_vec, x_vec_calc] = curvature.calculateClothoidCurvature(dt);
+    [t_switch, u_switch] = curvature.extractSwitchTimesAndControl();
     
     % Simulate forward in time
     [t_vec_sim, x_vec_sim] = ode45(@(t,x) kappaStateSwitchedDynamics(t, x, t_switch, u_switch), t_vec, zeros(3,1));
