@@ -169,10 +169,10 @@ classdef CCTrajectoryPlanner < handle
             end
             
             cc_turn = obj.reflect_traj(cc_turn);
-            cc_turn = cc_turn.rotate_traj(pose.psi,1);
-            cc_turn.x = cc_turn.x + pose.x;
-            cc_turn.y = cc_turn.y + pose.y;
-            
+%             cc_turn = cc_turn.rotate_traj(pose.psi,1);
+%             cc_turn.x = cc_turn.x + pose.x;
+%             cc_turn.y = cc_turn.y + pose.y;
+           
             
             cc_turn.w = cc_turn.v .* cc_turn.k;
             % cc_turn.alpha = cc_turn.v .* cc_turn.v .* cc_turn.sigma;
@@ -248,25 +248,90 @@ classdef CCTrajectoryPlanner < handle
             new_traj = traj.concatenate(cc_reflect);
         end
         
-        function new_traj = squeeze_turn(obj,waypoint_0, waypoint_1,traj)
+        function new_traj = squeeze_turn(obj,waypoint_0, waypoint_1,waypoint_2, traj)
             % This function squeezes a turn into the corner of the path
             % diagram. Which is constructed but plotting the path variable
             % in CCPathGenerator.
             
+            % NOTE: naming convention i-1 = 0, i = 1, i+1 = 2
+            
+            %% New Method
             % rename variables for ease of reading
             psi0 = waypoint_0.psi;
             psi1 = waypoint_1.psi;
-            v1 = [waypoint_1.x; waypoint_1.y];
+            psi2 = waypoint_2.psi;
+            q0 = [waypoint_0.x; waypoint_0.y];
+            q1 = [waypoint_1.x; waypoint_1.y];
+            q2 = [waypoint_2.x; waypoint_2.y];
+            
+            % Translate to waypoint - may comment and do at a later time
+            traj.x = traj.x + q0(1);
+            traj.y = traj.y + q0(2);
+            
+            % Plot lines and original trajectory
+            lines = [q0 q1 q2];
+            plot(lines(1,:),lines(2,:)); hold on
+            plot(traj.x,traj.y);
+            
+            % Distances and normal vectors
+            d0 = norm(q1-q0);
+            d1 = norm(q2-q1);
+            n0 = (q1-q0)/d0;
+            n1 = (q2-q1)/d1;
+            
+            % Rotation Matrix, CCW positive
+            R = rotation(psi0);
+            
+            % get CCturn endpoint data
+            q_e = [traj.x(end);traj.y(end)];
+            n_e = R*q_e;
+            q_e0 = R*q_e + q0;
+            
+            % Distance of turn vector in direction w_i to w_i+1
+            m1 = n_e'*n1;
+            
+            % position of intersect
+            q_off = m1*n1 + q1;
+            
+            % translation vector
+            n_t = n0*norm(q_off-q_e0) + q0;
+            
+            % Plot values to analyze
+            plot(n_e(1),n_e(2),'o','linewidth',5)
+            plot(q_e0(1),q_e0(2),'o','linewidth',5)
+            plot(q_off(1),q_off(2), 'o', 'linewidth', 5)
+            
+            % Rotate CCTurn, (angle,#) where # = 1 rotates about origin and
+            % # = 2 rotates about start of CCTurn
+%             traj = traj.rotate_traj(psi0,2);
+            
+            % Plots translated trajectory
+            plot(traj.x + n_t(1),traj.y + n_t(2))
+
+            
+            
+            % Rotate Trajectory - May not be needed
+            traj = traj.rotate_traj(psi0,1);
+            
+            % translate Trajectory - May not be needed
+            traj.x = traj.x + q0(1);
+            traj.y = traj.y + q0(2);
+            
+            
+            
+            
+            %% Old Method
+            % rename variables for ease of reading
             R = rotation(-psi0);
             
             % rotate turn traj to parallel with x axis
             traj = traj.rotate_traj(-psi0,2); % plot(traj.x,traj.y);
-            v1 = R*v1;
+            q1 = R*q1;
             % find the slope at waypoint_1
             m = tan(psi1-psi0);
             pose_end = [traj.x(end); traj.y(end); traj.psi(end)];
             % eq obtained from basic line eq y = m(x + x0) + y0
-            x_at_intersection = (pose_end(2)- v1(2))/m + v1(1);
+            x_at_intersection = (pose_end(2)- q1(2))/m + q1(1);
             
             dx = x_at_intersection - traj.x(end);
             traj.x = traj.x + dx; % plot(traj.x,traj.y);

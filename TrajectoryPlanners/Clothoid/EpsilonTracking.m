@@ -2,13 +2,13 @@ function EpsilonTracking()
 close all;
     
 
-    path = [0 4; 10 0; 0 -10; 10 -14; 20 -4];
+    path = [0 4; 10 0; 0 10; 10 14; 20 -4];
 %     path = -[0 0; 5 1; 10 -1; 15 1; 20 -1];
     k = 1;
     sig = 1;
     v = 1;
     dt = 0.01;
-    clothoid = CCPathGenerator(path,v,dt,k,sig);
+    clothoid = CCPathGenerator(path,v,dt,k,sig).traj;
     %% Better Unicycle -- Diffeomorphism go to goal
     % Calculate point control gains
     A = [zeros(2) eye(2); zeros(2,4)]; 
@@ -42,7 +42,7 @@ close all;
     % Integrate the state
     t0 = 0; 
 %     dt = 0.01;
-    tf = 20;
+    tf = 25;
     t = t0:dt:tf;
     for k = 1:length(t)
         epsilonTraj(:,k)= q_d(t(k));
