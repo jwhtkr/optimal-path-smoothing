@@ -14,6 +14,8 @@ classdef MultiAgentScenario < handle
         
         % Simulation parameters
         plot_during_sim; % true => plot while simulating (requires euler integration)
+        make_movie = false; % true => Movie will be made during plot
+        video % Stores all frames of a movie
         t0 = 0; % Initial time of simulation
         dt = 0.05; % Simulation step size
         tf = 40; % Final time of simulation
@@ -71,6 +73,9 @@ classdef MultiAgentScenario < handle
             % Plot the results
             obj.plotState(obj.tf);
             obj.plotWorld(obj.tf);
+            if obj.make_movie
+                obj.publishVideo();
+            end
             obj.plotResults();
         end
         
@@ -159,13 +164,24 @@ classdef MultiAgentScenario < handle
                 obj.xmat(:,k) = x_t;
                 
                 % Plot the state
-                if true % obj.isPlotReady()
+                if true || obj.make_movie % obj.isPlotReady()
                     obj.plotState(t);
                     obj.plotWorld(t); 
                     pause(obj.dt/4);
                     %t
+                    if obj.make_movie
+                        obj.video = [obj.video getframe(gcf)];
+                    end
                 end
             end
+        end
+        
+        function publishVideo(obj)
+            vid = VideoWriter('MultiVehicleSim','Motion JPEG AVI');
+            vid.FrameRate = 1/obj.dt;
+            open(vid);
+            writeVideo(vid,obj.video)
+            close(vid)
         end
         
         function ind = getStateIndex(obj, t)
