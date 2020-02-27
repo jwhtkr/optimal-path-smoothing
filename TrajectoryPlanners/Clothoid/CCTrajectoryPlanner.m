@@ -272,6 +272,7 @@ classdef CCTrajectoryPlanner < handle
             lines = [q0 q1 q2];
             plot(lines(1,:),lines(2,:)); hold on
             plot(traj.x,traj.y);
+            axis equal
             
             % Distances and normal vectors
             d0 = norm(q1-q0);
@@ -283,35 +284,40 @@ classdef CCTrajectoryPlanner < handle
             R = rotation(psi0);
             
             % get CCturn endpoint data
-            q_e = [traj.x(end);traj.y(end)];
+            q_e = [traj.x(end);traj.y(end)] - q0;
             n_e = R*q_e;
+            theta_e = atan2(n_e(2), n_e(1)) - psi0;
+            d_e = norm(n_e);
             q_e0 = R*q_e + q0;
             
             % Distance of turn vector in direction w_i to w_i+1
-            m1 = n_e'*n1;
+            delta = psi1 - psi0;
+            m1 = sin(theta_e)/sin(delta)*d_e;
             
             % position of intersect
             q_off = m1*n1 + q1;
             
             % translation vector
-            n_t = n0*norm(q_off-q_e0) + q0;
+            n_t = n0*norm(q_off-q_e0);
             
             % Plot values to analyze
-            plot(n_e(1),n_e(2),'o','linewidth',5)
-            plot(q_e0(1),q_e0(2),'o','linewidth',5)
-            plot(q_off(1),q_off(2), 'o', 'linewidth', 5)
+            plot(n_e(1),n_e(2),'ro','linewidth',5)
+            plot(q_e0(1),q_e0(2),'bo','linewidth',5)
+            plot(q_off(1),q_off(2), 'go', 'linewidth', 5)
             
             % Rotate CCTurn, (angle,#) where # = 1 rotates about origin and
             % # = 2 rotates about start of CCTurn
 %             traj = traj.rotate_traj(psi0,2);
             
             % Plots translated trajectory
-            plot(traj.x + n_t(1),traj.y + n_t(2))
-
+            %plot(traj.x + n_t(1),traj.y + n_t(2))
+            traj.x = traj.x + n_t(1);
+            traj.y = traj.y + n_t(2);
             
             
             % Rotate Trajectory - May not be needed
             traj = traj.rotate_traj(psi0,1);
+            plot(traj.x,traj.y)
             
             % translate Trajectory - May not be needed
             traj.x = traj.x + q0(1);
