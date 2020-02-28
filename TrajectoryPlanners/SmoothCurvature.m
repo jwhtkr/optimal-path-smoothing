@@ -182,6 +182,32 @@ classdef SmoothCurvature < handle
                 -obj.umax;...
                 obj.umax];
         end
+        
+        function u_vec = getControl(obj, t_vec)
+        %getControl: outputs the control inputs for a vector of time values
+        
+            % Initialize the output
+            len = length(t_vec);
+            u_vec = zeros(1,len);
+            
+            % Calculate the control
+            for k = 1:len
+                t = t_vec(k);
+                if t < obj.t_0
+                    u_vec(k) = 0;
+                elseif t < obj.t_accel_2_decel
+                    u_vec(k) = obj.umax;
+                elseif t < obj.t_sig_max
+                    u_vec(k) = -obj.umax;
+                elseif t < obj.t_sigma_const_final
+                    u_vec(k) = 0;
+                elseif t < obj.t_decel_2_accel
+                    u_vec(k) = -obj.umax;
+                else
+                    u_vec(k) = obj.umax;
+                end
+            end
+        end
     end
     
 end

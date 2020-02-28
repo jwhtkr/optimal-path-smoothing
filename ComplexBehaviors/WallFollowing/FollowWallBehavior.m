@@ -85,11 +85,11 @@ classdef FollowWallBehavior < handle
             end
             w_avoid = 1;
             weights_avoid = w_avoid*ones(obj.n_avoid_sensors, 1);
-            obj.avoid_field = SummedFields(x_vec, y_vec, fields_avoid, weights_avoid, obj.vd);
+            obj.avoid_field = SummedFields(x_vec, y_vec, fields_avoid, weights_avoid, obj.vd_max);
             
             % Store the line vector field and avoidance vector field in one
             % summed field
-            obj.total_field = SummedFields(x_vec, y_vec, {obj.avoid_field, obj.line_vf}, [1;1], obj.vd);            
+            obj.total_field = SummedFields(x_vec, y_vec, {obj.avoid_field, obj.line_vf}, [1;1], obj.vd_max);            
         end
         
         function updateVectorFields(obj, q_sensors, ind_inf, q_veh, th_veh)
