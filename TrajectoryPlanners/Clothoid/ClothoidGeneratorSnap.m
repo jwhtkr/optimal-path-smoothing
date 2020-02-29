@@ -128,6 +128,7 @@ classdef ClothoidGeneratorSnap < handle
             obj.traj.s = 0:obj.traj.ds:s_len;
             obj.traj.cloth_len = length(obj.t_span);
             obj.traj.sigma = x(obj.s_ind,:);
+            obj.traj.gamma = x(obj.g_ind,:);
             obj.traj.dt = obj.dt;
             obj.traj.t = obj.t_span;
             obj.traj.s_geo = obj.traj.s;

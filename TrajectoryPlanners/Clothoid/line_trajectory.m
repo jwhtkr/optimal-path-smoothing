@@ -38,6 +38,7 @@ traj.j = zeros(1,n);
 % Curvature variables
 traj.k = zeros(1,n);
 traj.sigma = zeros(1,n);
+traj.gamma = zeros(1,n);
 
 traj.s = 0:ds:n*ds;
 traj.s = traj.s(1:n);

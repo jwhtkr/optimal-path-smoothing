@@ -38,7 +38,8 @@ classdef Trajectory2D < handle
         
         % Curvature variables
         k; % Curvature
-        sigma; % kurvature rate
+        sigma; % curvature rate
+        gamma; % Curvature acceleration
     end
         
     methods
@@ -48,6 +49,7 @@ classdef Trajectory2D < handle
             obj.v = [];
             obj.a = [];
             obj.sigma = [];
+            obj.gamma = [];
             obj.transitions = [1];
             obj.t = [];
             obj.psi = [];
@@ -75,6 +77,7 @@ classdef Trajectory2D < handle
             
             obj.v = ones(1,obj.cloth_len)*obj.v;
             obj.sigma = ones(1,obj.cloth_len)*obj.sigma;
+            obj.gamma = zeros(1,obj.cloth_len)*obj.gamma;
             obj.a = zeros(1,obj.cloth_len);
             obj.j = zeros(1,obj.cloth_len);
             obj.s_geo = obj.s;
@@ -102,16 +105,16 @@ classdef Trajectory2D < handle
                         +(2*obj.a.^2.*obj.w -2*obj.w.*obj.j - 2*obj.a.*obj.alpha)./obj.v;
         end
         
-        function update_derivatives(obj)
+        function update_derivatives(obj)   
             obj.xdot = obj.v .* cos(obj.psi);
             obj.xddot = -obj.v.^2 .* obj.k .* sin(obj.psi) - 2 * obj.v .* obj.a .* obj.k .* sin(obj.psi);
             obj.xdddot = - obj.v.^2 .* obj.sigma .* sin(obj.psi) - obj.v.^3 .* obj.k .^ 2 .* cos(obj.psi);
-            obj.xddddot = obj.v.^3 .* obj.k .* (obj.v.*obj.k.^2.*sin(obj.psi) - obj.sigma.*cos(obj.psi) - 2*obj.sigma.*cos(obj.psi));
+            obj.xddddot = obj.v.^3 .* obj.k .* (obj.v.*obj.k.^2.*sin(obj.psi) - 3*obj.sigma.*cos(obj.psi)) - obj.v.^2.*obj.gamma.*sin(obj.psi);
             
             obj.ydot = obj.v .* sin(obj.psi);
             obj.yddot = obj.v .^ 2 .* obj.k .* cos(obj.psi) - 2 * obj.v .* obj.a .* obj.k .* cos(obj.psi);
             obj.ydddot = obj.v .^ 2 .* obj.sigma .* cos(obj.psi) - obj.v .^ 3 .* obj.k .^ 2 .* sin(obj.psi);
-            obj.yddddot = -obj.v.^3 .* obj.k .* (obj.v.*obj.k.^2.*cos(obj.psi) + obj.sigma.*sin(obj.psi) + 2*obj.sigma.*sin(obj.psi));
+            obj.yddddot = -obj.v.^3 .* obj.k .* (obj.v.*obj.k.^2.*cos(obj.psi) + 3*obj.sigma.*sin(obj.psi)) + obj.v.^2.*obj.gamma.*cos(obj.psi);
             
             obj.j = (obj.xddot.^2 + obj.xdddot.*obj.xdot + obj.yddot.^2 + obj.ydddot.*obj.ydot - obj.a.^2)./obj.v;
             
@@ -163,6 +166,7 @@ classdef Trajectory2D < handle
             
             temp_traj.k = [obj.k(1:range) new_traj.k];
             temp_traj.sigma = [obj.sigma(1:range) new_traj.sigma];
+            temp_traj.gamma = [obj.gamma(1:range) new_traj.gamma];
             temp_traj.v = [obj.v(1:range) new_traj.v];
             temp_traj.a = [obj.a(1:range) new_traj.a];
             temp_traj.s_geo = obj.s_geo + new_traj.s_geo;
@@ -268,6 +272,7 @@ classdef Trajectory2D < handle
             
             tmp_traj.k = obj.k;
             tmp_traj.sigma = obj.sigma;
+            tmp_traj.gamma = obj.gamma;
             
             tmp_traj.s = obj.s;
             

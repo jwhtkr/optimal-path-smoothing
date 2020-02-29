@@ -175,9 +175,9 @@ classdef CCTrajectoryPlanner < handle
             cc_turn.y = cc_turn.y + pose.y;
             
             
-            cc_turn.w = cc_turn.v .* cc_turn.k;
+%             cc_turn.w = cc_turn.v .* cc_turn.k;
             % cc_turn.alpha = cc_turn.v .* cc_turn.v .* cc_turn.sigma;
-            cc_turn.alpha = cc_turn.sigma .* cc_turn.v;
+%             cc_turn.alpha = cc_turn.sigma .* cc_turn.v;
             cc_turn.update_derivatives();
             cc_turn.dt = obj.dt;
             cc_turn.t = cc_turn.s ./ cc_turn.v;
@@ -215,6 +215,7 @@ classdef CCTrajectoryPlanner < handle
             traj.s = circle.r * abs(psi - start_psi);
             traj.v = ones(1,n)*obj.v;                           %% default v value
             traj.sigma = zeros(1,n);
+            traj.gamma = zeros(1,n);
             traj.a = zeros(1,n);
             traj.update_derivatives();
             traj.t = traj.s./traj.v;
