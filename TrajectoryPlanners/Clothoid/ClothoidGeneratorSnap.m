@@ -83,6 +83,25 @@ classdef ClothoidGeneratorSnap < handle
             clothoid = [x_vec'; x_k];
         end
         
+        function [t_vec, psi] = eulerIntegrateCheck(obj,x_k, t_vec, x_vec)
+            psi = zeros(1, length(t_vec));
+            psi(1) = 0;
+            
+            dt_new = 0.001;
+            t_vec_new = 0:dt_new:t_vec(end);
+            
+            for k = 1:(length(t_vec_new)-1)
+                t = t_vec_new(k);
+                psi(k+1) = psi(k) + dt_new*obj.v*obj.curvature.getCurvatureState(t);
+            end
+            
+            % plot a comparison
+            figure;
+            plot(t_vec_new, psi, 'b', 'linewidth', 4); hold on;
+            plot(t_vec, x_vec(obj.psi_ind, :), 'r', 'linewidth', 2);
+            
+        end
+        
         function storeTrajectoryData(obj, x)
             % Initialize the trajectory
             obj.traj = Trajectory2D();
@@ -148,9 +167,9 @@ classdef ClothoidGeneratorSnap < handle
             obj.traj.j = zeros(1,len); % jerk
             
             % Store rotational data
-            obj.traj.w = obj.v.*x(obj.k_ind); % velocity
-            obj.traj.alpha = obj.v.*x(obj.s_ind); % acceleration
-            obj.traj.zeta = obj.v.*x(obj.g_ind); % jerk
+            obj.traj.w = obj.v.*x(obj.k_ind, :); % velocity
+            obj.traj.alpha = obj.v.*x(obj.s_ind, :); % acceleration
+            obj.traj.zeta = obj.v.*x(obj.g_ind, :); % jerk
         end
     end
     
@@ -168,5 +187,143 @@ classdef ClothoidGeneratorSnap < handle
             x_dot(obj.q2_ind) = obj.v*sin(psi);
             x_dot(obj.psi_ind) = obj.v*kappa;
         end
+        
+        function eulerIntegrateTrajectory(obj)
+            
+            x0 = [obj.traj.x(1); obj.traj.xdot(1); obj.traj.xddot(1); obj.traj.xdddot(1)];
+            u = obj.traj.xddddot;
+            
+            x_int = [x0];
+            x = x0;
+            
+
+            A = [0 1 0 0; 0 0 1 0; 0 0 0 1; 0 0 0 0];
+            B = [0; 0; 0; 1];
+            for k = 1:(length(u)-1)
+                x = x + obj.dt*(A*x + B*u(k));
+                x_int = [x_int x];
+            end
+            
+            % Plot the states
+            figure;
+            subplot(5,1,1);
+            plot(obj.traj.x, 'b'); hold on;
+            plot(x_int(1,:), 'r');
+            ylabel('x')
+
+            subplot(5,1,2);
+            plot(obj.traj.xdot, 'b', 'linewidth', 4); hold on;
+            plot(x_int(2,:), 'r');
+            ylabel('xdot')
+
+            subplot(5,1,3);
+            plot(obj.traj.xddot, 'b'); hold on;
+            plot(x_int(3,:), 'r');
+            ylabel('xddot')
+
+            subplot(5,1,4);
+            plot(obj.traj.xdddot, 'b'); hold on;
+            plot(x_int(4,:), 'r');
+            ylabel('xdddot')
+
+            subplot(5,1,5);
+            plot(obj.traj.xddddot, 'b'); hold on;
+            plot(obj.traj.xddddot, 'r');
+            ylabel('xddddot')
+            
+            
+            
+        end
+        
+        function checkTrajectoryGeneration(obj, x)
+            % Create variables from trajectory data
+            psi_vec = zeros(1, obj.traj.cloth_len);
+            v_vec = zeros(1, obj.traj.cloth_len);
+            w_vec = zeros(1, obj.traj.cloth_len);
+            a_vec = zeros(1, obj.traj.cloth_len);
+            alpha_vec = zeros(1, obj.traj.cloth_len);
+            
+            % Extract the data from the trajectory
+            for k = 1:obj.traj.cloth_len
+                traj_in.q = [obj.traj.x(k); obj.traj.y(k)];
+                traj_in.qdot = [obj.traj.xdot(k); obj.traj.ydot(k)];
+                traj_in.qddot = [obj.traj.xddot(k); obj.traj.yddot(k)];
+                traj_in.qdddot = [obj.traj.xdddot(k); obj.traj.ydddot(k)];
+                
+                % Get data
+                [psi_vec(k), v_vec(k), w_vec(k), a_vec(k), alpha_vec(k)] = ...
+                    getTrajectoryInformation(traj_in);
+            end
+            
+            % Plot the comparisons
+            figure;
+            subplot(5,1,1);
+            plot(psi_vec, 'b', 'linewidth', 3); hold on;
+            plot(x(obj.psi_ind, :), 'r', 'linewidth', 2);
+            
+            subplot(5,1,2);
+            plot(v_vec, 'b', 'linewidth', 3); hold on;
+            plot(obj.v*ones(1, obj.traj.cloth_len), 'r', 'linewidth', 2);
+            
+            subplot(5,1,3);
+            plot(w_vec, 'b', 'linewidth', 3); hold on;
+            plot(obj.v*x(obj.k_ind, :), 'r', 'linewidth', 2);
+            
+            subplot(5,1,4);
+            plot(a_vec, 'b', 'linewidth', 3); hold on;
+            plot(zeros(1, obj.traj.cloth_len), 'r', 'linewidth', 2);
+            
+            subplot(5,1,5);
+            plot(alpha_vec, 'b', 'linewidth', 3); hold on;
+            plot(obj.v*x(obj.s_ind, :), 'r', 'linewidth', 2);
+            
+            % Plot the calculated values
+            figure;
+            subplot(2,1,1);
+            k = w_vec ./ v_vec;
+            plot(k, 'b', 'linewidth', 3); hold on;
+            plot(x(obj.k_ind, :), 'r', 'linewidth', 2);
+            ylabel('kappa');
+            
+            subplot(2,1,2);
+            s = alpha_vec./v_vec - w_vec./(v_vec.^2) .* a_vec;
+            plot(s, 'b', 'linewidth', 3); hold on;
+            plot(x(obj.s_ind, :), 'r', 'linewidth', 2);
+            ylabel('sigma');
+        end
     end
+end
+
+function [psi, v, w, a, alpha] = getTrajectoryInformation(traj)
+%getTrajectoryInformation calcualte trajectory information directly from
+%trajectory
+%
+% Inputs:
+%   traj: Struct with trajectory information
+%       .q = position
+%       .qdot = velocity vector
+%       .qddot = acceleration vector
+%       .qdddot = jerk vector
+%
+% Outputs:
+%   psi: orientation
+%   v: translational velocity
+%   w: rotational velocity
+%   a: translational acceleration
+%   alpha: rotational acceleration
+
+    % Extract trajectory information
+    xdot = traj.qdot(1); % Velocity vector
+    ydot = traj.qdot(2);
+    xddot = traj.qddot(1); % Accleration vector
+    yddot = traj.qddot(2);
+    xdddot = traj.qdddot(1); % Jerk vector
+    ydddot = traj.qdddot(2);
+    
+    % Calculate the trajectgory variables
+    psi = atan2(ydot, xdot);
+    v = sqrt(xdot^2+ydot^2);
+    w = 1/v^2*(xdot*yddot - ydot*xddot);
+    a = (xdot*xddot + ydot*yddot)/v;
+    alpha = (xdot*ydddot-ydot*xdddot)/v^2 - 2*a*w/v;    
 end

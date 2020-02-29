@@ -308,6 +308,8 @@ classdef ReferenceLineAvoidAgent < SingleAgent
     %%% Temporary plotting methods methods
     methods (Access = public)
         function plotVectors(obj, q, g_orb, g_g2g, g_obs)
+            return;
+            
             % Adjust the obstacle vector to be a unit vector
             g_obs = g_obs ./ norm(g_obs);
             

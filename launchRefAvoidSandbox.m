@@ -50,17 +50,17 @@ function launchRefAvoidSandbox()
     
     
     % Create formation structure
-    waypoints = [0.2 0; 12 0; 12 8; 20 8; 20 -6; 0 -6]; % Waypoints of the virtual leader
+    waypoints = [0.2 0; 12 0; 12 8; 20 8; 20 -6; 11.6 -6]; % Waypoints of the virtual leader
     Q = [ [0;0], [-1.5; 1.5], [-1.5; -1.5], [-3; 0], [2; 0]]; % Offsets for each agent
     
-    x0{1} = [0.5;0;0];
-    x0{2} = [0; 0; 0];
-    x0{3} = [-0.5; 0; 0];
-    x0{4} = [-0.25; 0; 0];
-    x0{5} = [-0.4; 0; 0];
+    x0{1} = [0.5;0;0;0;0];
+    x0{2} = [0; 0; 0;0;0];
+    x0{3} = [-0.5; 0; 0;0;0];
+    x0{4} = [-0.25; 0; 0;0;0];
+    x0{5} = [-0.4; 0; 0;0;0];
     %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, PolygonWorld1, waypoints, x0, Q);
     %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorld, waypoints, x0, Q);
-    scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, EmptyWorld, waypoints, x0, Q);
+    scenario = MultiReferenceAvoidScenario(@BetterUnicycleVehicle, EmptyWorld, waypoints, x0, Q);
     %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorldStraight, waypoints, x0, Q);
     scenario.tf = 45;
     

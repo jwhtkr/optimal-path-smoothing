@@ -217,6 +217,9 @@ classdef CCTrajectoryPlanner < handle
             traj.a = zeros(1,n);
             traj.update_derivatives();
             traj.t = traj.s./traj.v;
+            
+            traj.dt = obj.dt;
+            traj.cloth_len = length(traj.x);
         end
         
         function new_traj = reflect_traj(obj, traj)
@@ -241,7 +244,7 @@ classdef CCTrajectoryPlanner < handle
             
             reflected_clothoid = R*error +clothoid_end_pt;
             
-            cc_reflect = traj.reverse_traj();
+            cc_reflect = traj.reverse_traj(); % This appears to integrate properly, but the reflected clothoid does not
             cc_reflect.x = reflected_clothoid(1,:);
             cc_reflect.y = reflected_clothoid(2,:);
             cc_reflect.psi = cc_reflect.psi + 2 * traj.psi(end);

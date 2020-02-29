@@ -4,6 +4,7 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
         % Properties for path control (using point control method)
         eps_path = 1.0 % Initial epsilon for controlling a point to a path
         eps_path_min = 0.2 % Minimum value for eps_path
+        use_dim_eps = false; % true => use a diminishing epsilon, false will use a constant epsilon of eps_path
         K_point_ctrl % Feedback matrix for point control, used with feedback on 
                      % K_point_ctrl*(q - q_des), where q is the
                      % position and velocity of a point
@@ -400,8 +401,12 @@ classdef SmoothDifferentialDriveVehicle < Vehicle
     
     methods (Access=public)
         function eps = getEpsilon(obj, t)
-            eps = obj.eps_path*exp(-t);
-            eps = max(obj.eps_path_min, eps);
+            if obj.use_dim_eps
+                eps = obj.eps_path*exp(-t);
+                eps = max(obj.eps_path_min, eps);
+            else
+                eps = obj.eps_path;
+            end
         end
     end
 end

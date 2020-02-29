@@ -92,7 +92,7 @@ classdef MultiAgentScenario < handle
         function initializePlots(obj)
             figure; 
             % Plot the world
-            obj.world.plotWorld(gca);
+            obj.initializeWorldPlot(gca);
             
             % Loop through the plotters and initialize the plots
             for k = 1:obj.n_plotters
@@ -117,6 +117,10 @@ classdef MultiAgentScenario < handle
             else
                 result = false;
             end
+        end
+        
+        function initializeWorldPlot(obj, ax)
+            obj.world.plotWorld(ax);
         end
         
         function plotWorld(obj, t)
@@ -164,7 +168,7 @@ classdef MultiAgentScenario < handle
                 obj.xmat(:,k) = x_t;
                 
                 % Plot the state
-                if true || obj.make_movie % obj.isPlotReady()
+                if obj.isPlotReady() || obj.make_movie % 
                     obj.plotState(t);
                     obj.plotWorld(t); 
                     pause(obj.dt/4);

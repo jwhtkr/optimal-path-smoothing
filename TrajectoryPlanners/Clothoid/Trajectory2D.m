@@ -3,33 +3,41 @@ classdef Trajectory2D < handle
     %accleration
     
     properties
+        % Position variables
         x;
-        y;
-        psi;
         xdot;
-        ydot;
         xddot;
-        yddot;
         xdddot;
-        ydddot;
         xddddot;
+        
+        y;
+        ydot;
+        yddot;
+        ydddot;
         yddddot;
         
+        % Clothoid parameters
         ds; % v*dt, used in calculation of length of clothoid
-        k; % Curvature
+        s_geo; % ???
         s; % path length
         t; % time
-        transitions; % indicies in which transition from clothoid to line to arc
-        s_geo; % ???
         dt; % time step
+        transitions; % indicies in which transition from clothoid to line to arc        
         cloth_len; % total index length of clothoid
         
+        % Translational variables
         v; % Velocity
         a; % Acceleration
         j; % Jerk
+        
+        % Rotational variables
+        psi; % Orientation
         w; % Angular velocity
         alpha; % Angular acceleration
         zeta; % Angular jerk
+        
+        % Curvature variables
+        k; % Curvature
         sigma; % kurvature rate
     end
         
@@ -142,12 +150,14 @@ classdef Trajectory2D < handle
             temp_traj.xdot = [obj.xdot(1:range) new_traj.xdot];
             temp_traj.xddot = [obj.xddot(1:range) new_traj.xddot];
             temp_traj.xdddot = [obj.xdddot(1:range) new_traj.xdddot];
+            temp_traj.xddddot = [obj.xddddot(1:range) new_traj.xddddot];
             
             
             temp_traj.y = [obj.y(1:range) new_traj.y];
             temp_traj.ydot = [obj.ydot(1:range) new_traj.ydot];
             temp_traj.yddot = [obj.yddot(1:range) new_traj.yddot];
             temp_traj.ydddot = [obj.ydddot(1:range) new_traj.ydddot];
+            temp_traj.yddddot = [obj.yddddot(1:range) new_traj.yddddot];
             
             temp_traj.psi = [obj.psi(1:range) new_traj.psi];
             
@@ -157,6 +167,17 @@ classdef Trajectory2D < handle
             temp_traj.a = [obj.a(1:range) new_traj.a];
             temp_traj.s_geo = obj.s_geo + new_traj.s_geo;
             temp_traj.t = temp_traj.s ./ temp_traj.v;
+            
+            temp_traj.alpha = [obj.alpha(1:range) new_traj.alpha]; % Angular acceleration
+            temp_traj.zeta = [obj.zeta(1:range) new_traj.zeta]; % Angular jerk
+            
+            temp_traj.j = [obj.j(1:range) new_traj.j]; % Jerk
+            temp_traj.w = [obj.w(1:range) new_traj.w]; % Angular velocity
+            
+            temp_traj.cloth_len = length(temp_traj.x);
+            temp_traj.dt = new_traj.dt;
+            temp_traj.ds = new_traj.ds;
+        
         end
         
         function traj = reverse_traj(obj)
@@ -164,20 +185,29 @@ classdef Trajectory2D < handle
             traj = traj.concatenate(obj);
             
             traj.x = flip(obj.x);
-            traj.xdot = flip(obj.xdot);
+            traj.xdot = -flip(obj.xdot);
             traj.xddot = flip(obj.xddot);
-            traj.xdddot = flip(obj.xdddot);
+            traj.xdddot = -flip(obj.xdddot);
+            traj.xddddot = flip(obj.xddddot);
             
             traj.y = flip(obj.y);
-            traj.ydot = flip(obj.ydot);
+            traj.ydot = -flip(obj.ydot);
             traj.yddot = flip(obj.yddot);
-            traj.ydddot = flip(obj.ydddot);
+            traj.ydddot = -flip(obj.ydddot);
+            traj.yddddot = flip(obj.yddddot);
             
-            traj.psi = flip(-obj.psi);
-            traj.k = flip(obj.k);
-            traj.sigma = -flip(obj.sigma);
+            traj.psi = -flip(obj.psi);
+            traj.w = flip(obj.w);
+            traj.alpha = -flip(obj.alpha);
+            
             traj.v = flip(obj.v);
             traj.a = -flip(obj.a);
+            traj.j = flip(obj.j);
+            traj.zeta = -flip(obj.zeta);
+            
+            traj.k = flip(obj.k);
+            traj.sigma = -flip(obj.sigma);
+            
             traj.s = abs(flip(obj.s) - max(obj.s));
             m = length(obj.transitions)-1;
 %             if length(obj.transitions)>1
@@ -185,7 +215,6 @@ classdef Trajectory2D < handle
 %             else
 %                 traj.transitions = length(traj.x) - flip(obj.transitions) + 1;
 %             end
-            
         end
         
         function tmp_traj = rotate_traj(obj,psi,logic)
@@ -197,6 +226,7 @@ classdef Trajectory2D < handle
             pose_dot = [obj.xdot; obj.ydot];
             pose_ddot = [obj.xddot; obj.yddot];
             pose_dddot = [obj.xdddot; obj.ydddot];
+            pose_ddddot = [obj.xddddot; obj.yddddot];
      
             switch logic
                 case 1
@@ -214,21 +244,31 @@ classdef Trajectory2D < handle
             pose_dot = R*pose_dot;
             pose_ddot = R*pose_ddot;
             pose_dddot = R*pose_dddot;
-            
+            pose_ddddot = R*pose_ddddot;
             
             tmp_traj.xdot = pose_dot(1,:);
             tmp_traj.ydot = pose_dot(2,:);
             tmp_traj.xddot = pose_ddot(1,:);
             tmp_traj.yddot = pose_ddot(2,:);
             tmp_traj.xdddot = pose_dddot(1,:);
-            tmp_traj.ydddot = pose_dddot(2,:);
+            tmp_traj.ydddot = pose_dddot(2,:);            
+            tmp_traj.xddddot = pose_ddddot(1,:);
+            tmp_traj.yddddot = pose_ddddot(2,:);
             
             tmp_traj.psi = obj.psi + psi;
+            tmp_traj.w = obj.w;
+            tmp_traj.alpha = obj.alpha;
+            tmp_traj.zeta = obj.zeta; % Angular jerk
+            
             tmp_traj.k = obj.k;
-            tmp_traj.s = obj.s;
-            tmp_traj.v = obj.v;
             tmp_traj.sigma = obj.sigma;
+            
+            tmp_traj.s = obj.s;
+            
+            tmp_traj.v = obj.v;
             tmp_traj.a = obj.a;
+            tmp_traj.j = obj.j;
+            
             tmp_traj.transitions = obj.transitions;
             tmp_traj.ds = obj.ds;
         end
@@ -236,24 +276,38 @@ classdef Trajectory2D < handle
         function truncate(obj,ind)
 
             obj.s = obj.s(1:ind);
-            obj.v = obj.v(1:ind);
-            obj.a = obj.a(1:ind);
-            obj.sigma = obj.sigma(1:ind);
+            obj.s_geo = 0;
             obj.transitions = [1];
             obj.t = obj.t(1:ind);
-            obj.psi = obj.psi(1:ind);
-            obj.k = obj.k(1:ind);
+            obj.cloth_len = ind;
             
+            % Translational variables
+            obj.v = obj.v(1:ind);
+            obj.a = obj.a(1:ind);
+            obj.j = obj.j(1:ind);
+            
+            % Rotational variables
+            obj.psi = obj.psi(1:ind);
+            obj.w = obj.w(1:ind);
+            obj.alpha = obj.alpha(1:ind);
+            obj.zeta = obj.zeta(1:ind);
+            
+            % Curvature variables
+            obj.k = obj.k(1:ind);
+            obj.sigma = obj.sigma(1:ind);            
+            
+            % Position variables
             obj.x = obj.x(1:ind);
             obj.xdot = obj.xdot(1:ind);
             obj.xddot = obj.xddot(1:ind);
             obj.xdddot = obj.xdddot(1:ind);
+            obj.xddddot = obj.xddddot(1:ind);
             
             obj.y = obj.y(1:ind);
             obj.ydot = obj.ydot(1:ind);
             obj.yddot = obj.yddot(1:ind);
             obj.ydddot = obj.ydddot(1:ind);
-            obj.s_geo = 0;
+            obj.yddddot = obj.yddddot(1:ind);            
         end
             
         function [q, qdot, qddot, qdddot, qddddot] = reference_traj(obj,t)
