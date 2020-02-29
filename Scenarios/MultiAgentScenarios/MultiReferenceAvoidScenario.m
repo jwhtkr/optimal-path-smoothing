@@ -30,8 +30,8 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             % Define desired trajectory pamameters
             dt = 0.01;
             vd = 1;
-            k_max = 0.35; % Maximum curvature
-            sig_max = 0.35; % Maximum change in curvature
+            k_max = 0.5; % Maximum curvature
+            sig_max = 0.5; % Maximum change in curvature
             
             % Create the virtual leader trajectory
             vl_traj = TrajUtil.createClothoidTrajectory(waypoints, vd, dt, k_max, sig_max);

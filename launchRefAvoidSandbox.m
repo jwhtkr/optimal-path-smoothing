@@ -6,19 +6,19 @@ function launchRefAvoidSandbox()
     
     % Configure file path
     addpath Agents
-    addpath ComplexBehaviors\WallFollowing
+    addpath ComplexBehaviors/WallFollowing
     addpath Dependencies
-    addpath Dependencies\distinguishable_colors
-    addpath Dependencies\intersections
+    addpath Dependencies/distinguishable_colors
+    addpath Dependencies/intersections
     addpath Plotters
     addpath Scenarios
-    addpath Scenarios\MultiAgentScenarios
+    addpath Scenarios/MultiAgentScenarios
     addpath Sensors
     addpath TrajectoryPlanners
-    addpath TrajectoryPlanners\Clothoid
+    addpath TrajectoryPlanners/Clothoid
     addpath VectorFields
     addpath Vehicle
-    addpath Vehicle\Kinematics
+    addpath Vehicle/Kinematics
     addpath World
     
     %%%%%%%%%%%%%%%%% Create scenario (old way) %%%%%%%%%%%%%%%%%%%%%

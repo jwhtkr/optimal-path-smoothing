@@ -57,15 +57,22 @@ classdef ClothoidGeneratorSnap < handle
             
             % Extract maximum second derivative of sigma
             if length(varargin) > 0
-                obj.max_sig_accel = varargin{1};                
+                obj.max_sig_accel = varargin{1};   
+                x0 = varargin{2};
+                direction = varargin{3};
+                obj.curvature = SmoothCurvature(obj.max_sig_accel, obj.max_sigma, obj.max_k, [direction*obj.max_k; 0; 0], direction);
+                obj.t_span = obj.curvature.getCurvatureTimeSpan(obj.dt);
+                x = obj.calcClothoidWithInitialState(x0, direction);
             else
                 obj.max_sig_accel = 100;
+                obj.curvature = SmoothCurvature(obj.max_sig_accel, obj.max_sigma, obj.max_k);
+                obj.t_span = obj.curvature.getCurvatureTimeSpan(obj.dt);
+                x = obj.calcClothoid();
             end
             
             % Calculate the full clothoid
-            obj.curvature = SmoothCurvature(obj.max_sig_accel, obj.max_sigma, obj.max_k);
-            obj.t_span = obj.curvature.getCurvatureTimeSpan(obj.dt);
-            x = obj.calcClothoid();
+%             obj.t_span = obj.curvature.getCurvatureTimeSpan(obj.dt);
+%             x = obj.calcClothoid();
             
             % Set the trajectory variables
             obj.storeTrajectoryData(x);
@@ -75,13 +82,24 @@ classdef ClothoidGeneratorSnap < handle
             x0 = zeros(obj.n_states_wo_curvature,1);
             
             % Integrate the bicycle dynamics
-            [t_vec,x_vec] = ode45(@(t,x) obj.xdot(t, x), obj.t_span, x0);
+            [t_vec,x_vec] = ode45(@(t,x) obj.xdot(t, x, false, 1), obj.t_span, x0);
 
             % Get the curvature states
             x_k = obj.curvature.calculateClothoidCurvature(t_vec);
             
             clothoid = [x_vec'; x_k];
         end
+        
+        function clothoid = calcClothoidWithInitialState(obj,x0,direction)            
+            % Integrate the bicycle dynamics
+            [t_vec,x_vec] = ode45(@(t,x) obj.xdot(t, x, true, direction), obj.t_span, x0);
+
+            % Get the curvature states
+            x_k = obj.curvature.calculateClothoidCurvature(t_vec, true, direction);
+            
+            clothoid = [x_vec'; x_k];
+        end
+        
         
         function [t_vec, psi] = eulerIntegrateCheck(obj,x_k, t_vec, x_vec)
             psi = zeros(1, length(t_vec));
@@ -174,12 +192,19 @@ classdef ClothoidGeneratorSnap < handle
     end
     
     methods(Access=protected)
-        function x_dot = xdot(obj, t, x)
+        function x_dot = xdot(obj, t, x, varargin)
             % Extract the orientation
             psi = x(obj.psi_ind);
             
-            % Calculate the curvature
-            kappa = obj.curvature.getCurvatureState(t);
+            if ~isempty(varargin)
+                % Calculate the curvature
+                x0 = varargin{1};
+                direction = varargin{2};
+                kappa = obj.curvature.getCurvatureState(t,x0, direction);
+            else
+                % Calculate the curvature
+                kappa = obj.curvature.getCurvatureState(t);
+            end
             
             % Calcualte the time derivative of all the states
             x_dot = zeros(obj.n_states_wo_curvature, 1);

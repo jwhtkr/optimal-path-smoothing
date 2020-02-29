@@ -185,13 +185,19 @@ classdef Trajectory2D < handle
             traj = traj.concatenate(obj);
             
             traj.x = flip(obj.x);
-            traj.xdot = -flip(obj.xdot);
+            traj.xdot = flip(obj.xdot) - (max(traj.xdot) - min(traj.xdot));
+            min_val = min(traj.xdot);
+            max_val = max(traj.xdot);
+            traj.xdot = -(traj.xdot - max_val) + min_val;
             traj.xddot = flip(obj.xddot);
             traj.xdddot = -flip(obj.xdddot);
             traj.xddddot = flip(obj.xddddot);
             
             traj.y = flip(obj.y);
-            traj.ydot = -flip(obj.ydot);
+            traj.ydot = flip(obj.ydot) - (max(traj.ydot) - min(traj.ydot));
+            min_val = min(traj.ydot);
+            max_val = max(traj.ydot);
+            traj.ydot = -(traj.ydot - max_val) + min_val;
             traj.yddot = flip(obj.yddot);
             traj.ydddot = -flip(obj.ydddot);
             traj.yddddot = flip(obj.yddddot);
