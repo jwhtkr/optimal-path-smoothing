@@ -123,6 +123,16 @@ classdef MultiAgentScenario < handle
            %%% By default the function is empty, but it can be inherited to 
            %%% update the world plot
         end
+        
+        function storeNewStateData(obj, t, k, x)
+           %%% By default the function is empty, but it can be inherited to 
+           %%% store or process data after each euler update
+           %
+           % Inputs:
+           %    t: time value
+           %    k: simulation step
+           %    x: state at time t
+        end
     end
     
     %%% Integration methods
@@ -164,6 +174,7 @@ classdef MultiAgentScenario < handle
                 obj.xmat(:,k) = x_t;
                 
                 % Plot the state
+                obj.storeNewStateData(t, k, x_t);
                 if obj.isPlotReady() || obj.make_movie 
                     obj.plotState(t);
                     obj.plotWorld(t); 

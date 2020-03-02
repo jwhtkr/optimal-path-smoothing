@@ -9,6 +9,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
         traj_follow = {} % A cell structure containing the desired trajectory for each follower
         traj_eps = {} % A cell structure containing the desired trajectory for the epsilon point of each follower
         agent_colors % n_agents x 3 matrix where each row represents the color of a different agent
+        state_value = {} % Value of the state of each agent over time
     end
     
     methods
@@ -28,8 +29,8 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             % Define desired trajectory pamameters
             dt = 0.01;
             vd = 1;
-            k_max = 0.35; % Maximum curvature
-            sig_max = 0.35; % Maximum change in curvature
+            k_max = 1; % Maximum curvature
+            sig_max = 1; % Maximum change in curvature
             
             % Create the virtual leader trajectory
             vl_traj = TrajUtil.createClothoidTrajectory(waypoints, vd, dt, k_max, sig_max);
@@ -88,7 +89,8 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 %plot(obj.traj_eps{i}.x(ind), obj.traj_eps{i}.y(ind), ':', 'linewidth', 1, 'color', obj.agent_colors(i,:));
                 
                 % Plot the actual trajectory
-                plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), ':', 'linewidth', 2, 'color', obj.agent_colors(i,:));
+                %plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), ':', 'linewidth', 3, 'color', obj.agent_colors(i,:));
+                plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), ':', 'linewidth', 3, 'color', 'k');
                 
                 % Store the desired states
                 obj.qd_mat(ind_q_i, :) = [obj.traj_follow{i}.x(ind); ...
@@ -97,37 +99,29 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 % Update the position indices
                 ind_q_i = ind_q_i + 2; % Add two to adjust for the two positions
             end
+            
+            % Initialize data for storing state
+            n_steps = length(obj.tmat);
+            for i = 1:obj.n_agents
+                obj.state_value{i} = zeros(1,n_steps);
+            end
         end
         
-%         function plotResults(obj)
-%             ind_q_d = 1:2; % Stores the indices of agent i within q_d
-%             for i = 1:obj.n_agents
-%                 % Create a figure for the actual and desired positions
-%                 figure;
-%                 
-%                 % Get state indices
-%                 x_ind = obj.state_ind{i}(1);
-%                 y_ind = obj.state_ind{i}(2);
-%                 
-%                 % Plot the x position vs desired position
-%                 subplot(2, 1, 1);
-%                 plot(obj.tmat, obj.qd_mat(ind_q_d(1), :), ':r', 'linewidth', 3); hold on;
-%                 plot(obj.tmat, obj.xmat(x_ind, :), 'b', 'linewidth', 2);
-%                 ylabel('x position');
-%                 
-%                 % Plot the y position vs desired position
-%                 subplot(2, 1, 2);
-%                 plot(obj.tmat, obj.qd_mat(ind_q_d(2), :), ':r', 'linewidth', 3); hold on;
-%                 plot(obj.tmat, obj.xmat(y_ind, :), 'b', 'linewidth', 2);
-%                 ylabel('y position');
-%                 xlabel('time (s)');
-%                 
-%                 % Upate the position indices for the next agent
-%                 ind_q_d = ind_q_d + 2;
-%             end
-%         end
-        
         function plotResults(obj)
+            % Plot the executed trajectory for each agent
+            hold on;
+            ind_q_i = 1:2; % Iteratively stores the position indices for each agent
+            for i = 1:obj.n_agents
+                % Get state indices
+                x_ind = obj.state_ind{i}(1);
+                y_ind = obj.state_ind{i}(2);
+                
+                % Plot the actual trajectory
+                plot(obj.xmat(x_ind, :), obj.xmat(y_ind, :), 'linewidth', 2, 'color', obj.agent_colors(i,:));
+            end
+            
+            
+            
             ind_q_d = 1:2; % Stores the indices of agent i within q_d
             
             formation_error = zeros(size(obj.tmat));
@@ -140,17 +134,25 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 y_ind = obj.state_ind{i}(2);
                 
                 % Plot the x position vs desired position
-                subplot(2, 1, 1);
-                plot(obj.tmat, obj.qd_mat(ind_q_d(1), :), ':r', 'linewidth', 3); hold on;
+                subplot(3, 1, 1);
+                plot(obj.tmat, obj.qd_mat(ind_q_d(1), :), ':k', 'linewidth', 3); hold on;
                 plot(obj.tmat, obj.xmat(x_ind, :), 'b', 'linewidth', 2);
-                ylabel('x position');
+                ylabel('x');
+                set(gca, 'fontsize', 18);
                 
                 % Plot the y position vs desired position
-                subplot(2, 1, 2);
-                plot(obj.tmat, obj.qd_mat(ind_q_d(2), :), ':r', 'linewidth', 3); hold on;
+                subplot(3, 1, 2);
+                plot(obj.tmat, obj.qd_mat(ind_q_d(2), :), ':k', 'linewidth', 3); hold on;
                 plot(obj.tmat, obj.xmat(y_ind, :), 'b', 'linewidth', 2);
-                ylabel('y position');
+                ylabel('y');
+                set(gca, 'fontsize', 18);
+                
+                % Plot the state of the vehicle
+                subplot(3,1,3);
+                plot(obj.tmat,obj.state_value{i}, 'b', 'linewidth', 2);
+                ylabel('State');
                 xlabel('time (s)');
+                set(gca, 'fontsize', 18);
                 
                 % Compute the formation error for each point in time
                 err_pos = obj.qd_mat(ind_q_d, :) - obj.xmat([x_ind; y_ind], :);
@@ -207,6 +209,21 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             formation_error = formation_error ./ obj.n_agents;
             display(['Average error: ' num2str(mean(formation_error))]);
             plot(obj.tmat, formation_error, 'b', 'linewidth', 3);
+        end
+        
+        function storeNewStateData(obj, t, k, x)
+           %storeNewStateData stores the following data at each euler step
+           %    * Vehicle state
+           %
+           % Inputs:
+           %    t: time value
+           %    k: simulation step
+           %    x: state at time t
+           
+            % Store the state of each agent
+            for i = 1:obj.n_agents
+                obj.state_value{i}(k) = obj.agents{i}.state;
+            end
         end
     end
 end
