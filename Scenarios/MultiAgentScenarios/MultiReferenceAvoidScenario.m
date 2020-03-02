@@ -99,8 +99,38 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             end
         end
         
+%         function plotResults(obj)
+%             ind_q_d = 1:2; % Stores the indices of agent i within q_d
+%             for i = 1:obj.n_agents
+%                 % Create a figure for the actual and desired positions
+%                 figure;
+%                 
+%                 % Get state indices
+%                 x_ind = obj.state_ind{i}(1);
+%                 y_ind = obj.state_ind{i}(2);
+%                 
+%                 % Plot the x position vs desired position
+%                 subplot(2, 1, 1);
+%                 plot(obj.tmat, obj.qd_mat(ind_q_d(1), :), ':r', 'linewidth', 3); hold on;
+%                 plot(obj.tmat, obj.xmat(x_ind, :), 'b', 'linewidth', 2);
+%                 ylabel('x position');
+%                 
+%                 % Plot the y position vs desired position
+%                 subplot(2, 1, 2);
+%                 plot(obj.tmat, obj.qd_mat(ind_q_d(2), :), ':r', 'linewidth', 3); hold on;
+%                 plot(obj.tmat, obj.xmat(y_ind, :), 'b', 'linewidth', 2);
+%                 ylabel('y position');
+%                 xlabel('time (s)');
+%                 
+%                 % Upate the position indices for the next agent
+%                 ind_q_d = ind_q_d + 2;
+%             end
+%         end
+        
         function plotResults(obj)
             ind_q_d = 1:2; % Stores the indices of agent i within q_d
+            
+            formation_error = zeros(size(obj.tmat));
             for i = 1:obj.n_agents
                 % Create a figure for the actual and desired positions
                 figure;
@@ -122,12 +152,168 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 ylabel('y position');
                 xlabel('time (s)');
                 
+                % Compute the formation error for each point in time
+                err_pos = obj.qd_mat(ind_q_d, :) - obj.xmat([x_ind; y_ind], :);
+                err_vec = zeros(size(formation_error));
+                for k = 1:length(err_vec)
+                    err_vec(k) = norm(err_pos(:,k));
+                end
+                formation_error = formation_error + err_vec;
+                
                 % Upate the position indices for the next agent
                 ind_q_d = ind_q_d + 2;
             end
+            
+            % Plot the curvature for each agent
+            figure;
+            curvature = zeros(obj.n_agents, length(obj.traj_follow{1}.x));
+            t_curv = linspace(obj.tmat(1), obj.tmat(end), length(obj.traj_follow{1}.x));
+            for i = 1:obj.n_agents
+                for k = 1:length(obj.traj_follow{i}.x)
+                    % Get the commanded velocities
+                    qdot = [obj.traj_follow{i}.xdot(k); obj.traj_follow{i}.ydot(k)];
+                    qddot = [obj.traj_follow{i}.xddot(k); obj.traj_follow{i}.yddot(k)];
+                    [~, ~, kappa] = calculateVelocities(qdot, qddot);
+                    curvature(i,k) = kappa;
+                    
+                    traj_vl.q = [obj.traj_follow{1}.x(k); obj.traj_follow{1}.y(k)];
+                    traj_vl.qdot = [obj.traj_follow{1}.xdot(k); obj.traj_follow{1}.ydot(k)];
+                    traj_vl.qddot = [obj.traj_follow{1}.xddot(k); obj.traj_follow{1}.yddot(k)];
+                    traj_vl.qdddot = [obj.traj_follow{1}.xdddot(k); obj.traj_follow{1}.ydddot(k)];
+                    
+                    %traj = getFollowerTrajFromLeaderTraj(traj_vl, [-1.5; 1.5]);
+                    
+%                     x = obj.xmat(obj.state_ind{i}, k);
+%                     [v, w] = obj.agents{i}.vehicle.kinematics.getVelocities(0, x, 0);
+                    
+                    % Get the curvature
+%                     curvature(i,k) = w/v;                    
+                end
+                
+                % plot the curvature
+                hold on;
+                plot(t_curv, curvature(i,:), 'color', obj.agent_colors(i,:), 'linewidth', 2);
+            end
+            
+            % Plot the curvature bounds
+            max_k_foll = 1.25;
+            plot([t_curv(1) t_curv(end)], [max_k_foll, max_k_foll], 'r:', 'linewidth', 1);
+            plot([t_curv(1) t_curv(end)], -[max_k_foll, max_k_foll], 'r:', 'linewidth', 1);
+            %set(gca, 'ylim', [-max_k_foll - .25, max_k_foll + .25]);
+            
+            
+            % Plot the formation error
+            figure;
+            formation_error = formation_error ./ obj.n_agents;
+            display(['Average error: ' num2str(mean(formation_error))]);
+            plot(obj.tmat, formation_error, 'b', 'linewidth', 3);
         end
     end
 end
 
+
+function [v, w, k] = calculateVelocities(qdot, qddot)
+%calculateVelocities
+%
+% Inputs:
+%   qdot: \dot{q}, the time derivative of position (vel vector)
+%   qddot: \ddot{q}, the second time derivative of position (accel vector)
+%
+% Outputs
+%   v: translational velocity
+%   w: rotational velocity
+%   kappa: curvature
+    %% Calculate using vector notation
+    % Initialize variables
+    J = [0 -1; 1 0]; %pi/2 rotation matrix
+
+    % Calculate velocities
+    v = sqrt(qdot'*qdot);
+    w = -(qdot'*J*qddot)/(qdot'*qdot);
+    
+    % Calculate kurvature
+    k = -(qdot'*J*qddot)*(qdot'*qdot)^(-3/2);
+end
+
+function [v, w, k, sig] = calculateVelAndCurve(traj)
+%calculateVelocities
+%
+% Inputs:
+%   qdot: \dot{q}, the time derivative of position (vel vector)
+%   qddot: \ddot{q}, the second time derivative of position (accel vector)
+%
+% Outputs
+%   v: translational velocity
+%   w: rotational velocity
+%   kappa: curvature
+    %% Calculate using vector notation
+    [psi, v, w, a, alpha] = getTrajectoryInformation(traj);
+    
+    k = w/v;
+    sig = alpha/v - w/v^2;
+end
+
+function traj = getFollowerTrajFromLeaderTraj(traj_l, tau)
+%getFollowerTrajFromLeaderTraj Returns the follower trajectory given the leader
+%trajectory
+%
+% Inputs:
+%   traj_l: Struct with leader trajectory information
+%       .q = position
+%       .qdot = velocity vector
+%       .qddot = acceleration vector
+%       .qdddot = jerk vector
+%   tau: 2x1 nominal offset from the leader
+%
+% Outputs:
+%   traj: Struct with follower trajectory information
+%       .q = position
+%       .qdot = velocity vector
+%       .qddot = acceleration vector
+%       .qdddot = jerk vector
+    % Extract the leader trajectory information
+    [psi_l, v_l, w_l, a_l, alpha_l] = getTrajectoryInformation(traj_l);
+    R = [cos(psi_l), -sin(psi_l); sin(psi_l) cos(psi_l)];
+    J = [0 -1; 1 0];
+    
+    % Calcualte the follower information
+    traj.q = R*tau + traj_l.q;
+    traj.qdot = w_l*R*J*tau + traj_l.qdot;
+    traj.qddot = R*(w_l^2*J^2 + alpha_l*J)*tau + traj_l.qddot;
+end
+
+function [psi, v, w, a, alpha] = getTrajectoryInformation(traj)
+%getTrajectoryInformation calcualte trajectory information directly from
+%trajectory
+%
+% Inputs:
+%   traj: Struct with trajectory information
+%       .q = position
+%       .qdot = velocity vector
+%       .qddot = acceleration vector
+%       .qdddot = jerk vector
+%
+% Outputs:
+%   psi: orientation
+%   v: translational velocity
+%   w: rotational velocity
+%   a: translational acceleration
+%   alpha: rotational acceleration
+
+    % Extract trajectory information
+    xdot = traj.qdot(1); % Velocity vector
+    ydot = traj.qdot(2);
+    xddot = traj.qddot(1); % Accleration vector
+    yddot = traj.qddot(2);
+    xdddot = traj.qdddot(1); % Jerk vector
+    ydddot = traj.qdddot(2);
+    
+    % Calculate the trajectgory variables
+    psi = atan2(ydot, xdot);
+    v = sqrt(xdot^2+ydot^2);
+    w = 1/v^2*(xdot*yddot - ydot*xddot);
+    a = (xdot*xddot + ydot*yddot)/v;
+    alpha = (xdot*ydddot-ydot*xdddot)/v^2 - 2*a*w/v;    
+end
 
 
