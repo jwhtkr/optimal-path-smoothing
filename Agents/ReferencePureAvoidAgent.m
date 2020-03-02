@@ -1,6 +1,6 @@
-classdef ReferenceLineAvoidAgent < SingleAgent
-    %ReferenceLineAvoidAgent Creates an agent that will avoid obstacles
-    %using a line following behavior while trying to follow a reference 
+classdef ReferencePureAvoidAgent < SingleAgent
+    %ReferencePureAvoidAgent Creates an agent that will avoid obstacles
+    %using a repulsive force while trying to follow a reference 
     %trajectory
     
     properties(SetAccess = protected)
@@ -8,7 +8,8 @@ classdef ReferenceLineAvoidAgent < SingleAgent
         h_des_point = []; % Handle to the desired point
         
         % Vector field used to detect obstacle avoidance
-        avoid_field % Uses avoid on sensors        
+        avoid_field % Uses avoid on sensors     
+        field_go2goal % Used to influence vehicle towards the goal location
         q_inf = [10000000; 10000000]; % Used to represent the position of a sensor that is not valid
         
         % Line side identifications
@@ -37,8 +38,7 @@ classdef ReferenceLineAvoidAgent < SingleAgent
     properties (Constant)
         % State possibilities
         state_track = 0; % Track the desired trajectory
-        state_slide_cw = 1; % orbit the obstacles on the right
-        state_slide_ccw = 2; % orbit the obstacles on the left
+        state_avoid = 1; % avoid the obstacles
         
         % Obstacle variables
         vd = 1; % Desired velocity
@@ -55,7 +55,7 @@ classdef ReferenceLineAvoidAgent < SingleAgent
     
     
     methods
-        function obj = ReferenceLineAvoidAgent(veh, world, traj_act, traj_eps)
+        function obj = ReferencePureAvoidAgent(veh, world, traj_act, traj_eps)
             % initialize the scenario
             obj = obj@SingleAgent(veh, world);
             obj.vehicle.sensor.initializeSensor(obj.n_sensors, obj.max_sensor_range);
@@ -86,6 +86,9 @@ classdef ReferenceLineAvoidAgent < SingleAgent
             % Create a combined vector field
             obj.avoid_field = SummedFields(x_vec, y_vec, fields_avoid, weights_avoid, obj.vd);
             
+            % Initialize the go to goal behavior
+            obj.field_go2goal = GoToGoalField(x_vec, y_vec, obj.q_inf, obj.vd);            
+            
             % Initialize the follow wall behaviors
             obj.wall_left = FollowWallBehavior(true, obj.vd, obj.dist_cont, ...
                veh.sensor.ind_front, veh.sensor.ind_left, obj.dist_to_wall, 'b');
@@ -99,6 +102,7 @@ classdef ReferenceLineAvoidAgent < SingleAgent
         function u = control(obj, t, x, ~)
             % Get the desired values
             [qd, qd_dot, ~] = obj.traj_act.reference_traj(t);
+            obj.field_go2goal.x_g = qd;
             
             % Get the avoidance vector (purely for visualization purposes)
             q = x(1:2);
@@ -109,36 +113,14 @@ classdef ReferenceLineAvoidAgent < SingleAgent
             if obj.state == obj.state_track
                 % Calculate the desired movement of the epsilon point
                 [qd_eps, qd_dot_eps, qd_ddot_eps] = obj.traj_eps.reference_traj(t);                
-                u = obj.vehicle.pathControl(t, qd_eps, qd_dot_eps, qd_ddot_eps, x);
-                
+                u = obj.vehicle.pathControl(t, qd_eps, qd_dot_eps, qd_ddot_eps, x);                
                 obj.plotVectors(q, [0;0], [0;0], u_o);
                 
-            elseif obj.state == obj.state_slide_ccw
-                % Calculate the desired velocity
-                vl = obj.wall_left.v_line;
-                v_proj = vl'*qd_dot + obj.kv*(vl'*(qd-q));
-                obj.wall_left.setDesiredVelocity(v_proj);
-                
+            elseif obj.state == obj.state_avoid
                 % Calculate the vector to follow
-                g_func = @(t_val, x_vec, th) obj.wall_left.getVector(t_val, x_vec, th); 
+                g_func = @(t_val, x_vec, th) obj.avoid_field.getVector(t_val, x_vec, th) + ...
+                    obj.field_go2goal.getVector(t_val, x_vec, th); 
                 u = obj.vehicle.velocityVectorFieldControl(t, g_func, x);
-                
-                % Plot obstacle, tracking, and wall following vectors
-                obj.plotVectors(q, obj.wall_left.getVector(t, x(1:2), th), ...
-                    qd-x(1:2), u_o);
-            elseif obj.state == obj.state_slide_cw
-                % Calculate the desired velocity
-                vl = obj.wall_right.v_line;
-                v_proj = vl'*qd_dot + obj.kv*(vl'*(qd-q));
-                obj.wall_right.setDesiredVelocity(v_proj);
-                
-                % Calculate the vector field to follow
-                g_func = @(t_val, x_vec, th) obj.wall_right.getVector(t_val, x_vec, th); 
-                u = obj.vehicle.velocityVectorFieldControl(t, g_func, x);
-                
-                % Plot obstacle, tracking, and wall following vectors
-                obj.plotVectors(q, obj.wall_right.getVector(t, x(1:2), th), ...
-                    qd-x(1:2), u_o);
             else
                 error('Invalid state');
             end
@@ -194,11 +176,7 @@ classdef ReferenceLineAvoidAgent < SingleAgent
                 % Update the wall following vector fields
                 q_veh = x(obj.vehicle.q_ind);
                 th = x(obj.vehicle.th_ind);
-                if obj.state == obj.state_slide_ccw
-                    obj.wall_left.updateVectorFields(q_all, ind_inf, q_veh, th);
-                elseif obj.state == obj.state_slide_cw
-                    obj.wall_right.updateVectorFields(q_all, ind_inf, q_veh, th);
-                end
+                
             else
                 warning('No sensor readings yet received');
             end
@@ -227,39 +205,17 @@ classdef ReferenceLineAvoidAgent < SingleAgent
             
             % Calculate the obstacle avoidance information and normalize
             % the vectors
-            [u_o, d_o, q_o] = obj.calculateRepellantClosestVector(q);
-            u_t = u_t ./ norm(u_t);
-            if norm(u_o)>0
-                u_o = u_o ./norm(u_o);
-            end
+            [~, d_o, ~] = obj.calculateRepellantClosestVector(q);            
                             
             % Current state is tracking
             if obj.state == obj.state_track
                 % Determine whether to switch to wall following
-                if (d_o <= obj.dist_to_wall) && (u_o'*u_t < 0) % Fillipov conditions met for switching
-                    % Determine which wall side to track
-                    % Calculate vector pointing to the right of the obstacle
-                    % avoidance
-                    right = [0 1; -1 0]*u_o;
-                    
-                    % Determine the side
-                    if right'*u_t >= 0 % In same half plane as the right vector
-                        obj.state = obj.state_slide_cw;
-                        obj.wall_right.setWallPoint(q_o);
-                    else % In same half plane as the left vector
-                        obj.state = obj.state_slide_ccw;
-                        obj.wall_left.setWallPoint(q_o);
-                    end
+                if (d_o <= obj.dist_to_wall) 
+                    obj.state = obj.state_avoid;
                 end
-            elseif obj.state == obj.state_slide_cw || obj.state == obj.state_slide_ccw
-                if u_o'*u_t >= obj.switch_threshold % Trajectory is in the same half plane as the obstacle
+            elseif obj.state == obj.state_avoid 
+                if d_o > obj.dist_to_wall
                     obj.state = obj.state_track;
-                    
-                    % Indicate whether the obstacle was simply lost (this
-                    % could lead to jitter)
-                    if norm(u_o) == 0
-                        warning('Lost sight of obstacles while following wall, switching to tracking behavior');
-                    end
                 end
             else
                 error('Invalid state');
@@ -267,15 +223,11 @@ classdef ReferenceLineAvoidAgent < SingleAgent
 
             % Output message if condition changes
             if state_start ~= obj.state
-                if state_start == obj.state_track
+                if state_start == obj.state_avoid
                     % Output the switch
-                    if obj.state == obj.state_slide_cw
-                        output = 'Track to slide - right';
-                    else
-                        output = 'Track to slide - left';
-                    end
+                    output = 'Track to Avoid';                    
                 else
-                    output = 'Slide to track';
+                    output = 'Avoid to track';
                 end
                 disp(output);
             end
@@ -308,7 +260,6 @@ classdef ReferenceLineAvoidAgent < SingleAgent
     %%% Temporary plotting methods methods
     methods (Access = public)
         function plotVectors(obj, q, g_orb, g_g2g, g_obs)
-            return;
             % Adjust the obstacle vector to be a unit vector
             g_obs = g_obs ./ norm(g_obs);
             

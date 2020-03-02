@@ -47,8 +47,8 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 veh_i = veh(x0{i}); veh_i.use_dim_eps = false;
                 traj_follow{i} = TrajUtil.createOffsetTrajectory(vl_traj, Q(:,i)); % Desired trajectory for follower
                 traj_eps{i} = TrajUtil.createOffsetTrajectory(traj_follow{i}, [veh_i.eps_path; 0]); % Desired trajectory for the epsilon point of the follower
-                %agents{i} = ReferenceOrbitAvoidAgent(veh_i, world, traj_follow{i}, traj_eps{i});
                 agents{i} = ReferenceLineAvoidAgent(veh_i, world, traj_follow{i}, traj_eps{i});
+                %agents{i} = ReferencePureAvoidAgent(veh_i, world, traj_follow{i}, traj_eps{i});
                 
                 % Create a vehicle plotter
                 plotters{end+1} = SingleAgentPlotter(@(t)veh_i.getConfiguration(t), agent_colors(i,:));
@@ -57,7 +57,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 %plotters{end+1} = PositionPlotter(@(t)agents{i}.ReferenceTraj(t));
                 plotters{end+1} = PositionPlotter(@(t)traj_follow{i}.reference_traj(t), agent_colors(i,:));
                 %plotters{end+1} = PositionPlotter(@(t)traj_eps{i}.reference_traj(t), agent_colors(i,:));
-                %plotters{end+1} = TwoDRangePlotter(veh_i);
+%                 plotters{end+1} = TwoDRangePlotter(veh_i);
             end
             
             % Initialize the object
@@ -110,7 +110,6 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
         function plotResults(obj)
             % Plot the executed trajectory for each agent
             hold on;
-            ind_q_i = 1:2; % Iteratively stores the position indices for each agent
             for i = 1:obj.n_agents
                 % Get state indices
                 x_ind = obj.state_ind{i}(1);

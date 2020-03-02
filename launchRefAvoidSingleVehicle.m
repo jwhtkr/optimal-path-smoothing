@@ -1,4 +1,4 @@
-function launchRefAvoidSandbox()
+function launchRefAvoidSingleVehicle()
     % Clear previous work
     close all;
     clear;
@@ -24,23 +24,18 @@ function launchRefAvoidSandbox()
     % Create formation structure
     %waypoints = [0.2 0; 12 0; 12 8; 20 8; 20 -6; 0 -6]; % Waypoints of the virtual leader
     %waypoints = [0 -1.5; 13 -1.5; 13 5.5; 19 5.5; 19 -5; 0 -5]; % Waypoints of the virtual leader
-    waypoints = [0 -2; 5 3; 11 -2; 15 10; 22 10; 16 0; 18 -4; 15 -6; 10 -2]; % Waypoints of the virtual leader
+    waypoints = [0 -1.5; 13 -1.5; 13 10; 18.25 10; 18.25 -4; 0 -4]; % Waypoints of the virtual leader
+    %waypoints = [0 -2; 5 3; 11 -2; 15 10; 22 10; 16 0; 18 -4; 15 -6; 10 -2]; % Waypoints of the virtual leader
     Q = [ [0;0], [-1.5; 1.5], [-1.5; -1.5], [-3; 0], [2; 0]]; % Offsets for each agent
     
     x0{1} = [0.5;0;0; 0;0];
+    %x0{1} = [0.5;0;0];
 
-    %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, PolygonWorld1, waypoints, x0, Q);
-    %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorld, waypoints, x0, Q);
     scenario = MultiReferenceAvoidScenario(@BetterUnicycleVehicle, CorridorWorld, waypoints, x0, Q);
-    %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorldStraight, waypoints, x0, Q);
-    scenario.tf = 45;
+    %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorld, waypoints, x0, Q);
+    %scenario = MultiWallFollowScenario(@BetterUnicycleVehicle, CorridorWorld, x0);
     
-%     % Wall following scenario
-%     x0 = cell(1,0);
-%     x0{1} = [0.5;0;0];
-%     %x0{1} = [6;-4;0];
-%     scenario = MultiWallFollowScenario(@SimpleUnicycleVehicle, CorridorWorld, x0);
-%     scenario.tf = 60;
+    scenario.tf = 50;
     
     % Run the scenario
     scenario.runScenario();

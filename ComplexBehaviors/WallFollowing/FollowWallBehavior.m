@@ -68,8 +68,8 @@ classdef FollowWallBehavior < handle
             y_vec = -6:1:10;
             
             % Calculate vector field parameters
-            S_avoid = 0.9 * dist_to_wall; % Turn off influence close to the desired distance
-            R_avoid = 0.5 * dist_to_wall; % Turn on avoidance radius halfway to the wall
+            S_avoid = 0.95 * dist_to_wall; % Turn off influence close to the desired distance
+            R_avoid = 0.9 * dist_to_wall; % Turn on avoidance radius halfway to the wall
             q_inf = [10000000; 10000000];
             
             % Initialize line vector field
