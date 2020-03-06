@@ -7,7 +7,7 @@ close all
     world = PolygonWorld1;
     
     % Create an occupance grid
-    res = .05;
+    res = 0.25;
     xlim = [0 22];
     ylim = [-3 10];
     grid = OccupancyGrid(res, xlim, ylim);
@@ -33,7 +33,8 @@ close all
     figure;
     hold on;
     plotter = OccupancyPlotter(grid);
-    plotter.initializePlot();
+    plotter.plot_grid = true;
+    plotter.initializePlot(0);
     plotter.plot(0);
 end
 

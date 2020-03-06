@@ -61,8 +61,9 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 
                 % Initialize the occupancy grid plotter for agent 1
                 if i == 1
-                    figure;
+                    figure('units','normalized','outerposition',[0 0 1 1]);
                     plotters{end+1} = OccupancyPlotter(agents{i}.map);
+                    plotters{end}.plot_grid = true;
                     plotters{end}.initializePlot(0);
                 end
             end

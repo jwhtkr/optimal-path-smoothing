@@ -7,6 +7,7 @@ classdef OccupancyGrid < handle
         n_rows % Number of rows in grid (y values)
         n_cols % Number of columns in grid (x values)
         res % each cell is res x res meters
+        res_half % Half of the resultion
         tl_corner % 2x1 point indicating the position of the top left cell (grid(1,1))
         x_lim % Limits of the x values
         y_lim % Limits of the y values
@@ -23,6 +24,7 @@ classdef OccupancyGrid < handle
            
             % Initialize properties
             obj.res = abs(res);
+            obj.res_half = obj.res/2;
             obj.tl_corner = [x_lim(1); y_lim(2)];
             
             % Create the grid
@@ -57,10 +59,12 @@ classdef OccupancyGrid < handle
             %   q: 2x1 position
             
             % Calculate the indices
-            [row, col] = obj.positionToIndex(q);
+            [row, col, valid] = obj.positionToIndex(q);
             
             % Determine if it is occupied
-            obj.grid(row, col) = 1;
+            if valid
+                obj.grid(row, col) = 1;
+            end
         end
         
         function setFree(obj, q)
@@ -71,10 +75,12 @@ classdef OccupancyGrid < handle
             %   q: 2x1 position
             
             % Calculate the indices
-            [row, col] = obj.positionToIndex(q);
+            [row, col, valid] = obj.positionToIndex(q);
             
             % Determine if it is occupied
-            obj.grid(row, col) = 0;
+            if valid
+                obj.grid(row, col) = 0;
+            end
         end
         
         function q = indexToPosition(obj, row, col)
@@ -87,10 +93,10 @@ classdef OccupancyGrid < handle
             % Outputs:
             %   q: 2x1 position corresponding to the point
             
-            q = obj.tl_corner + [obj.res*col; -obj.res*row]; % Negative sign comes from tl being the max y value (positive in row moves negative in y)
+            q = obj.tl_corner + [obj.res*col-obj.res_half; -obj.res*row+obj.res_half]; % Negative sign comes from tl being the max y value (positive in row moves negative in y)
         end
         
-        function [row, col] = positionToIndex(obj, q)
+        function [row, col, valid] = positionToIndex(obj, q)
             %positionToIndex converts a position into an index
             %
             % Inputs:
@@ -107,15 +113,22 @@ classdef OccupancyGrid < handle
             q_ind = q ./ obj.res;
             
             % Round to get integer
-            col = round(q_ind(1));
-            row = -round(q_ind(2)); % Negative sign comes from tl being the max y value (positive in row moves negative in y)
+            col_unsat = round(q_ind(1) + obj.res_half);
+            row_unsat = -round(q_ind(2) - obj.res_half); % Negative sign comes from tl being the max y value (positive in row moves negative in y)
             
             
             % Saturate to ensure on map
-            row = max(1, row);
+            row = max(1, row_unsat);
             row = min(obj.n_rows, row);
-            col = max(1, col);
+            col = max(1, col_unsat);
             col = min(obj.n_cols, col);
+            
+            % Determine if the position is valid in the map
+            if row == row_unsat && col == col_unsat
+                valid = true;
+            else
+                valid = false;
+            end
         end
         
         function testGridAccess(obj)

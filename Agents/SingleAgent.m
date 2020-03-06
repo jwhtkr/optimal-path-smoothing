@@ -8,7 +8,7 @@ classdef SingleAgent < handle
     end
     
     properties(Constant)
-        map_res = 0.1;
+        map_res = 0.25;
     end
     
     methods(Abstract)
@@ -19,7 +19,11 @@ classdef SingleAgent < handle
         function obj = SingleAgent(vehicle,world)
             obj.vehicle = vehicle;
             obj.world = world;
-            obj.map = OccupancyGrid(obj.map_res, obj.world.x_lim, obj.world.y_lim);
+            
+            % Create the occupancy grid
+            x_lim = [obj.world.x_lim(1) - 5*obj.map_res, obj.world.x_lim(2) + 5*obj.map_res];
+            y_lim = [obj.world.y_lim(1) - 5*obj.map_res, obj.world.y_lim(2) + 5*obj.map_res];
+            obj.map = OccupancyGrid(obj.map_res, x_lim, y_lim);
         end
         
         function xdot = dynamics(obj, t, x, u)

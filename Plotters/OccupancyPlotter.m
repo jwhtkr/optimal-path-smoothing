@@ -7,9 +7,8 @@ classdef OccupancyPlotter < Plotter
         grid_handle % Instance of OccupancyGrid that is used by the vehicle to plot
         
         % Plotting properties
-        ax_handle = [] % Handle to the axis for plotting the occupancy grid        
-        x_lim % x limits
-        y_lim % y limits
+        ax_handle = [] % Handle to the axis for plotting the occupancy grid
+        plot_grid = false; % True => plot the grid
     end
     
     methods
@@ -17,10 +16,6 @@ classdef OccupancyPlotter < Plotter
             obj.grid_plot = uint8(zeros(size(grid.grid)));
             obj.sz_grid = size(obj.grid_plot);
             obj.grid_handle = grid;
-            
-            % Store plotting limits
-            obj.x_lim = grid.x_lim;
-            obj.y_lim = grid.y_lim;
         end
         
         function initializePlot(obj, t)
@@ -30,12 +25,14 @@ classdef OccupancyPlotter < Plotter
             
             % Set properties for axis
             obj.ax_handle = gca; hold on;
-            set(obj.ax_handle, 'xlim', obj.x_lim);
-            set(obj.ax_handle, 'ylim', obj.y_lim);
+            set(obj.ax_handle, 'xlim', obj.grid_handle.x_lim);
+            set(obj.ax_handle, 'ylim', obj.grid_handle.y_lim);
             axis equal;
             
-            
-            obj.plot(t);
+            % Plot the grid
+            if obj.plot_grid
+                obj.plotGrid();
+            end
         end
         
         function plot(obj, ~)
@@ -62,6 +59,26 @@ classdef OccupancyPlotter < Plotter
             % Plot the position
             if len > 0
                 plot(obj.ax_handle, q_mat(1,:), q_mat(2,:), 'ko');            
+            end
+        end
+        
+        function plotGrid(obj)
+            % Define the color
+            color = 0.5.*[1, 1, 1]; % Have the grid lines be grey
+            
+            % Get the spacing values for the grid
+            x_vec = obj.grid_handle.x_lim(1):obj.grid_handle.res:obj.grid_handle.x_lim(2);
+            y_vec = obj.grid_handle.y_lim(1):obj.grid_handle.res:obj.grid_handle.y_lim(2);
+            
+            % Loop through each y value and plot the horizontal grids
+            for y = y_vec
+                plot(obj.ax_handle, obj.grid_handle.x_lim, [y y], 'color', color);
+            end
+            
+            % Loop through each x value and plot the vertical lines of the
+            % grid
+            for x = x_vec
+                plot(obj.ax_handle, [x x], obj.grid_handle.y_lim,  'color', color);
             end
         end
     end
