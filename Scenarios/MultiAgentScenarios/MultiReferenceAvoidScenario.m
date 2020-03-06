@@ -53,11 +53,18 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 % Create a vehicle plotter
                 plotters{end+1} = SingleAgentPlotter(@(t)veh_i.getConfiguration(t), agent_colors(i,:));
                 
-                % Createa a plotter for the desired position
+                % Create a plotter for the desired position
                 %plotters{end+1} = PositionPlotter(@(t)agents{i}.ReferenceTraj(t));
                 plotters{end+1} = PositionPlotter(@(t)traj_follow{i}.reference_traj(t), agent_colors(i,:));
                 %plotters{end+1} = PositionPlotter(@(t)traj_eps{i}.reference_traj(t), agent_colors(i,:));
-%                 plotters{end+1} = TwoDRangePlotter(veh_i);
+                plotters{end+1} = TwoDRangePlotter(veh_i);
+                
+                % Initialize the occupancy grid plotter for agent 1
+                if i == 1
+                    figure;
+                    plotters{end+1} = OccupancyPlotter(agents{i}.map);
+                    plotters{end}.initializePlot(0);
+                end
             end
             
             % Initialize the object

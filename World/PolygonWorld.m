@@ -3,6 +3,8 @@ classdef PolygonWorld < handle
     properties (SetAccess = protected, GetAccess = public)
         polygons = {}; % Stores a cell structure of the polygons
         n_polygons % Stores the number of polygons that exist
+        x_lim % Stores the upper and lower limits of x
+        y_lim % Stores the upper and lower limits of y        
     end
     
     properties (SetAccess = protected, GetAccess = protected)
@@ -16,6 +18,36 @@ classdef PolygonWorld < handle
             for k = 1:obj.n_polygons
                 obj.polygons{k} = varargin{k};
             end             
+            
+            % Store the limits of the obstacles
+            obj.x_lim = [inf -inf]; % Initialize limits to -+ inf to get bounds
+            obj.y_lim = [inf -inf];
+            for k = 1:obj.n_polygons
+                % Get min and max value for x
+                max_x_k = max(obj.polygons{k}(1,:));
+                min_x_k = min(obj.polygons{k}(1,:));
+                
+                % Set the limits on x
+                if obj.x_lim(1) > min_x_k
+                    obj.x_lim(1) = min_x_k;
+                end
+                if obj.x_lim(2) < max_x_k
+                    obj.x_lim(2) = max_x_k;
+                end
+                
+                % Get min and max value for y
+                max_y_k = max(obj.polygons{k}(2,:));
+                min_y_k = min(obj.polygons{k}(2,:));                
+                
+                % Set the limits on y
+                if obj.y_lim(1) > min_y_k
+                    obj.y_lim(1) = min_y_k;
+                end
+                if obj.y_lim(2) < max_y_k
+                    obj.y_lim(2) = max_y_k;
+                end
+                
+            end
             
             % Define the halfplanes
             for p = 1:length(obj.polygons)

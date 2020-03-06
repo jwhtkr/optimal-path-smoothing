@@ -43,6 +43,7 @@ classdef Vehicle < handle
             obj.th_ind = kinematics.th_ind;
             obj.x_ind = kinematics.x_ind;
             obj.y_ind = kinematics.y_ind;
+            
         end
         
         function [xo, yo, dist] = getObstacleDetections(obj, world)
