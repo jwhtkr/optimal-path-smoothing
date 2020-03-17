@@ -69,6 +69,47 @@ classdef Trajectory2D < handle
             obj.s_geo = 0;
         end
         
+        function copy(obj, traj)
+        %copy copies the trajectory in traj to this object
+            % Position variables
+            obj.x = traj.x;
+            obj.xdot = traj.xdot;
+            obj.xddot = traj.xddot;
+            obj.xdddot = traj.xdddot;
+            obj.xddddot = traj.xddddot;
+
+            obj.y = traj.y;
+            obj.ydot = traj.ydot;
+            obj.yddot = traj.yddot;
+            obj.ydddot = traj.ydddot;
+            obj.yddddot = traj.yddddot;
+
+            % Clothoid parameters
+            obj.ds = traj.ds; % v*dt, used in calculation of length of clothoid
+            obj.s_geo = traj.s_geo; % ???
+            obj.s = traj.s; % path length
+            obj.t = traj.t; % time
+            obj.dt = traj.dt; % time step
+            obj.transitions = traj.transitions; % indicies in which transition from clothoid to line to arc        
+            obj.cloth_len = traj.cloth_len; % total index length of clothoid
+
+            % Translational variables
+            obj.v = traj.v; % Velocity
+            obj.a = traj.a; % Acceleration
+            obj.j = traj.j; % Jerk
+
+            % Rotational variables
+            obj.psi = traj.psi; % Orientation
+            obj.w = traj.w; % Angular velocity
+            obj.alpha = traj.alpha; % Angular acceleration
+            obj.zeta = traj.zeta; % Angular jerk
+
+            % Curvature variables
+            obj.k = traj.k; % Curvature
+            obj.sigma = traj.sigma; % curvature rate
+            obj.gamma = traj.gamma; % Curvature acceleration
+        end
+        
         function update(obj,x)
             obj.x = x(1,:);
             obj.y = x(2,:);
@@ -86,23 +127,35 @@ classdef Trajectory2D < handle
             obj.update_derivatives();
         end
         
-        function update_new(obj)
-            obj.psi = atan2(obj.ydot,obj.xdot);
+        function updateTrajWithPositionalValues(obj)
+        %updateTrajWithPositionalValues will use the positional values
+        %(i.e., x ... xddddot, y ... yddddot to update the following
+        %variables of the trajectory:
+        %   v, a, j, psi, w, alpha, zeta, k, sigma, gamma   
+        
+            % Update translational variables
             obj.v = sqrt(obj.xdot.^2 + obj.ydot.^2);
-%             obj.sigma = ones(1,obj.cloth_len)*obj.sigma;
-            obj.cloth_len = length(obj.x);
-            obj.a = zeros(1,obj.cloth_len);
-            obj.j = zeros(1,obj.cloth_len);
-%             obj.s_geo = obj.s;
-            obj.t = 0:obj.dt:(obj.cloth_len-1)*obj.dt;
-            
+            obj.a = (obj.xdot.*obj.xddot + obj.ydot.*obj.yddot) ./ obj.v;
             obj.j = (obj.xddot.^2 + obj.xdddot.*obj.xdot + obj.yddot.^2 + obj.ydddot.*obj.ydot - obj.a.^2)./obj.v;
             
-            obj.w = (obj.xdot.*obj.yddot - obj.ydot.*obj.xddot)./obj.v;
-            obj.alpha = (obj.xdot.*obj.ydddot - obj.ydot.*obj.xdddot)./obj.v - 2*obj.a.*obj.w./obj.v;
-            obj.zeta = (obj.yddddot.*obj.xdot + obj.ydddot.*obj.xddot - obj.xdddot.*obj.yddot - obj.xddddot.*obj.ydot)./obj.v ...
+            % Update Rotational variables
+            obj.psi = atan2(obj.ydot,obj.xdot);
+            obj.w = (obj.xdot.*obj.yddot - obj.ydot.*obj.xddot)./(obj.v.^2);
+            %obj.alpha = (obj.xdot.*obj.ydddot - obj.ydot.*obj.xdddot)./(obj.v.^2) - 2*obj.a.*obj.w./obj.v;
+            obj.alpha = (obj.xdot.*obj.ydddot - obj.ydot.*obj.xdddot)./(obj.v.^2) - 2*obj.a.*(obj.xdot.*obj.yddot - obj.ydot.*obj.xddot)./(obj.v.^3);
+            obj.zeta = (obj.yddddot.*obj.xdot + obj.ydddot.*obj.xddot - obj.xdddot.*obj.yddot - obj.xddddot.*obj.ydot)./obj.v.^2 ...
                         -2*obj.a.*(obj.ydddot.*obj.xdot - obj.xdddot.*obj.ydot)./obj.v.^3 ...
                         +(2*obj.a.^2.*obj.w -2*obj.w.*obj.j - 2*obj.a.*obj.alpha)./obj.v;
+                    
+            % Update curvature variables
+            obj.k = obj.w ./ obj.v;
+            obj.sigma = (obj.v.*obj.alpha - obj.w.*obj.a)./(obj.v.^2);
+            obj.gamma = (obj.v.*obj.zeta - obj.w.*obj.j)./(obj.v.^2) - ...
+                2.*(obj.v.*obj.alpha - obj.w.*obj.a).*obj.a./(obj.v.^3);
+            
+            % Update the length variables (why?, seems like this should be removed)
+            obj.cloth_len = length(obj.x);
+            obj.t = 0:obj.dt:(obj.cloth_len-1)*obj.dt;
         end
         
         function update_derivatives(obj)   
@@ -282,6 +335,7 @@ classdef Trajectory2D < handle
             
             tmp_traj.transitions = obj.transitions;
             tmp_traj.ds = obj.ds;
+            tmp_traj.dt = obj.dt;
         end
         
         function truncate(obj,ind)

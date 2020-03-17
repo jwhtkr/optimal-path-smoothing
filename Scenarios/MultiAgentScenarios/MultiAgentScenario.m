@@ -168,7 +168,7 @@ classdef MultiAgentScenario < handle
                 obj.xmat(:,k) = x_t;
                 
                 % Plot the state
-                if obj.isPlotReady() || obj.make_movie % 
+                if true % obj.isPlotReady() || obj.make_movie % 
                     obj.plotState(t);
                     obj.plotWorld(t); 
                     pause(obj.dt/4);

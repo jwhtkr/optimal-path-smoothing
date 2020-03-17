@@ -58,7 +58,19 @@ classdef CCPathGenerator < handle
                     obj.traj = obj.traj.concatenate(turn_traj);
                 end
             end
+            
+            xdot = obj.traj.xdot;
+            xddot = obj.traj.xddot;
+            xdddot = obj.traj.xdddot;
+            xddddot = obj.traj.xddddot;
+            
             obj.traj.update_derivatives();
+            
+            err_xdot = abs(xdot - obj.traj.xdot);
+            err_xddot = abs(xddot - obj.traj.xddot);
+            err_xdddot = abs(xdddot - obj.traj.xdddot);
+            err_xddddot = abs(xddddot - obj.traj.xddddot);
+            
             obj.traj.dt = dt;
 %             plot(obj.traj.x, obj.traj.y);
         end

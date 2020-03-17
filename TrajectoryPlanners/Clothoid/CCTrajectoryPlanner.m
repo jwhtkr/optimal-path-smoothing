@@ -146,10 +146,16 @@ classdef CCTrajectoryPlanner < handle
                 % Add first Clothoid
                 cc_turn = cc_turn.concatenate(obj.clothoid.traj);
                 
-                cc_turn.y = direction * cc_turn.y;
+                % Turn the clothoid to a different direction
+                cc_turn.y = direction * cc_turn.y; % This section of code was not correct
+                cc_turn.ydot = direction * cc_turn.ydot;
+                cc_turn.yddot = direction * cc_turn.yddot;
+                cc_turn.ydddot = direction * cc_turn.ydddot;
+                cc_turn.yddddot = direction * cc_turn.yddddot;
                 cc_turn.psi = direction * cc_turn.psi;
                 cc_turn.k = direction * cc_turn.k;
                 cc_turn.sigma = direction * cc_turn.sigma;
+                cc_turn.gamma = direction * cc_turn.gamma;
                 
                 % Construct arc and add to cc_turn
                 circle_start_angle = atan2(cc_turn.y(end) - circle.y, cc_turn.x(end) - circle.x);
@@ -178,7 +184,7 @@ classdef CCTrajectoryPlanner < handle
 %             cc_turn.w = cc_turn.v .* cc_turn.k;
             % cc_turn.alpha = cc_turn.v .* cc_turn.v .* cc_turn.sigma;
 %             cc_turn.alpha = cc_turn.sigma .* cc_turn.v;
-            cc_turn.update_derivatives();
+            cc_turn.update_derivatives(); % why do we need this function?
             cc_turn.dt = obj.dt;
             cc_turn.t = cc_turn.s ./ cc_turn.v;
             
