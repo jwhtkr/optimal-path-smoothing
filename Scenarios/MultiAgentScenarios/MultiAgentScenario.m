@@ -17,7 +17,7 @@ classdef MultiAgentScenario < handle
         make_movie = false; % true => Movie will be made during plot
         video % Stores all frames of a movie
         t0 = 0; % Initial time of simulation
-        dt = 0.05; % Simulation step size
+        dt = 0.001; % Simulation step size
         tf = 40; % Final time of simulation
         plotters % Cell structure holding instances of the Plotter class
         n_plotters % Number of plotters

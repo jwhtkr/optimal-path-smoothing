@@ -32,7 +32,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             
             
             % Define desired trajectory pamameters
-            dt = 0.01;
+            dt = 0.0005;
             vd = 1;
             k_max = 0.35; % Maximum curvature
             sig_max = 0.35; % Maximum change in curvature
@@ -191,6 +191,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             % Plot the desired curvature for each agent
             figure;
             curvature_des = zeros(obj.n_agents, length(obj.traj_follow{1}.x));
+            curvature_act = zeros(obj.n_agents, size(obj.xmat, 2));
             t_curv = linspace(obj.tmat(1), obj.tmat(end), length(obj.traj_follow{1}.x));
             for i = 1:obj.n_agents
                 for k = 1:length(obj.traj_follow{i}.x)
@@ -206,17 +207,20 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                     traj_vl.qdddot = [obj.traj_follow{1}.xdddot(k); obj.traj_follow{1}.ydddot(k)];
                     
                     %traj = getFollowerTrajFromLeaderTraj(traj_vl, [-1.5; 1.5]);
-                    
-%                     x = obj.xmat(obj.state_ind{i}, k);
-%                     [v, w] = obj.agents{i}.vehicle.kinematics.getVelocities(0, x, 0);
+                end
+                
+                for k = 1:size(obj.xmat, 2)
+                    x = obj.xmat(obj.state_ind{i}, k);
+                    [v, w] = obj.agents{i}.vehicle.kinematics.getVelocities(0, x, 0);
                     
                     % Get the curvature
-%                     curvature(i,k) = w/v;                    
+                    curvature_act(i,k) = w/v; 
                 end
                 
                 % plot the curvature
                 hold on;
                 plot(t_curv, curvature_des(i,:), ':', 'color', obj.agent_colors(i,:), 'linewidth', 2);
+                plot(obj.tmat, curvature_act(i,:), 'color', obj.agent_colors(i,:), 'linewidth', 2);
             end
             
             % Plot the curvature bounds
