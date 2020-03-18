@@ -63,7 +63,7 @@ classdef BetterUnicycleVehicle < Vehicle
             % Calculate feedback matrix for velocity control
             A = zeros(2);
             B = eye(2);
-            Q = diag([1, 1]);
+            Q = diag([100, 100]);
             R = diag([1, 1]);
             obj.K_vel = lqr(A, B, Q, R);
             
