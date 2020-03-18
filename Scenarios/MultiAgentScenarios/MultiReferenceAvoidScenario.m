@@ -34,8 +34,8 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             % Define desired trajectory pamameters
             dt = 0.01;
             vd = 1;
-            k_max = 0.5; % Maximum curvature
-            sig_max = 0.5; % Maximum change in curvature
+            k_max = 0.35; % Maximum curvature
+            sig_max = 0.35; % Maximum change in curvature
             
             % Create the virtual leader trajectory
             vl_traj = TrajUtil.createClothoidTrajectory(waypoints, vd, dt, k_max, sig_max);
@@ -182,9 +182,15 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 ind_q_d = ind_q_d + 2;
             end
             
-            % Plot the curvature for each agent
+            % Plot the formation error
             figure;
-            curvature = zeros(obj.n_agents, length(obj.traj_follow{1}.x));
+            formation_error = formation_error ./ obj.n_agents;
+            display(['Average error: ' num2str(mean(formation_error))]);
+            plot(obj.tmat, formation_error, 'b', 'linewidth', 3);
+            
+            % Plot the desired curvature for each agent
+            figure;
+            curvature_des = zeros(obj.n_agents, length(obj.traj_follow{1}.x));
             t_curv = linspace(obj.tmat(1), obj.tmat(end), length(obj.traj_follow{1}.x));
             for i = 1:obj.n_agents
                 for k = 1:length(obj.traj_follow{i}.x)
@@ -192,7 +198,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                     qdot = [obj.traj_follow{i}.xdot(k); obj.traj_follow{i}.ydot(k)];
                     qddot = [obj.traj_follow{i}.xddot(k); obj.traj_follow{i}.yddot(k)];
                     [~, ~, kappa] = calculateVelocities(qdot, qddot);
-                    curvature(i,k) = kappa;
+                    curvature_des(i,k) = kappa;
                     
                     traj_vl.q = [obj.traj_follow{1}.x(k); obj.traj_follow{1}.y(k)];
                     traj_vl.qdot = [obj.traj_follow{1}.xdot(k); obj.traj_follow{1}.ydot(k)];
@@ -210,21 +216,14 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 
                 % plot the curvature
                 hold on;
-                plot(t_curv, curvature(i,:), 'color', obj.agent_colors(i,:), 'linewidth', 2);
+                plot(t_curv, curvature_des(i,:), ':', 'color', obj.agent_colors(i,:), 'linewidth', 2);
             end
             
             % Plot the curvature bounds
-            max_k_foll = 1.25;
+            max_k_foll = 2.0;
             plot([t_curv(1) t_curv(end)], [max_k_foll, max_k_foll], 'r:', 'linewidth', 1);
             plot([t_curv(1) t_curv(end)], -[max_k_foll, max_k_foll], 'r:', 'linewidth', 1);
-            %set(gca, 'ylim', [-max_k_foll - .25, max_k_foll + .25]);
-            
-            
-            % Plot the formation error
-            figure;
-            formation_error = formation_error ./ obj.n_agents;
-            display(['Average error: ' num2str(mean(formation_error))]);
-            plot(obj.tmat, formation_error, 'b', 'linewidth', 3);
+            set(gca, 'ylim', [-max_k_foll - .25, max_k_foll + .25]);
         end
         
         function storeNewStateData(obj, t, k, x)
