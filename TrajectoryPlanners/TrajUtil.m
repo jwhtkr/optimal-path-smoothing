@@ -71,7 +71,7 @@ classdef TrajUtil
             traj.xddddot = zeros(1,length(traj.x));
             traj.yddddot = zeros(1,length(traj.y));
             traj.dt = traj_in.dt;
-            traj.update_new();    
+            traj.updateTrajWithPositionalValues();    
         end
     end
 end

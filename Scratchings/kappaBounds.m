@@ -217,22 +217,24 @@ function testMaxCurvature()
 
     % Initialize offsets
     Q = [ [0;0], [-1.5; 1.5], [-1.5; -1.5], [-3; 0], [2; 0]];
+    %Q = [ [-1.5; 1.5]];
     
     
     % Calculate clothoid
-    max_k_foll = 1.25;
+    max_k_foll = 2.0;
     max_k = 0.35;
     max_sigma = 0.35;
     u_max = 100;
     v_l = 1;
-    dt = 0.01;
+    dt = 0.001;
     curvature = SmoothCurvature(u_max, max_sigma, max_k);
     t_vec = curvature.getCurvatureTimeSpan(dt);
     x_vec_calc = curvature.calculateClothoidCurvature(t_vec);
     
     % Initialize vl variables
-    kappa_vec = [-x_vec_calc(1,end:-1:1), x_vec_calc(1,:) ];
-    sigma_vec = [-x_vec_calc(2,end:-1:1), x_vec_calc(2,:) ];
+    kappa_vec = [-x_vec_calc(1,end:-1:1), x_vec_calc(1,:), x_vec_calc(1,end:-1:1) -x_vec_calc(1,:)];
+    sigma_vec = [x_vec_calc(2,:), x_vec_calc(2,:), -x_vec_calc(2,:), -x_vec_calc(2,:) ];
+    t_vec = [t_vec, t_vec+t_vec(end)];
     t_vec = [t_vec, t_vec+t_vec(end)];
     
     % Create a figure of all the values

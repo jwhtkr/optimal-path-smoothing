@@ -6,10 +6,15 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
         qd_mat % Stores the desired trajectory over time, used for plotting results,
                % The matrix has 2 x n_agents number of rows (2 for each
                % agent)
+        waypoints % an array of path points in the desired order (e.g., [q0,q1,...,qn] 
+                  % where qi = [x; y]
         traj_follow = {} % A cell structure containing the desired trajectory for each follower
         traj_eps = {} % A cell structure containing the desired trajectory for the epsilon point of each follower
         agent_colors % n_agents x 3 matrix where each row represents the color of a different agent
         state_value = {} % Value of the state of each agent over time
+        
+        % Plotting flags for results
+        plot_agent_traj_results = false; % true => each agent's actual trajectory will be overlayed onto the world plot
     end
     
     methods
@@ -29,8 +34,8 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             % Define desired trajectory pamameters
             dt = 0.01;
             vd = 1;
-            k_max = 1; % Maximum curvature
-            sig_max = 1; % Maximum change in curvature
+            k_max = 0.35; % Maximum curvature
+            sig_max = 0.35; % Maximum change in curvature
             
             % Create the virtual leader trajectory
             vl_traj = TrajUtil.createClothoidTrajectory(waypoints, vd, dt, k_max, sig_max);
@@ -53,28 +58,37 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 % Create a vehicle plotter
                 plotters{end+1} = SingleAgentPlotter(@(t)veh_i.getConfiguration(t), agent_colors(i,:));
                 
-                % Create a plotter for the desired position
+                % Createa a plotter for the desired position
                 %plotters{end+1} = PositionPlotter(@(t)agents{i}.ReferenceTraj(t));
                 plotters{end+1} = PositionPlotter(@(t)traj_follow{i}.reference_traj(t), agent_colors(i,:));
                 %plotters{end+1} = PositionPlotter(@(t)traj_eps{i}.reference_traj(t), agent_colors(i,:));
-                plotters{end+1} = TwoDRangePlotter(veh_i);
+                %plotters{end+1} = TwoDRangePlotter(veh_i);
                 
                 % Initialize the occupancy grid plotter for agent 1
-                if i == 1
-                    figure('units','normalized','outerposition',[0 0 1 1]);
-                    plotters{end+1} = OccupancyPlotter(agents{i}.map);
-                    plotters{end}.plot_grid = true;
-                    plotters{end}.initializePlot(0);
-                end
+%                 if i == 1
+%                     figure('units','normalized','outerposition',[0 0 1 1]);
+%                     plotters{end+1} = OccupancyPlotter(agents{i}.map);
+%                     plotters{end}.plot_grid = true;
+%                     plotters{end}.initializePlot(0);
+%                 end
             end
             
             % Initialize the object
             obj = obj@MultiAgentScenario(agents, world, plotters, true);
             
             % Store object variables
+            obj.waypoints = waypoints;
             obj.traj_follow = traj_follow;
             obj.traj_eps = traj_eps;
             obj.agent_colors = agent_colors;
+        end
+        
+        function initializeWorldPlot(obj, ax)
+            initializeWorldPlot@MultiAgentScenario(obj, ax);
+            
+            % Plot the waypoints for the path
+            hold on;
+            plot(obj.waypoints(:,1), obj.waypoints(:,2), 'ro', 'linewidth', 5);
         end
         
         function initializePlots(obj)
@@ -97,8 +111,11 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 %plot(obj.traj_eps{i}.x(ind), obj.traj_eps{i}.y(ind), ':', 'linewidth', 1, 'color', obj.agent_colors(i,:));
                 
                 % Plot the actual trajectory
-                %plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), ':', 'linewidth', 3, 'color', obj.agent_colors(i,:));
-                plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), ':', 'linewidth', 3, 'color', 'k');
+                if i == 1
+                    plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), 'linewidth', 2, 'color', obj.agent_colors(i,:));
+                else
+                    plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), ':', 'linewidth', 1, 'color', obj.agent_colors(i,:));
+                end
                 
                 % Store the desired states
                 obj.qd_mat(ind_q_i, :) = [obj.traj_follow{i}.x(ind); ...
@@ -117,20 +134,20 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
         
         function plotResults(obj)
             % Plot the executed trajectory for each agent
-            hold on;
-            for i = 1:obj.n_agents
-                % Get state indices
-                x_ind = obj.state_ind{i}(1);
-                y_ind = obj.state_ind{i}(2);
-                
-                % Plot the actual trajectory
-                plot(obj.xmat(x_ind, :), obj.xmat(y_ind, :), 'linewidth', 2, 'color', obj.agent_colors(i,:));
+            if obj.plot_agent_traj_results
+                hold on;
+                for i = 1:obj.n_agents
+                    % Get state indices
+                    x_ind = obj.state_ind{i}(1);
+                    y_ind = obj.state_ind{i}(2);
+
+                    % Plot the actual trajectory
+                    plot(obj.xmat(x_ind, :), obj.xmat(y_ind, :), 'linewidth', 2, 'color', obj.agent_colors(i,:));
+                end
             end
             
-            
-            
-            ind_q_d = 1:2; % Stores the indices of agent i within q_d
-            
+            % Loop through and calculate formation error
+            ind_q_d = 1:2; % Stores the indices of agent i within q_d            
             formation_error = zeros(size(obj.tmat));
             for i = 1:obj.n_agents
                 % Create a figure for the actual and desired positions
@@ -173,9 +190,16 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 ind_q_d = ind_q_d + 2;
             end
             
-            % Plot the curvature for each agent
+            % Plot the formation error
             figure;
-            curvature = zeros(obj.n_agents, length(obj.traj_follow{1}.x));
+            formation_error = formation_error ./ obj.n_agents;
+            display(['Average error: ' num2str(mean(formation_error))]);
+            plot(obj.tmat, formation_error, 'b', 'linewidth', 3);
+            
+            % Plot the desired curvature for each agent
+            figure;
+            curvature_des = zeros(obj.n_agents, length(obj.traj_follow{1}.x));
+            curvature_act = zeros(obj.n_agents, size(obj.xmat, 2));
             t_curv = linspace(obj.tmat(1), obj.tmat(end), length(obj.traj_follow{1}.x));
             for i = 1:obj.n_agents
                 for k = 1:length(obj.traj_follow{i}.x)
@@ -183,7 +207,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                     qdot = [obj.traj_follow{i}.xdot(k); obj.traj_follow{i}.ydot(k)];
                     qddot = [obj.traj_follow{i}.xddot(k); obj.traj_follow{i}.yddot(k)];
                     [~, ~, kappa] = calculateVelocities(qdot, qddot);
-                    curvature(i,k) = kappa;
+                    curvature_des(i,k) = kappa;
                     
                     traj_vl.q = [obj.traj_follow{1}.x(k); obj.traj_follow{1}.y(k)];
                     traj_vl.qdot = [obj.traj_follow{1}.xdot(k); obj.traj_follow{1}.ydot(k)];
@@ -191,31 +215,27 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                     traj_vl.qdddot = [obj.traj_follow{1}.xdddot(k); obj.traj_follow{1}.ydddot(k)];
                     
                     %traj = getFollowerTrajFromLeaderTraj(traj_vl, [-1.5; 1.5]);
-                    
-%                     x = obj.xmat(obj.state_ind{i}, k);
-%                     [v, w] = obj.agents{i}.vehicle.kinematics.getVelocities(0, x, 0);
+                end
+                
+                for k = 1:size(obj.xmat, 2)
+                    x = obj.xmat(obj.state_ind{i}, k);
+                    [v, w] = obj.agents{i}.vehicle.kinematics.getVelocities(0, x, 0);
                     
                     % Get the curvature
-%                     curvature(i,k) = w/v;                    
+                    curvature_act(i,k) = w/v; 
                 end
                 
                 % plot the curvature
                 hold on;
-                plot(t_curv, curvature(i,:), 'color', obj.agent_colors(i,:), 'linewidth', 2);
+                plot(t_curv, curvature_des(i,:), ':', 'color', obj.agent_colors(i,:), 'linewidth', 2);
+                plot(obj.tmat, curvature_act(i,:), 'color', obj.agent_colors(i,:), 'linewidth', 2);
             end
             
             % Plot the curvature bounds
-            max_k_foll = 1.25;
+            max_k_foll = 2.0;
             plot([t_curv(1) t_curv(end)], [max_k_foll, max_k_foll], 'r:', 'linewidth', 1);
             plot([t_curv(1) t_curv(end)], -[max_k_foll, max_k_foll], 'r:', 'linewidth', 1);
-            %set(gca, 'ylim', [-max_k_foll - .25, max_k_foll + .25]);
-            
-            
-            % Plot the formation error
-            figure;
-            formation_error = formation_error ./ obj.n_agents;
-            display(['Average error: ' num2str(mean(formation_error))]);
-            plot(obj.tmat, formation_error, 'b', 'linewidth', 3);
+            set(gca, 'ylim', [-max_k_foll - .25, max_k_foll + .25]);
         end
         
         function storeNewStateData(obj, t, k, x)

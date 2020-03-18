@@ -28,7 +28,7 @@ classdef SmoothCurvature < handle
     end
     
     methods
-        function obj = SmoothCurvature(umax, sig_max, kappa_max)
+        function obj = SmoothCurvature(umax, sig_max, kappa_max,varargin)
             %computeClothoidCurvature: Create instance of this class
             %
             % Inputs:
@@ -62,16 +62,37 @@ classdef SmoothCurvature < handle
             obj.t_decel_2_accel = obj.t_sigma_const_final + obj.tau; % Time to switch from maximum deceleration to maximum acceleration of sigma
             obj.t_kappa_max = obj.t_decel_2_accel + obj.tau; % time that kappa_max is achieved
 
+            t_switch = [
+                obj.t_0;...
+                obj.t_accel_2_decel;...
+                obj.t_sig_max;...
+                obj.t_sigma_const_final;...
+                obj.t_decel_2_accel;...
+                obj.t_kappa_max];
+            
+%             t_switch = flip(t_switch);
+            
             % Calculate state at each key point
-            obj.x_0 = zeros(3,1); % Initial state
-            obj.x_accel_2_decel = kappaStateConstControl(obj.t_accel_2_decel, obj.t_0, obj.x_0, umax); % State when switch from full acceleration to deceleration
-            obj.x_sig_max = kappaStateConstControl(obj.t_sig_max, obj.t_accel_2_decel, obj.x_accel_2_decel, -umax); % State when switch to no input
-            obj.x_sigma_const_final = kappaStateConstSigma(obj.t_sigma_const_final, obj.t_sig_max, obj.x_sig_max(1), sig_max); % State when for executing sig_max
-            obj.x_decel_2_accel = kappaStateConstControl(obj.t_decel_2_accel, obj.t_sigma_const_final, obj.x_sigma_const_final, -umax); % State when switch from maximum deceleration to maximum acceleration of sigma
-            obj.x_kappa_max = kappaStateConstControl(obj.t_kappa_max, obj.t_decel_2_accel, obj.x_decel_2_accel, umax); % State when kappa_max is achieved    
+            if ~isempty(varargin) > 0
+                obj.x_0  = varargin{1}; 
+                direction = varargin{2};
+                obj.x_accel_2_decel = kappaStateConstControl(t_switch(2), t_switch(1), obj.x_0, direction*-umax); % State when switch from full acceleration to deceleration
+                obj.x_sig_max = kappaStateConstControl(t_switch(3), t_switch(2), obj.x_accel_2_decel, direction*umax); % State when switch to no input
+                obj.x_sigma_const_final = kappaStateConstSigma(t_switch(4), t_switch(3), obj.x_sig_max(1), direction*-sig_max); % State when for executing sig_max
+                obj.x_decel_2_accel = kappaStateConstControl(t_switch(5), t_switch(4), obj.x_sigma_const_final, direction*umax); % State when switch from maximum deceleration to maximum acceleration of sigma
+                obj.x_kappa_max = kappaStateConstControl(t_switch(6), t_switch(5), obj.x_decel_2_accel, direction*-umax); % State when kappa_max is achieved  
+            else
+                obj.x_0 = zeros(3,1); % Initial state
+                obj.x_accel_2_decel = kappaStateConstControl(obj.t_accel_2_decel, obj.t_0, obj.x_0, umax); % State when switch from full acceleration to deceleration
+                obj.x_sig_max = kappaStateConstControl(obj.t_sig_max, obj.t_accel_2_decel, obj.x_accel_2_decel, -umax); % State when switch to no input
+                obj.x_sigma_const_final = kappaStateConstSigma(obj.t_sigma_const_final, obj.t_sig_max, obj.x_sig_max(1), sig_max); % State when for executing sig_max
+                obj.x_decel_2_accel = kappaStateConstControl(obj.t_decel_2_accel, obj.t_sigma_const_final, obj.x_sigma_const_final, -umax); % State when switch from maximum deceleration to maximum acceleration of sigma
+                obj.x_kappa_max = kappaStateConstControl(obj.t_kappa_max, obj.t_decel_2_accel, obj.x_decel_2_accel, umax); % State when kappa_max is achieved
+            end
+              
         end
         
-        function x_mat = calculateClothoidCurvature(obj, t_vec)
+        function x_mat = calculateClothoidCurvature(obj, t_vec, varargin)
         %calculateClothoidCurvature returns a vector of kappa states that converge to
         %kappa_max as fast as possible using umax
         %
@@ -85,7 +106,15 @@ classdef SmoothCurvature < handle
         %
         % Outputs:
         %   x_mat: 3xm matrix of kappa states where each column corresponds to the
-        %          t_vec time value        
+        %          t_vec time value       
+        
+        if ~isempty(varargin)
+            initialKappaState = varargin{1};
+            direction = varargin{2};
+        else
+            initialKappaState = false;
+            direction = 1;
+        end
 
             % Get number of time values
             len = length(t_vec); % number of states
@@ -94,7 +123,7 @@ classdef SmoothCurvature < handle
             x_mat = zeros(3,len); % Storage for calculated states
             for k = 1:len
                 t = t_vec(k);
-                x_mat(:,k) = obj.getCurvatureStateVector(t);
+                x_mat(:,k) = obj.getCurvatureStateVector(t, initialKappaState, direction);
             end
         end
         
@@ -104,7 +133,7 @@ classdef SmoothCurvature < handle
             t_span = obj.t_0:dt:obj.t_kappa_max; % time vector            
         end
         
-        function x_k = getCurvatureStateVector(obj, t)
+        function x_k = getCurvatureStateVector(obj, t, varargin)
             %calculateClothoidCurvature returns a vector of kappa states
             %for a given time value
             %
@@ -118,24 +147,58 @@ classdef SmoothCurvature < handle
             %
             % Outputs:
             %   x_k: curvature state at time t
+          
+            if ~isempty(varargin)
+                initialKappaState = varargin{1};
+                direction = varargin{2};
+            else
+                initialKappaState = false;
+                direction = 1;
+            end
+            
+            t_switch = [
+                obj.t_0;...
+                obj.t_accel_2_decel;...
+                obj.t_sig_max;...
+                obj.t_sigma_const_final;...
+                obj.t_decel_2_accel;...
+                obj.t_kappa_max];
+            
             
             % Calculate the curvature state
-            if t < obj.t_0
-                x_k = zeros(3,1);
-            elseif t < obj.t_accel_2_decel
-                x_k = kappaStateConstControl(t, obj.t_0, obj.x_0, obj.umax);
-            elseif t < obj.t_sig_max
-                x_k = kappaStateConstControl(t, obj.t_accel_2_decel, obj.x_accel_2_decel, -obj.umax);
-            elseif t < obj.t_sigma_const_final
-                x_k = kappaStateConstSigma(t, obj.t_sig_max, obj.x_sig_max(1), obj.sig_max);
-            elseif t < obj.t_decel_2_accel
-                x_k = kappaStateConstControl(t, obj.t_sigma_const_final, obj.x_sigma_const_final, -obj.umax);
+            if initialKappaState
+%                 t_switch = flip(t_switch);
+                if t < t_switch(1)
+                    x_k = zeros(3,1);
+                elseif t < t_switch(2)
+                    x_k = kappaStateConstControl(t, t_switch(1), obj.x_0, direction*-obj.umax);
+                elseif t < t_switch(3)
+                    x_k = kappaStateConstControl(t, t_switch(2), obj.x_accel_2_decel, direction*obj.umax);
+                elseif t < t_switch(4)
+                    x_k = kappaStateConstSigma(t, t_switch(3), obj.x_sig_max(1), direction*-obj.sig_max);
+                elseif t < t_switch(5)
+                    x_k = kappaStateConstControl(t, t_switch(4), obj.x_sigma_const_final, direction*obj.umax);
+                else
+                    x_k = kappaStateConstControl(t, t_switch(5), obj.x_decel_2_accel, direction*-obj.umax);
+                end
             else
-                x_k = kappaStateConstControl(t, obj.t_decel_2_accel, obj.x_decel_2_accel, obj.umax);
+                if t < obj.t_0
+                    x_k = zeros(3,1);
+                elseif t < obj.t_accel_2_decel
+                    x_k = kappaStateConstControl(t, obj.t_0, obj.x_0, obj.umax);
+                elseif t < obj.t_sig_max
+                    x_k = kappaStateConstControl(t, obj.t_accel_2_decel, obj.x_accel_2_decel, -obj.umax);
+                elseif t < obj.t_sigma_const_final
+                    x_k = kappaStateConstSigma(t, obj.t_sig_max, obj.x_sig_max(1), obj.sig_max);
+                elseif t < obj.t_decel_2_accel
+                    x_k = kappaStateConstControl(t, obj.t_sigma_const_final, obj.x_sigma_const_final, -obj.umax);
+                else
+                    x_k = kappaStateConstControl(t, obj.t_decel_2_accel, obj.x_decel_2_accel, obj.umax);
+                end
             end
         end
         
-        function [kappa, sigma, gamma] = getCurvatureState(obj, t)
+        function [kappa, sigma, gamma] = getCurvatureState(obj, t,varargin)
             %calculateClothoidCurvature returns a vector of kappa states
             %for a given time value
             %
@@ -151,9 +214,17 @@ classdef SmoothCurvature < handle
             %   kappa: curvature at time t
             %   sigma: curvature rate at time t
             %   gamma: curvature acceleration at time t
+            if length(varargin) > 0
+                initialKappaState = varargin{1};
+                direction = varargin{2};
+            else
+                initialKappaState = false;
+                direction = 1;
+            end
+                
             
             % Calculate the curvature state
-            x_k = obj.getCurvatureStateVector(t);
+            x_k = obj.getCurvatureStateVector(t,initialKappaState, direction);
             
             % Output the curvature state
             kappa = x_k(1);

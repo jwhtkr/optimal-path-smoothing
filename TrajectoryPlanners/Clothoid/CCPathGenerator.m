@@ -35,11 +35,13 @@ classdef CCPathGenerator < handle
                 deflection_angle = deflection_angles(k);
                 if deflection_angle == 0
                     turn_traj = Trajectory2D();
+                    turn_traj.dt = dt;
                     turn_traj.x = waypoint.x;
                     turn_traj.y = waypoint.y;
                 else
                     turn_traj = obj.planner.build_cc_turn(waypoint, deflection_angle);
                     turn_traj = obj.planner.squeeze_turn(waypoint, waypoint_1, turn_traj);
+                    turn_traj.dt = dt;
                 end
                 if k == 1
                     line_traj = line_trajectory([waypoint.x;waypoint.y], [turn_traj.x(1); turn_traj.y(1)], v, dt);
@@ -56,7 +58,19 @@ classdef CCPathGenerator < handle
                     obj.traj = obj.traj.concatenate(turn_traj);
                 end
             end
+            
+            xdot = obj.traj.xdot;
+            xddot = obj.traj.xddot;
+            xdddot = obj.traj.xdddot;
+            xddddot = obj.traj.xddddot;
+            
             obj.traj.update_derivatives();
+            
+            err_xdot = abs(xdot - obj.traj.xdot);
+            err_xddot = abs(xddot - obj.traj.xddot);
+            err_xdddot = abs(xdddot - obj.traj.xdddot);
+            err_xddddot = abs(xddddot - obj.traj.xddddot);
+            
             obj.traj.dt = dt;
 %             plot(obj.traj.x, obj.traj.y);
         end

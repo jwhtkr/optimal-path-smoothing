@@ -92,7 +92,7 @@ classdef MultiAgentScenario < handle
         function initializePlots(obj)
             figure; 
             % Plot the world
-            obj.world.plotWorld(gca);
+            obj.initializeWorldPlot(gca);
             
             % Loop through the plotters and initialize the plots
             for k = 1:obj.n_plotters
@@ -119,12 +119,16 @@ classdef MultiAgentScenario < handle
             end
         end
         
+        function initializeWorldPlot(obj, ax)
+            obj.world.plotWorld(ax);
+        end
+        
         function plotWorld(obj, t)
            %%% By default the function is empty, but it can be inherited to 
            %%% update the world plot
         end
-        
-        function storeNewStateData(obj, t, k, x)
+
+	function storeNewStateData(obj, t, k, x)
            %%% By default the function is empty, but it can be inherited to 
            %%% store or process data after each euler update
            %
