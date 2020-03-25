@@ -28,26 +28,14 @@ classdef VehicleKinematics < handle
         
     end
     
-    properties (GetAccess = public, SetAccess = protected)
-        n_u % Number of control inputs required
-    end
-    
     methods (Abstract)
         xdot = kinematics(obj, t, x, u); % dynamics given current time(t), state (x), and input(u) 
-        [v, w] = getVelocities(obj, t, x, u);        
-    end
-    
-    methods (Access=protected)
-        function n_u = getNumberControlInputs(obj)
-            % Default is to return two control inputs
-            n_u = 2;
-        end
+        [v, w] = getVelocities(obj, t, x, u);
     end
     
     methods
         function obj = VehicleKinematics(dimensions)
             obj.dimensions = dimensions;
-            obj.n_u = obj.getNumberControlInputs();
         end
         
         function initializeStatePlot(obj, ax, x)

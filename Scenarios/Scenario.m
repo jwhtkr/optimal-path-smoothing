@@ -9,7 +9,7 @@ classdef Scenario < handle
         % Simulation parameters
         plot_during_sim; % true => plot while simulating (requires euler integration)
         t0 = 0; % Initial time of simulation
-        dt = 0.05; % Simulation step size
+        dt = 0.001; % Simulation step size
         tf = 40; % Final time of simulation
         
         % Simulation results
@@ -19,6 +19,7 @@ classdef Scenario < handle
         % Plotting updates
         T = .2 % Plotting period
         t_latest = tic % Timer for plotting
+        ctrl;
         
         % Index variables
         x_ind % x position index
@@ -62,6 +63,7 @@ classdef Scenario < handle
             obj.plotState(obj.tf);
             obj.plotWorld(obj.tf);
             obj.plotResults();
+            obj.publishVideo();
         end
         
         
@@ -79,6 +81,8 @@ classdef Scenario < handle
             % Plot the vehicle
             obj.vehicle.plotVehicle();   
             
+            obj.video = [obj.video getframe(gcf)]; 
+            
             % Calculate the state trajectory
 %             [tvec, xvec] = ode45(@(t,x)obj.planner.unicycleDynamics(t,x,obj.control(t,x)), [0 obj.T], obj.planner.x0);
 %             xvec = xvec';
@@ -87,6 +91,13 @@ classdef Scenario < handle
 %             set(obj.traj, 'xdata', xvec(1,:), 'ydata', xvec(2,:));
         end
 
+        function publishVideo(obj)
+            vid = VideoWriter('singleVehicleMPC','Motion JPEG AVI');
+            vid.FrameRate = 10;
+            open(vid);
+            writeVideo(vid,obj.video)
+            close(vid)
+        end
         
         function initializeStatePlot(obj)
             figure; 
@@ -190,7 +201,7 @@ classdef Scenario < handle
             len = length(obj.tmat);
             obj.xmat = zeros(length(obj.vehicle.x), len);
             obj.xmat(:,1) = obj.vehicle.x;
-
+            obj.ctrl = zeros(2, len);
             % Loop through and calculate the state
             for k = 1:len
                 % Calculate state update equation
@@ -198,11 +209,16 @@ classdef Scenario < handle
                 u = obj.control(t,obj.vehicle.x);
                 xdot = obj.vehicle.kinematics.kinematics(t, obj.vehicle.x, u);
 
+                % Store the state
+                obj.xmat(:,k) = obj.vehicle.x;
+                obj.ctrl(:,k) = u;
+                
                 % Update the state
                 obj.vehicle.x = obj.vehicle.x + obj.dt * xdot;
 
                 % Store the state
-                obj.xmat(:,k) = obj.vehicle.x;
+%                 obj.xmat(:,k) = obj.vehicle.x;
+%                 obj.ctrl(:,k) = u;
                 
                 % Get the sensor measurements
                 obj.vehicle.getObstacleDetections(obj.world);

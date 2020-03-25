@@ -3,7 +3,6 @@ classdef SimpleUnicycleVehicle < Vehicle
         % Properties for path control (using point control method)
         eps_path = 1.0 % Initial epsilon for controlling a point to a path
         eps_path_min = 0.2 % Minimum value for eps_path
-        use_dim_eps = false; % true => use a diminishing epsilon, false will use a constant epsilon of eps_path
         K_point_ctrl % Feedback matrix for point control, used with feedback on 
                      % K_point_ctrl*(q - q_des), where q is the
                      % position and velocity of a point
@@ -83,21 +82,6 @@ classdef SimpleUnicycleVehicle < Vehicle
             
             % Calculate the control inputs
             u = R_e_inv*u_point;            
-        end
-        
-        function q_eps = calculateEpsilonPoint(obj, t, x)
-            % Calculate epsilon
-            eps = obj.getEpsilon(t);
-            
-            % Extract states
-            x_pos = x(obj.kinematics.x_ind);
-            y_pos = x(obj.kinematics.y_ind);
-            th = x(obj.kinematics.th_ind);
-            c = cos(th);
-            s = sin(th);
-            
-            % Calculate the epsilon state
-            q_eps = [x_pos; y_pos] + eps * [c; s];
         end
         
         %%%%%%%%%%%%%%%  Vector Field Following Controls %%%%%%%%%%%%%%%%
@@ -202,14 +186,10 @@ classdef SimpleUnicycleVehicle < Vehicle
         end
     end
     
-    methods (Access=public)
+    methods (Access=protected)
         function eps = getEpsilon(obj, t)
-            if obj.use_dim_eps
-                eps = obj.eps_path*exp(-t);
-                eps = max(obj.eps_path_min, eps);
-            else
-                eps = obj.eps_path;
-            end
+            eps = obj.eps_path*exp(-t);
+            eps = max(obj.eps_path_min, eps);
         end
     end
 end

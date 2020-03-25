@@ -6,15 +6,10 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
         qd_mat % Stores the desired trajectory over time, used for plotting results,
                % The matrix has 2 x n_agents number of rows (2 for each
                % agent)
-        waypoints % an array of path points in the desired order (e.g., [q0,q1,...,qn] 
-                  % where qi = [x; y]
         traj_follow = {} % A cell structure containing the desired trajectory for each follower
         traj_eps = {} % A cell structure containing the desired trajectory for the epsilon point of each follower
         agent_colors % n_agents x 3 matrix where each row represents the color of a different agent
         state_value = {} % Value of the state of each agent over time
-        
-        % Plotting flags for results
-        plot_agent_traj_results = false; % true => each agent's actual trajectory will be overlayed onto the world plot
     end
     
     methods
@@ -34,8 +29,8 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             % Define desired trajectory pamameters
             dt = 0.01;
             vd = 1;
-            k_max = 0.5; % Maximum curvature
-            sig_max = 0.5; % Maximum change in curvature
+            k_max = 1; % Maximum curvature
+            sig_max = 1; % Maximum change in curvature
             
             % Create the virtual leader trajectory
             vl_traj = TrajUtil.createClothoidTrajectory(waypoints, vd, dt, k_max, sig_max);
@@ -58,29 +53,28 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 % Create a vehicle plotter
                 plotters{end+1} = SingleAgentPlotter(@(t)veh_i.getConfiguration(t), agent_colors(i,:));
                 
-                % Createa a plotter for the desired position
+                % Create a plotter for the desired position
                 %plotters{end+1} = PositionPlotter(@(t)agents{i}.ReferenceTraj(t));
                 plotters{end+1} = PositionPlotter(@(t)traj_follow{i}.reference_traj(t), agent_colors(i,:));
                 %plotters{end+1} = PositionPlotter(@(t)traj_eps{i}.reference_traj(t), agent_colors(i,:));
-                %plotters{end+1} = TwoDRangePlotter(veh_i);
+                plotters{end+1} = TwoDRangePlotter(veh_i);
+                
+                % Initialize the occupancy grid plotter for agent 1
+                if i == 1
+                    figure('units','normalized','outerposition',[0 0 1 1]);
+                    plotters{end+1} = OccupancyPlotter(agents{i}.map);
+                    plotters{end}.plot_grid = true;
+                    plotters{end}.initializePlot(0);
+                end
             end
             
             % Initialize the object
             obj = obj@MultiAgentScenario(agents, world, plotters, true);
             
             % Store object variables
-            obj.waypoints = waypoints;
             obj.traj_follow = traj_follow;
             obj.traj_eps = traj_eps;
             obj.agent_colors = agent_colors;
-        end
-        
-        function initializeWorldPlot(obj, ax)
-            initializeWorldPlot@MultiAgentScenario(obj, ax);
-            
-            % Plot the waypoints for the path
-            hold on;
-            plot(obj.waypoints(:,1), obj.waypoints(:,2), 'ro', 'linewidth', 5);
         end
         
         function initializePlots(obj)
@@ -103,11 +97,8 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 %plot(obj.traj_eps{i}.x(ind), obj.traj_eps{i}.y(ind), ':', 'linewidth', 1, 'color', obj.agent_colors(i,:));
                 
                 % Plot the actual trajectory
-                if i == 1
-                    plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), 'linewidth', 2, 'color', obj.agent_colors(i,:));
-                else
-                    plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), ':', 'linewidth', 1, 'color', obj.agent_colors(i,:));
-                end
+                %plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), ':', 'linewidth', 3, 'color', obj.agent_colors(i,:));
+                plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), ':', 'linewidth', 3, 'color', 'k');
                 
                 % Store the desired states
                 obj.qd_mat(ind_q_i, :) = [obj.traj_follow{i}.x(ind); ...
@@ -126,20 +117,20 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
         
         function plotResults(obj)
             % Plot the executed trajectory for each agent
-            if obj.plot_agent_traj_results
-                hold on;
-                for i = 1:obj.n_agents
-                    % Get state indices
-                    x_ind = obj.state_ind{i}(1);
-                    y_ind = obj.state_ind{i}(2);
-
-                    % Plot the actual trajectory
-                    plot(obj.xmat(x_ind, :), obj.xmat(y_ind, :), 'linewidth', 2, 'color', obj.agent_colors(i,:));
-                end
+            hold on;
+            for i = 1:obj.n_agents
+                % Get state indices
+                x_ind = obj.state_ind{i}(1);
+                y_ind = obj.state_ind{i}(2);
+                
+                % Plot the actual trajectory
+                plot(obj.xmat(x_ind, :), obj.xmat(y_ind, :), 'linewidth', 2, 'color', obj.agent_colors(i,:));
             end
             
-            % Loop through and calculate formation error
-            ind_q_d = 1:2; % Stores the indices of agent i within q_d            
+            
+            
+            ind_q_d = 1:2; % Stores the indices of agent i within q_d
+            
             formation_error = zeros(size(obj.tmat));
             for i = 1:obj.n_agents
                 % Create a figure for the actual and desired positions
@@ -348,4 +339,5 @@ function [psi, v, w, a, alpha] = getTrajectoryInformation(traj)
     a = (xdot*xddot + ydot*yddot)/v;
     alpha = (xdot*ydddot-ydot*xdddot)/v^2 - 2*a*w/v;    
 end
+
 

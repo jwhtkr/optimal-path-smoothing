@@ -2,8 +2,8 @@ classdef RangeSensor < handle
     %RangeSensor Creates a sensor based on a limited range
     
     properties (SetAccess = protected, GetAccess = public)
-        n_lines = 100; % Number of range measurements
-        max_dist = 4; % Max distance of the range measurements
+        n_lines = 35; % Number of range measurements
+        max_dist = 5; % Max distance of the range measurements
     end
     
     properties (SetAccess = protected, GetAccess = public)

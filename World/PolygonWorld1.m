@@ -12,8 +12,6 @@ classdef PolygonWorld1 < PolygonWorld
             % Create the polygon world
             obj = obj@PolygonWorld(V1, V2, V3);
         end
-        
-        
     end
 end
 

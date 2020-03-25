@@ -2,32 +2,34 @@ classdef Unicycle2 < CostClass
     
     properties
         % Cost weights
-%         p1 = 0.50; % weight on velocity
-%         p2 = 0.50; % weight on angular velocity
-%         p3 = 0.20; % weight of avoidance
-%         p4 = 0.30; % weight of voronoi barrier
-%         p5 = 1.0; % weight on go to goal
-        
-        p1 = 0.85; % weight on velocity
-        p2 = 0.85; % weight on angular velocity
-        p3 = 0.15; % weight of avoidance
-        p4 = 0.15; % weight of voronoi barrier
+        p1 = 0.45; % weight on velocity
+        p2 = 0.35; % weight on angular velocity
+        p3 = 0.35; % weight of avoidance
+        p4 = 0.3; % weight of voronoi barrier
         p5 = 1.2; % weight on go to goal
+        
+%         p1 = 0.85; % weight on velocity
+%         p2 = 0.85; % weight on angular velocity
+%         p3 = 0.15; % weight of avoidance
+%         p4 = 0.15; % weight of voronoi barrier
+%         p5 = 1.2; % weight on go to goal
         
         % Operational flags
         numericalPartialLogic = false;
         useEulerIntegration = true;
+        useRungeKuttaIntegration = false;
         
         % Cost variables
         qd = []; % Desired position
+        xd = []; %Desired State
         qb = []; % Obstacles
         % qb = [[3;3], [4;4]];
         n_obs;
         sig = 10;
         vd = 1; % Desired Velocity
         
-        dmin = 0.1; %.25; % Distance from obstacle just before collision
-        dmax = .75;%1.25;
+        dmin = 0.2; %.25; % Distance from obstacle just before collision
+        dmax = 1.15;%1.25;
         dmax2 = .75;
         log_dmax_dmin;
         log_dmax_dmin2;
@@ -41,7 +43,7 @@ classdef Unicycle2 < CostClass
         t_span % Stores the span for integration
         t_span_rev % Same as t_span but in reverse order
         t_len % Number of time variables
-        t_sim % Simulation time
+        t_sim = 0.05; % Simulation time
         
         K_vel_ctrl;
         K_point_ctrl;
@@ -104,9 +106,9 @@ classdef Unicycle2 < CostClass
             A = zeros(2);
             B = eye(2);
             Q = eye(2);
-            %             Q = [1 0; 0 5];
+%             Q = [10 0; 0 10];
             R = eye(2);
-            %             R = [1 0; 0 5];
+%             R = [1 0; 0 1];
             obj.K_vel_ctrl = lqr(A,B,Q,R);
             obj.eps_vel = .2;
             
@@ -201,6 +203,25 @@ classdef Unicycle2 < CostClass
                     min_cost = cost(u_var);
                 end
             end
+            for i = 1:length(w1)
+                % Initialize a u to explore, T-tau3 = dt
+                u_var = [obj.vd; w1(i);obj.T/3;obj.vd;w1(i);obj.T*2/3;obj.vd;w1(i); obj.T*2/3];
+%                 obj.plotTraj(u_var);
+%                 pause(0.02);
+                if min_cost > cost(u_var)
+                    u0 = u_var;
+                    min_cost = cost(u_var);
+                end
+            end
+            % Test if the tracking controller is minimal
+            if ~(u0(obj.ind_time1) == 0) || ~(u0(obj.ind_time2) == 0) || ~(u0(obj.ind_time3) == 0)
+                u_var = [1; 0; 0; 1; 0; 0; 1; 0; 0];
+                if min_cost > cost(u_var)
+                    u0 = u_var;
+                    min_cost = cost(u_var);
+                end
+            end
+            
             if isinf(min_cost)
                 obj.collision_detection = true;
                 obj.cost(u0);
@@ -255,23 +276,24 @@ classdef Unicycle2 < CostClass
             
             % Get cost for velocities
             [v_traj, w_traj] = obj.trajectory.getVelocities(t+obj.t_sim);
-            L = obj.p_global(x)*obj.p1/2*(v-v_traj)^2 + obj.p_global(x)*obj.p2/2*(w-w_traj)^2;
+            L = obj.p1/2*(v-v_traj)^2 + obj.p2/2*(w-w_traj)^2;
+%             L = obj.p1/2*(v-v_traj)^2 + obj.p2/2*(w)^2;
             
             % Get Cost for barrier
-            th_l = obj.leader_traj.getYaw(t+obj.t_sim);
-            q_l = obj.leader_traj.reference_traj(t+obj.t_sim);
-            d = obj.voronoi.dist_to_barrier(q,obj.agent_num,th_l,q_l);
-            for k = 1:length(d)
-                if d(k) > obj.dmin && d(k) < obj.dmax2
-                    Lvoronoi = obj.p4*(obj.log_dmax_dmin2 - log(d(k) - obj.dmin));
-                    L = L + Lvoronoi;
-                elseif d(k) < obj.dmin
-                    L = L + inf;
-                    if isnan(L)
-                        L = 0;
-                    end
-                end
-            end
+%             th_l = obj.leader_traj.getYaw(t+obj.t_sim);
+%             q_l = obj.leader_traj.reference_traj(t+obj.t_sim);
+%             d = obj.voronoi.dist_to_barrier(q,obj.agent_num,th_l,q_l);
+%             for k = 1:length(d)
+%                 if d(k) > obj.dmin && d(k) < obj.dmax2
+%                     Lvoronoi = obj.p4*(obj.log_dmax_dmin2 - log(d(k) - obj.dmin));
+%                     L = L + Lvoronoi;
+%                 elseif d(k) < obj.dmin
+%                     L = L + inf;
+%                     if isnan(L)
+%                         L = 0;
+%                     end
+%                 end
+%             end
             
             
             % Get Cost for obstacles
@@ -299,8 +321,28 @@ classdef Unicycle2 < CostClass
             % Extract position
             q = obj.getPosition(x);
             
-            % Calculate cost as squared distance to goal
-            err = q - obj.qd;
+            if obj.xd(obj.ind_theta) > pi
+                obj.xd(obj.ind_theta) = obj.xd(obj.ind_theta) - 2*pi;
+            elseif obj.xd(obj.ind_theta) < -pi
+                obj.xd(obj.ind_theta) = obj.xd(obj.ind_theta) + 2*pi;
+            end
+            
+            if x(obj.ind_theta) > pi
+                x(obj.ind_theta) = x(obj.ind_theta) - 2*pi;
+            elseif x(obj.ind_theta) < -pi
+                x(obj.ind_theta) = x(obj.ind_theta) + 2*pi;
+            end
+            
+            % Calculate cost as state differenct squared to goal
+            h_e = [cos(x(3));sin(x(3))] - [cos(obj.xd(3));sin(obj.xd(3))];
+            
+            err = x - obj.xd;
+            if err(obj.ind_theta) > pi
+                err(obj.ind_theta) = err(obj.ind_theta) - 2*pi;
+            elseif err(obj.ind_theta) < -pi
+                err(obj.ind_theta) = err(obj.ind_theta) + 2*pi;
+            end
+%             err(3) = norm(h_e);
             phi = obj.p5/2*(err'*err);
         end
         
@@ -363,6 +405,7 @@ classdef Unicycle2 < CostClass
             % interval
             costate3 = costates_T(:,1); %obj.evalIntResult(costates_T, u(obj.ind_time3));
             xi3 = costate3(obj.n+1:end);
+         
             lam3 = costate3(1:obj.n);
             % Setting xi inital condition to 0
             costate3(4:end) = 0;
@@ -455,10 +498,30 @@ classdef Unicycle2 < CostClass
         
         function dphi_dx = terminalStatePartial(obj, x)
             % Extract states and velocities
-            q = obj.getPosition(x);
+            
+            
+            if obj.xd(obj.ind_theta) > pi
+                obj.xd(obj.ind_theta) = obj.xd(obj.ind_theta) - 2*pi;
+            elseif obj.xd(obj.ind_theta) < -pi
+                obj.xd(obj.ind_theta) = obj.xd(obj.ind_theta) + 2*pi;
+            end
+            
+            if x(obj.ind_theta) > pi
+                x(obj.ind_theta) = x(obj.ind_theta) - 2*pi;
+            elseif x(obj.ind_theta) < -pi
+                x(obj.ind_theta) = x(obj.ind_theta) + 2*pi;
+            end
+            
+            err = x - obj.xd;
+            
+            if err(obj.ind_theta) > pi
+                err(obj.ind_theta) = err(obj.ind_theta) - 2*pi;
+            elseif err(obj.ind_theta) < -pi
+                err(obj.ind_theta) = err(obj.ind_theta) + 2*pi;
+            end
             
             % Calculate partial
-            dphi_dx = obj.p5.*[(q-obj.qd)', 0, 0, 0];
+            dphi_dx = obj.p5.*err';
         end
         
         function dL_dx = instStatePartial(obj, t, x, u)
@@ -470,27 +533,27 @@ classdef Unicycle2 < CostClass
             dL_dx = zeros(1, obj.n);
             dq_dx = [eye(2), [0; 0], [0; 0], [0; 0]];
             
-            % Calculate Distance from barrier
-            th_l = obj.leader_traj.getYaw(t+obj.t_sim);
-            q_l = obj.leader_traj.reference_traj(t+obj.t_sim);
-            [d_barrier, n] = obj.voronoi.dist_and_norm(q,obj.agent_num,th_l,q_l);
-            
-            dLvor_dd = 0;
-            for k = 1:length(d_barrier)
-                % Calculate Log Barrier
-                if d_barrier(k) > obj.dmin && d_barrier(k) < obj.dmax2
-                    dLvor_dd = -obj.p4/(d_barrier(k)-obj.dmin);
-                elseif d_barrier(k) < obj.dmin
-                    dLvor_dd = -inf;
-                end
-                
-                % Calculate distance partial based on position
-                dd_dq = n(:,k)';
-                
-                % Calculate contribution of avoidance
-                dLvor_dx = dLvor_dd * dd_dq * dq_dx;
-                dL_dx = dL_dx + dLvor_dx;
-            end
+%             % Calculate Distance from barrier
+%             th_l = obj.leader_traj.getYaw(t+obj.t_sim);
+%             q_l = obj.leader_traj.reference_traj(t+obj.t_sim);
+%             [d_barrier, n] = obj.voronoi.dist_and_norm(q,obj.agent_num,th_l,q_l);
+%             
+%             dLvor_dd = 0;
+%             for k = 1:length(d_barrier)
+%                 % Calculate Log Barrier
+%                 if d_barrier(k) > obj.dmin && d_barrier(k) < obj.dmax2
+%                     dLvor_dd = -obj.p4/(d_barrier(k)-obj.dmin);
+%                 elseif d_barrier(k) < obj.dmin
+%                     dLvor_dd = -inf;
+%                 end
+%                 
+%                 % Calculate distance partial based on position
+%                 dd_dq = n(:,k)';
+%                 
+%                 % Calculate contribution of avoidance
+%                 dLvor_dx = dLvor_dd * dd_dq * dq_dx;
+%                 dL_dx = dL_dx + dLvor_dx;
+%             end
             
             % Calculate necesssary derivatives
             dq_dx = [eye(2), [0; 0], [0; 0], [0; 0]];
@@ -520,7 +583,8 @@ classdef Unicycle2 < CostClass
                 dL_dx = dL_dx + dLavoid_dx;
             end
             [v_traj, w_traj] = obj.trajectory.getVelocities(t+obj.t_sim);
-            dL_dx = dL_dx + obj.p_global(x).*[0 0 0 obj.p1*(v-v_traj) obj.p2*(w-w_traj)];
+            dL_dx = dL_dx + [0 0 0 obj.p1*(v-v_traj) obj.p2*(w-w_traj)];
+%             dL_dx = dL_dx + [0 0 0 obj.p1*(v-v_traj) obj.p2*(w)];
             
         end
         
@@ -614,7 +678,7 @@ classdef Unicycle2 < CostClass
         end
         
         function xdot = unicycleDualModeDynamics(obj,t,x,u)
-            if t > u(obj.ind_time3)
+            if t > u(obj.ind_time3) || u(obj.ind_time3) == 0
                 xdot = obj.unicycleTracking(t,x,u);
             else
                 xdot = obj.unicycleDynamics(t,x,u);
@@ -624,7 +688,7 @@ classdef Unicycle2 < CostClass
         function xdot = unicycleDynamics(obj, t, x, u)
             % Extract states and velocities
             [v, w] = obj.getVelocities(x);
-            [a, alpha] = obj.getDesiredVelocity(u,t);
+            [vd, wd] = obj.getDesiredVelocity(u,t);
             theta = x(obj.ind_theta);
             
             % Calculate derivative
@@ -632,8 +696,8 @@ classdef Unicycle2 < CostClass
             xdot(obj.ind_x) = v*cos(theta);
             xdot(obj.ind_y) = v*sin(theta);
             xdot(obj.ind_theta) = w;
-            xdot(obj.ind_v) = -obj.K_vel_ctrl(1,1)*(v-a);
-            xdot(obj.ind_w) = -obj.K_vel_ctrl(2,2)*(w-alpha);
+            xdot(obj.ind_v) = -obj.K_vel_ctrl(1,1)*(v-vd);
+            xdot(obj.ind_w) = -obj.K_vel_ctrl(2,2)*(w-wd);
         end
         
         function xdot = unicycleTracking(obj, t, x, u)
@@ -647,7 +711,7 @@ classdef Unicycle2 < CostClass
             xdot(obj.ind_y) = v*sin(theta);
             xdot(obj.ind_theta) = w;
             
-            u_control = obj.trackControl(t+obj.t_sim,x);
+            u_control = obj.trackControl(t+obj.t_sim-obj.dt,x);
             xdot(obj.ind_v) = u_control(1);
             xdot(obj.ind_w) = u_control(2);
         end
@@ -785,21 +849,29 @@ classdef Unicycle2 < CostClass
                 obj.traj_arc1 = plot(xarc1(1,:), xarc1(2,:), 'g', 'linewidth', 2);
             elseif ~isempty(xarc1)
                 set(obj.traj_arc1, 'xdata', xarc1(1,:), 'ydata', xarc1(2,:));
+            elseif isempty(xarc1) && ~isempty(obj.traj_arc1)
+                set(obj.traj_arc1, 'xdata', 0, 'ydata', 0);
             end
             if isempty(obj.traj_arc2) && ~isempty(xarc2)
                 obj.traj_arc2 = plot(xarc2(1,:), xarc2(2,:), 'r', 'linewidth', 2);
             elseif ~isempty(xarc2)
                 set(obj.traj_arc2, 'xdata', xarc2(1,:), 'ydata', xarc2(2,:));
+            elseif isempty(xarc2) && ~isempty(obj.traj_arc2)
+                set(obj.traj_arc2, 'xdata', 0, 'ydata', 0);
             end
             if isempty(obj.traj_arc3) && ~isempty(xarc3)
                 obj.traj_arc3 = plot(xarc3(1,:), xarc3(2,:), 'b', 'linewidth', 2);
             elseif ~isempty(xarc3)
                 set(obj.traj_arc3, 'xdata', xarc3(1,:), 'ydata', xarc3(2,:));
+            elseif isempty(xarc3) && ~isempty(obj.traj_arc3)
+                set(obj.traj_arc3, 'xdata', 0, 'ydata', 0);
             end
             if isempty(obj.traj_arc4) && ~isempty(xarc4)
                 obj.traj_arc4 = plot(xarc4(1,:), xarc4(2,:), 'k', 'linewidth', 2);
             elseif ~isempty(xarc4)
                 set(obj.traj_arc4, 'xdata', xarc4(1,:), 'ydata', xarc4(2,:));
+            elseif isempty(xarc4) && ~isempty(obj.traj_arc4)
+                set(obj.traj_arc4, 'xdata', 0, 'ydata', 0);
             end
         end
         
@@ -813,6 +885,8 @@ classdef Unicycle2 < CostClass
         function z_sol = integrate(obj, dynamics, z0, forward, force_max_step)
             if obj.useEulerIntegration
                 z_sol = obj.eulerIntegration(dynamics, z0, forward);
+            elseif obj.useRungeKuttaIntegration
+                z_sol = obj.rungeKuttaIntegration(dynamics, z0, forward);
             else
                 if force_max_step
                     opts = odeset('MaxStep',obj.dt);
@@ -859,8 +933,52 @@ classdef Unicycle2 < CostClass
             end
         end
         
+        function zvec = rungeKuttaIntegration(obj, dynamics, z0, forward)
+            % Determine if moving forward or backward
+            if forward
+                t = @(k) obj.t_span(k);
+                del_t = obj.dt;
+            else
+                t = @(k) obj.t_span_rev(k);
+                del_t = -obj.dt;
+            end
+            
+            % Create initial z values
+            zvec = zeros(length(z0), obj.t_len);
+            z_act = z0;
+            zvec(:,1) = z_act;
+            del_t2 = del_t/2;
+            del_t6 = del_t/6;
+            
+            % Perform integration
+            for k = 2:obj.t_len
+%                 z_act = z_act + dynamics(t(k), z_act)*del_t;
+                z_t = z_act + del_t2*dynamics(t(k),z_act);
+                
+                dz_t = dynamics(t(k),z_t);
+                z_t = z_act + del_t2*dz_t;
+                
+                dz_m = dynamics(t(k),z_t);
+                z_t = z_act + del_t*dz_m;
+                dz_m = dz_m + dz_t;
+                dz_t = dynamics(t(k),z_t);
+                
+                z_act = z_act + del_t6*(dynamics(t(k),z_act)+dz_t+2*dz_m);
+                zvec(:,k) = z_act;
+                if isinf(zvec(end,k)) && obj.collision_detection
+                    obj.time_collision = obj.t_span(k);
+                    obj.collision_detection = false;
+                end
+            end
+            
+            % Reverse ordering of zvec if reverse integration performed
+            if ~forward
+                zvec = zvec(:,[obj.t_len:-1:1]);
+            end
+        end
+        
         function z = evalIntResult(obj, z_sol, t)
-            if obj.useEulerIntegration
+            if obj.useEulerIntegration || obj.useRungeKuttaIntegration
 %                 ind = find(obj.t_span == t);
                 ind = round(t/obj.dt)+1;
                 if isempty(ind)
@@ -881,27 +999,27 @@ classdef Unicycle2 < CostClass
             switch logic
                 case 1
                     obj.t_span = 0:obj.dt:u(obj.ind_time1);
-                    obj.t_span_rev = u(obj.ind_time1):-obj.dt:0;
+                    obj.t_span_rev = flip(obj.t_span);
                     obj.t_len = length(obj.t_span);
                 case 2
                     obj.t_span = u(obj.ind_time1):obj.dt:u(obj.ind_time2);
-                    obj.t_span_rev = u(obj.ind_time2):-obj.dt:u(obj.ind_time1);
+                    obj.t_span_rev = flip(obj.t_span);
                     obj.t_len = length(obj.t_span);
                 case 3
                     obj.t_span = u(obj.ind_time2):obj.dt:u(obj.ind_time3);
-                    obj.t_span_rev = u(obj.ind_time3):-obj.dt:u(obj.ind_time2);
+                    obj.t_span_rev = flip(obj.t_span);
                     obj.t_len = length(obj.t_span);
                 case 4
                     obj.t_span = u(obj.ind_time3):obj.dt:obj.T;
-                    obj.t_span_rev = obj.T:-obj.dt:u(obj.ind_time3);
+                    obj.t_span_rev = flip(obj.t_span);
                     obj.t_len = length(obj.t_span);
                 case 5
                     obj.t_span = 0:obj.dt:u(obj.ind_time3);
-                    obj.t_span_rev = u(obj.ind_time3):-obj.dt:0;
+                    obj.t_span_rev = flip(obj.t_span);
                     obj.t_len = length(obj.t_span);
                 case 0
                     obj.t_span = 0:obj.dt:obj.T;
-                    obj.t_span_rev = obj.T:-obj.dt:0;
+                    obj.t_span_rev = flip(obj.t_span);
                     obj.t_len = length(obj.t_span);
             end
         end

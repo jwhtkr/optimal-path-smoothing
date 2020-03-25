@@ -399,5 +399,15 @@ classdef Trajectory2D < handle
             v = obj.v(ind);
             w = obj.w(ind);
         end
+        
+        function x = stateAtTime(obj,t)
+            ind = round(t/obj.dt+1,0);
+            x = [obj.x(ind); obj.y(ind); obj.psi(ind); obj.v(ind); obj.w(ind)];
+        end
+        
+        function xdot = xdotAtTime(obj,t)
+            ind = round(t/obj.dt+1,0);
+            xdot = [obj.v(ind)*cos(obj.psi(ind)); obj.v(ind)*sin(obj.psi(ind)); obj.w(ind); obj.a(ind); obj.alpha(ind)];
+        end
     end
 end

@@ -22,16 +22,52 @@ classdef VehicleKinematics < handle
         next_path_time = -1 % Replot the path again once time > next_path_time
         plot_path = false % true => plot the path the the robot has traveled
         
+%         % Plotting Trajectory variables
+%         h_traj = [];
+%         plot_traj = false
+        
+    end
+    
+    properties (GetAccess = public, SetAccess = protected)
+        n_u % Number of control inputs required
     end
     
     methods (Abstract)
         xdot = kinematics(obj, t, x, u); % dynamics given current time(t), state (x), and input(u) 
-        [v, w] = getVelocities(obj, t, x, u);
+        [v, w] = getVelocities(obj, t, x, u);        
+    end
+    
+    methods (Access=protected)
+        function n_u = getNumberControlInputs(obj)
+            % Default is to return two control inputs
+            n_u = 2;
+        end
     end
     
     methods
         function obj = VehicleKinematics(dimensions)
             obj.dimensions = dimensions;
+            obj.n_u = obj.getNumberControlInputs();
+        end
+        
+        function initializeStatePlot(obj, ax, x)
+            % Get the robot polygon
+            P = obj.getRobotPolygon(x);
+            q = x(1:2);
+            
+            % Plot the triangle
+            obj.h_veh = fill(ax, P(:, 1), P(:, 2), obj.c, 'Edgecolor', obj.c);
+            hold on; 
+            axis equal;
+            
+            if obj.plot_path
+                % Set the figure to be the same as the vehicle was
+                % plotted in
+                
+                % Plot the initial path point
+                obj.h_path = plot(ax, q(1), q(2), [':' obj.c], 'linewidth', 3);                    
+            end   
+
         end
         
         function plotState(obj, t, x)
@@ -42,7 +78,36 @@ classdef VehicleKinematics < handle
             % t: time of plot
             % x: state of the vehicle            
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            if isempty(obj.h_veh)
+                return;
+            end             
             
+            % Get the robot polygon
+            P = obj.getRobotPolygon(x);
+            q = x(1:2);
+
+            % Plot the triangle
+            set(obj.h_veh, 'xdata', P(:, 1), 'ydata', P(:, 2));                
+                        
+            % Plot the path
+            if obj.plot_path
+               if t >= obj.next_path_time
+                    % Form the aggregate path
+                    x_vec = [get(obj.h_path, 'xdata') q(1)];
+                    y_vec = [get(obj.h_path, 'ydata') q(2)];
+
+                    % Replot
+                    set(obj.h_path, 'xdata', x_vec, 'ydata', y_vec);
+
+                    % Reset the time
+                    obj.next_path_time = t + obj.path_period;
+               end                
+            end
+            
+            
+        end
+    
+        function P = getRobotPolygon(obj, x)
             % Rotation matrix (for finding points on triangle)
             R = [cos(x(obj.th_ind)) -sin(x(obj.th_ind)); sin(x(obj.th_ind)) cos(x(obj.th_ind))];
 
@@ -54,50 +119,8 @@ classdef VehicleKinematics < handle
             p4a = R * [-obj.r; 0] + q;
             p4 = (q + p4a) ./ 2;            % mid point of triangle
             P = [p1'; p2'; p3'; p4'];
-
-            % Plot the triangle
-            if isempty(obj.h_veh)
-                obj.h_veh = fill(P(:, 1), P(:, 2), obj.c, 'Edgecolor', obj.c);
-                hold on; 
-                axis equal;
-                
-                % Store the figure and axes
-                obj.fig = gcf;
-                obj.ax = gca;
-            else
-                set(obj.h_veh, 'xdata', P(:, 1), 'ydata', P(:, 2));                
-            end
-            
-            % Plot the path
-            if obj.plot_path
-                if isempty(obj.h_path)
-                    % Set the figure to be the same as the vehicle was
-                    % plotted in
-                    set(0, 'currentfigure', obj.fig);
-                    set(obj.fig, 'currentaxes', obj.ax);
-                    
-                    % Plot the initial path point
-                    obj.h_path = plot(q(1), q(2), [':' obj.c], 'linewidth', 3);                    
-                    
-                    % Set the time for the next plotting
-                    obj.next_path_time = t + obj.path_period;
-                else
-                    if t >= obj.next_path_time
-                        % Form the aggregate path
-                        x_vec = [get(obj.h_path, 'xdata') q(1)];
-                        y_vec = [get(obj.h_path, 'ydata') q(2)];
-                        
-                        % Replot
-                        set(obj.h_path, 'xdata', x_vec, 'ydata', y_vec);
-                        
-                        % Reset the time
-                        obj.next_path_time = t + obj.path_period;
-                    end
-                end
-            end
-            
         end
-    
+        
         function plotVelocitiesAndInput(obj, tmat, xmat, u)
             % Create velocity vectors
             n = length(tmat);
