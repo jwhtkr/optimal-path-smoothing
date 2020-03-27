@@ -11,7 +11,14 @@ classdef LinearSystemOptimization
         % Optimization variables
         N % Number of steps
         n_ctrl % Control from u_0 to u_{N-1}
-        n_state % State from x_0 to x_N
+        n_state % State from x_0 to x_N        
+        
+        % Optimization parameters
+        P_simult % Parameters for simultaneous optimization
+        P_seq % Parameters for sequential optimization
+    end
+    
+    properties(SetAccess=protected)
         x0 % Initial state
     end
     
@@ -57,7 +64,63 @@ classdef LinearSystemOptimization
             obj.n_ctrl = obj.n_u*obj.N; % Control from u_0 to u_{N-1}
             obj.n_state = obj.n_x*(obj.N+1); % State from x_0 to x_N
             obj.x0 = zeros(obj.n_x, 1);
+            
+            %% Initailize simultaneous optimization parameters
+            obj.P_simult.options = optimoptions(@fmincon, 'Algorithm', 'sqp'); % choose sequential-quadratic-programming
+            %obj.P_simult.options = optimoptions(@fmincon, 'Algorithm', 'interior-point'); % choose an the interior-point algorithm
+            obj.P_simult.options = optimoptions(obj.P_simult.options, 'SpecifyObjectiveGradient', true); % Indicate whether to use gradient
+            %obj.P_simult.options = optimoptions(obj.P_simult.options, 'OptimalityTolerance', 0.1); % Tolerance for optimization
+            %obj.P_simult.options.Display = 'iter'; % Have Matlab display the optimization information with each iteration
+            obj.P_simult.options.Display = 'off';
+
+            % Define the linear inequality constraints (empty matrices because we
+            % do not have any)
+            obj.P_simult.A_ineq = [];
+            obj.P_simult.B_ineq = [];
+
+            % Define the linear equality constraints
+            [obj.P_simult.Aeq, obj.P_simult.Beq] = obj.calculateStepwiseEquality();
+            %[obj.P_simult.Aeq, obj.P_simult.Beq] = obj.calculateFullEffectEquality();
+
+            % Define the upper and lower bounds (empty matrices because we do not
+            % have any)
+            obj.P_simult.lb = []; % No upper or lower bounds
+            obj.P_simult.ub = [];
+            
+            %% Initialize sequentiaion optimization parameters
+            % Initialize the solve variables
+            obj.P_seq.options = optimoptions(@fmincon, 'Algorithm', 'sqp'); % choose sequential-quadratic-programming
+            %obj.P_seqoptions = optimoptions(@fmincon, 'Algorithm', 'interior-point'); % choose an the interior-point algorithm
+            obj.P_seq.options = optimoptions(obj.P_seq.options, 'SpecifyObjectiveGradient', true); % Indicate whether to use gradients (Note that there are no constraint gradients)
+            obj.P_seq.options = optimoptions(obj.P_seq.options, 'OptimalityTolerance', 0.1); % Tolerance for optimization
+            %obj.P_seqoptions.Display = 'iter'; % Have Matlab display the optimization information with each iteration
+            obj.P_seq.options.Display = 'off'; % Have Matlab display the optimization information with each iteration
+
+            % Define the linear inequality constraints (empty matrices because we
+            % do not have any)
+            obj.P_seq.A_ineq = [];
+            obj.P_seq.B_ineq = [];
+
+            % Define the linear equality constraints (empty matrices because we do
+            % not have any)
+            obj.P_seq.Aeq = []; % No equality constraints
+            obj.P_seq.Beq = [];
+
+            % Define the upper and lower bounds (empty matrices because we do not
+            % have any)
+            obj.P_seq.lb = []; % No upper or lower bounds
+            obj.P_seq.ub = []; 
         end 
+        
+        function obj = setInitialState(obj, x0)
+        %setInitialState stores the initial state
+            % Store the initial state
+            obj.x0 = x0;
+            
+            % Set the initial state within the simultaneous optimization
+            % bounds
+            obj.P_simult.Beq(1:obj.n_x) = -obj.x0;
+        end
     end
     
     %%% Simulation functions %%%
@@ -191,30 +254,13 @@ classdef LinearSystemOptimization
             y0 = [x0; u0];
             %c_init = obj.costCombined(y0) % Display the initial cost
 
-            % Initialize the solver variables
-            options = optimoptions(@fmincon, 'Algorithm', 'sqp'); % choose sequential-quadratic-programming
-            %options = optimoptions(@fmincon, 'Algorithm', 'interior-point'); % choose an the interior-point algorithm
-            options = optimoptions(options, 'SpecifyObjectiveGradient', true); % Indicate whether to use gradient
-            %options = optimoptions(options, 'OptimalityTolerance', 0.1); % Tolerance for optimization
-            %options.Display = 'iter'; % Have Matlab display the optimization information with each iteration
-
-            % Define the linear inequality constraints (empty matrices because we
-            % do not have any)
-            A_ineq = [];
-            B_ineq = [];
-
-            % Define the linear equality constraints
-            [Aeq, Beq] = obj.calculateStepwiseEquality();
-            %[Aeq, Beq] = obj.calculateFullEffectEquality();
-
-            % Define the upper and lower bounds (empty matrices because we do not
-            % have any)
-            lb = []; % No upper or lower bounds
-            ub = [];
+            
 
             % Matlab call:
-            [y, final_cost] = fmincon(@(y) obj.costCombined(y), y0, A_ineq, B_ineq, Aeq, Beq, lb, ub, [], options);
-            disp(['Final cost = ' num2str(final_cost)]);
+            [y, final_cost] = fmincon(@(y) obj.costCombined(y), y0, obj.P_simult.A_ineq, ...
+                obj.P_simult.B_ineq, obj.P_simult.Aeq, obj.P_simult.Beq, obj.P_simult.lb, ...
+                obj.P_simult.ub, [], obj.P_simult.options);
+            %disp(['Final cost = ' num2str(final_cost)]);
 
             % Extract the state and control from the variable y
             [x, u] = obj.extractStateAndControl(y);    
@@ -233,35 +279,11 @@ classdef LinearSystemOptimization
         %   x: Optimized state (x_1 to x_N in a single column vector)
         %   u: Optimized control (u_0 to u_N-1 in a single column vector)
 
-            % Output the initial cost
-            %c_init = obj.costSequential(u0)
-
-            % Initialize the solve variables
-            options = optimoptions(@fmincon, 'Algorithm', 'sqp'); % choose sequential-quadratic-programming
-            %options = optimoptions(@fmincon, 'Algorithm', 'interior-point'); % choose an the interior-point algorithm
-            options = optimoptions(options, 'SpecifyObjectiveGradient', true); % Indicate whether to use gradients (Note that there are no constraint gradients)
-            options = optimoptions(options, 'OptimalityTolerance', 0.1); % Tolerance for optimization
-            %options.Display = 'iter'; % Have Matlab display the optimization information with each iteration
-            options.Display = 'off'; % Have Matlab display the optimization information with each iteration
-
-            % Define the linear inequality constraints (empty matrices because we
-            % do not have any)
-            A_ineq = [];
-            B_ineq = [];
-
-            % Define the linear equality constraints (empty matrices because we do
-            % not have any)
-            Aeq = []; % No equality constraints
-            Beq = [];
-
-            % Define the upper and lower bounds (empty matrices because we do not
-            % have any)
-            lb = []; % No upper or lower bounds
-            ub = []; 
-
             % Matlab call:
-            [u, final_cost] = fmincon(@(u_in) obj.costSequential(u_in), u0, A_ineq, B_ineq, Aeq, Beq, lb, ub, [], options);
-            disp(['Final cost = ' num2str(final_cost)]);
+            [u, final_cost] = fmincon(@(u_in) obj.costSequential(u_in), u0, ...
+                obj.P_seq.A_ineq, obj.P_seq.B_ineq, obj.P_seq.Aeq, obj.P_seq.Beq, ...
+                obj.P_seq.lb, obj.P_seq.ub, [], obj.P_seq.options);
+            %disp(['Final cost = ' num2str(final_cost)]);
 
             % Simulate the state forward in time to be able to output the result
             x = obj.discreteSim(u);    

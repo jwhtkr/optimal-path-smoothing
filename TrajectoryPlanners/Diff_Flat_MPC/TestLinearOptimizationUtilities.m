@@ -14,7 +14,7 @@ close all;
     P.testDiscreteDynamics();
 
     % Create the initial input and state
-    u0 = 0.0.*ones(P.n_ctrl, 1);
+    u0 = 1.0.*ones(P.n_ctrl, 1);
     x0 = P.discreteSim(u0);
     
     % Create figure for plotting
@@ -23,17 +23,27 @@ close all;
     h_d = [];
     h_x = [];
     
+    % Data for MPC
+    M = 300; % Number of MPC steps to take
+    xdata = zeros(P.n_x, M);
+    udata = zeros(P.n_u, M);
+    
     % Optimize
-    for k = 0:100000
+    for k = 1:M
+        k
         % Calculate desired state and inputs
         P.xd = P.calculateDesiredState(k);
         P.ud = P.calculateDesiredInput(k);
     
         % Optimize
-        %tic
+        tic
         %[x, u] = P.simultaneousOptimization(x0, u0);
         [x, u] = P.sequentialOptimization(u0);
-        %time_opt = toc
+        time_opt = toc
+        
+        % Store the updated data
+        xdata(:,k) = P.x0;
+        udata(:,k) = u(1:P.n_u);
         
         % Plot
         [h_d, h_x] = P.plot2dPosition(x, ax, h_d, h_x);
@@ -43,9 +53,9 @@ close all;
         xf = x(end-P.n_x+1:end);
         u0 = [u(P.n_u+1:end); zeros(P.n_u, 1)];
         x0 = [x(P.n_x+1:end); P.Abar*xf];
-        P.x0 = x0(1:P.n_x);        
+        P = P.setInitialState(x0(1:P.n_x));
     end
     
     % Plot the results
-    P.plotStateAndInput(x, u);
+    P.plotStateAndInput(xdata, udata);
 end

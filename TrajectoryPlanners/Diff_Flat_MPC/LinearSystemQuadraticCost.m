@@ -3,7 +3,14 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
         % Optimization weights
         R = 0.1 .* diag([1, 1]); % Input squared cost (i.e. u'*R*u)
         Q = 10 .* diag([1, 1,  0, 0,   0, 0]); % state error squared (x-x_d)'Q(x-x_d)
-        S = 100 .* diag([1, 1,  0, 0,   0, 0]); % state error squared (x-x_d)'S(x-x_d)
+        S = [] % state error squared (x-x_d)'S(x-x_d)
+        
+        % Variable bounds
+        u_max = [1; 1];
+        x_max = [10.1; 10.1; 5; 5; 5; 5];
+        x_min = [-1; -1; -5; -5; -5; -5];
+%         x_max = inf.*ones(6, 1);
+%         x_min = -inf.*ones(6, 1);
         
         % Desired variables
         xd = [] % Desired state over time
@@ -20,6 +27,38 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
             %   B: Continuous-time input matrix
             
             obj = obj@LinearSystemOptimization(A, B, N);
+        end
+        
+        function obj = initializeParameters(obj)
+        %initializeParameters Initializes the parameter optimization
+        %parameters. In addition to the super class, this function creates
+        %the terminal cost matrix used for optimization by selecting the
+        %cost to be the infinite horizion cost associated with the infinite horizon
+        %lqr problem
+            % Call super class
+            obj = initializeParameters@LinearSystemOptimization(obj);
+            
+            % Calculate the discrete-time algebraic riccati equation
+            obj.S = dare(obj.Abar, obj.Bbar, obj.Q, obj.R);
+            
+            %% Define bounds
+            % Define bounds on control
+            lb_ctrl = repmat(-obj.u_max, obj.N, 1);
+            ub_ctrl = repmat(obj.u_max, obj.N, 1);
+            
+            % Define bounds on state (only used right now for sequential
+            % method)
+            lb_state = repmat(obj.x_min, obj.N+1, 1);
+            ub_state = repmat(obj.x_max, obj.N+1, 1);
+            
+            % Insert for sequential method
+            obj.P_seq.lb = lb_ctrl;
+            obj.P_seq.ub = ub_ctrl;
+            
+            % Insert for the simultaneous optimization method
+            obj.P_simult.lb = [lb_state; lb_ctrl];
+            obj.P_simult.ub = [ub_state; ub_ctrl];
+            obj.P_simult.options.Display = 'notify-detailed';
         end
     end
     
@@ -120,16 +159,24 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
             % Calculate the time for which k corresponds
             t = k*obj.dt;
 
-            % Calcualte the state (right now it is a sinusoid)
+%             % Calcualte the state (right now it is a sinusoid)
+%             xd = zeros(obj.n_x, 1);
+%             xd(1) = sin(t); % Position
+%             xd(2) = t; 
+%             xd(3) = cos(t); % Velocity
+%             xd(4) = 1;
+%             xd(5) = -sin(t); % Acceleration
+%             xd(6) = 0;
+% %             xd(7) = -cos(t); % Jerk
+% %             xd(8) = 0;
+             % Calcualte the state (right now it is a sinusoid)
             xd = zeros(obj.n_x, 1);
-            xd(1) = sin(t); % Position
-            xd(2) = t; 
-            xd(3) = cos(t); % Velocity
-            xd(4) = 1;
-            xd(5) = -sin(t); % Acceleration
+            xd(1) = 10; % Position
+            xd(2) = 10; 
+            xd(3) = 0; % Velocity
+            xd(4) = 0;
+            xd(5) = 0; % Acceleration
             xd(6) = 0;
-%             xd(7) = -cos(t); % Jerk
-%             xd(8) = 0;
         end
 
         function ud_mat = calculateDesiredInput(obj, k_start)
@@ -181,7 +228,22 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
     methods
         function plotStateAndInput(obj, x, u)
             % Get the state and input in matrix form
-            [x_mat, u_mat] = obj.getInputStateMatrices(x, u);
+            if size(x, 1) == obj.n_x
+                x_mat = x;
+                u_mat = u;
+            else
+                [x_mat, u_mat] = obj.getInputStateMatrices(x, u);
+            end
+            
+            % Get time matrix
+            N_plot = size(x_mat, 2);
+            t_vec = linspace(0, N_plot*obj.dt, N_plot);
+            
+            % Create the desired state
+            xd_result = zeros(obj.n_x, N_plot);
+            for k = 0:(N_plot-1)
+                xd_result(:,k+1) = obj.getDesiredState(k);
+            end
 
             % Plot the state
             figure;
@@ -190,27 +252,29 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
             for k = 1:obj.n_x
                 % Plot the desired state
                 subplot(obj.n_x, 2, sub_plot_ind);
-                plot(obj.xd(k,:), 'r:', 'linewidth', 3); hold on;
+                plot(t_vec, xd_result(k,:), 'r:', 'linewidth', 3); hold on;
 
                 % Plot the actual state
-                plot(x_mat(k,:), 'b', 'linewidth', 2);
+                plot(t_vec, x_mat(k,:), 'b', 'linewidth', 2);
                 ylabel(names{k});
+                xlabel('time (s)');
 
                 % Update subplot index (increment by two to avoid the right column)
                 sub_plot_ind = sub_plot_ind + 2;
             end
-
+            
             % Plot the inputs
             names = {'u_1', 'u_2'};
             sub_plot_ind = 2;
             for k = 1:obj.n_u
-                % Plot the desired state
+%                 % Plot the desired state
                 subplot(obj.n_x, 2, sub_plot_ind);
-                plot(obj.ud(k,:), 'r:', 'linewidth', 3); hold on;
+%                 plot(t_vec, obj.ud(k,:), 'r:', 'linewidth', 3); hold on;
 
                 % Plot the actual state
-                plot(u_mat(k,:), 'b', 'linewidth', 2);
+                plot(t_vec, u_mat(k,:), 'b', 'linewidth', 2);
                 ylabel(names{k});
+                xlabel('time (s)');
 
                 % Update subplot index (increment by two to avoid the left column)
                 sub_plot_ind = sub_plot_ind + 2;
