@@ -8,7 +8,7 @@ close all;
     A = [Z I Z; Z Z I; Z Z Z]; % state matrix
     B = [Z; Z; I]; % Input matrix
     
-    P = LOU(A, B, 50);
+    P = LinearSystemQuadraticCost(A, B, 50);
     
     % Test the discrete dynamics
     P.testDiscreteDynamics();
@@ -30,10 +30,10 @@ close all;
         P.ud = P.calculateDesiredInput(k);
     
         % Optimize
-        tic
+        %tic
         %[x, u] = P.simultaneousOptimization(x0, u0);
         [x, u] = P.sequentialOptimization(u0);
-        time_opt = toc
+        %time_opt = toc
         
         % Plot
         [h_d, h_x] = P.plot2dPosition(x, ax, h_d, h_x);
