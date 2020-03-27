@@ -8,14 +8,14 @@ close all;
     A = [Z I Z; Z Z I; Z Z Z]; % state matrix
     B = [Z; Z; I]; % Input matrix
     
-    P = LOUParams(A, B);
+    P = LOU(A, B, 50);
     
     % Test the discrete dynamics
-    LOU.testDiscreteDynamics(P);
+    P.testDiscreteDynamics();
 
     % Create the initial input and state
     u0 = 0.0.*ones(P.n_ctrl, 1);
-    x0 = LOU.discreteSim(u0, P);
+    x0 = P.discreteSim(u0);
     
     % Create figure for plotting
     figure;
@@ -24,19 +24,19 @@ close all;
     h_x = [];
     
     % Optimize
-    for k = 0:10000
+    for k = 0:10
         % Calculate desired state and inputs
-        P.xd = LOU.calculateDesiredState(P, k);
-        P.ud = LOU.calculateDesiredInput(P, k);
+        P.xd = P.calculateDesiredState(k);
+        P.ud = P.calculateDesiredInput(k);
     
         % Optimize
         tic
-        %[x, u] = LOU.simultaneousOptimization(x0, u0, P);
-        [x, u] = LOU.sequentialOptimization(u0, P);
+        %[x, u] = P.simultaneousOptimization(x0, u0, P);
+        [x, u] = P.sequentialOptimization(u0);
         time_opt = toc
         
         % Plot
-        [h_d, h_x] = LOU.plot2dPosition(x, P, ax, h_d, h_x);
+        [h_d, h_x] = P.plot2dPosition(x, ax, h_d, h_x);
         pause(0.0001);
         
         % Update for the next iteration
@@ -48,7 +48,5 @@ close all;
     end
     
     % Plot the results
-    LOU.plotStateAndInput(x, u, P);
-    
-    
+    P.plotStateAndInput(x, u);
 end

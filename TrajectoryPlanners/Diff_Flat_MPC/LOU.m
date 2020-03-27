@@ -1,7 +1,63 @@
 classdef LOU
-    methods(Static)
-        function x = discreteSim(u, P)
-        % LOU.discreteSim calculates the state given the control inputs
+    properties
+        A % continuous time state matrix
+        B % continuous time input matrix
+        Abar % discrete time state matrix
+        Bbar % discrete time state matrix
+        dt = 0.1; % Discrete time interval
+        n_x % Number of states
+        n_u % Number of inputs
+        
+        % Optimization variables
+        N % Number of steps
+        n_ctrl % Control from u_0 to u_{N-1}
+        n_state % State from x_0 to x_N
+        x0 % Initial state
+        
+        % Optimization weights
+        R = 0.1 .* diag([1, 1]); % Input squared cost (i.e. u'*R*u)
+        Q = 10 .* diag([1, 1,  0, 0,   0, 0]); % state error squared (x-x_d)'Q(x-x_d)
+        S = 100 .* diag([1, 1,  0, 0,   0, 0]); % state error squared (x-x_d)'S(x-x_d)
+        
+        % Desired variables
+        xd = [] % Desired state over time
+        ud = [] % Desired input over time
+    end
+    
+    methods
+        function obj = LOU(A, B, N)
+            %LOU Construct an instance of this class
+            %
+            % Inputs:
+            %   A: Continous-time state matrix
+            %   B: Continuous-time input matrix
+            
+            % Store inputs
+            obj.A = A;
+            obj.B = B;
+            obj.N = N;
+            
+            % Process state variables
+            obj.n_x = size(A, 1);
+            obj.n_u = size(B, 2);
+            
+            obj = obj.initializeParameters();
+        end
+        
+        function obj = initializeParameters(obj)
+        %initializeParameters Initializes the parameter optimization
+        %parameters
+            % Calculate discrete dynamics
+            [obj.Abar, obj.Bbar] = obj.calculateDiscreteTimeMatrices();
+            
+            % Initialize optimization variables
+            obj.n_ctrl = obj.n_u*obj.N; % Control from u_0 to u_{N-1}
+            obj.n_state = obj.n_x*(obj.N+1); % State from x_0 to x_N
+            obj.x0 = zeros(obj.n_x, 1);
+        end
+        
+        function x = discreteSim(obj, u)
+        % obj.discreteSim calculates the state given the control inputs
         %
         % Inputs:
         %   u: Control inputs (u_0 to u_N-1 in a single column vector)
@@ -11,25 +67,25 @@ classdef LOU
         %   x: Calculated state (x_0 to x_N in a single column vector)
 
             % Change the inputs to a matrix form
-            u_mat = LOU.getInputMatrix(u, P);
+            u_mat = obj.getInputMatrix(u);
 
             % Initialize the state matrix
-            x_mat = zeros(P.n_x, P.N+1);
-            x_mat(:,1) = P.x0;
+            x_mat = zeros(obj.n_x, obj.N+1);
+            x_mat(:,1) = obj.x0;
 
             % Loop through and update the states
-            for j = 1:P.N % Note that j = k+1
+            for j = 1:obj.N % Note that j = k+1
                 % Calculate the update for the state
-                x_mat(:,j+1) = P.Abar*x_mat(:,j) + P.Bbar*u_mat(:,j);
+                x_mat(:,j+1) = obj.Abar*x_mat(:,j) + obj.Bbar*u_mat(:,j);
             end
 
             % Convert the state matrix back to a column vector
-            x = reshape(x_mat, P.n_state, 1);
+            x = reshape(x_mat, obj.n_state, 1);
         end
 
         %%%% Optimization functions
-        function [x, u] = simultaneousOptimization(x0, u0, P)
-        % LOU.simultaneousOptimization simultaneously optimizes over both the state and
+        function [x, u] = simultaneousOptimization(obj, x0, u0)
+        % obj.simultaneousOptimization simultaneously optimizes over both the state and
         % the control, using an equality constraint to relate the two
         %
         % Inputs:
@@ -43,7 +99,7 @@ classdef LOU
 
             % Create the aggregate state and calculate the initial cost
             y0 = [x0; u0];
-            c_init = LOU.costCombined(y0, P) % Display the initial cost
+            %c_init = obj.costCombined(y0) % Display the initial cost
 
             % Initialize the solver variables
             options = optimoptions(@fmincon, 'Algorithm', 'sqp'); % choose sequential-quadratic-programming
@@ -54,12 +110,12 @@ classdef LOU
 
             % Define the linear inequality constraints (empty matrices because we
             % do not have any)
-            A = [];
-            B = [];
+            A_ineq = [];
+            B_ineq = [];
 
             % Define the linear equality constraints
-            [Aeq, Beq] = LOU.calculateStepwiseEquality(P);
-            %[Aeq, Beq] = LOU.calculateFullEffectEquality(P);
+            [Aeq, Beq] = obj.calculateStepwiseEquality(obj);
+            %[Aeq, Beq] = obj.calculateFullEffectEquality(P);
 
             % Define the upper and lower bounds (empty matrices because we do not
             % have any)
@@ -67,15 +123,15 @@ classdef LOU
             ub = [];
 
             % Matlab call:
-            [y, final_cost] = fmincon(@(y) LOU.costCombined(y, P), y0, A, B, Aeq, Beq, lb, ub, [], options);
+            [y, final_cost] = fmincon(@(y) obj.costCombined(y), y0, A_ineq, B_ineq, Aeq, Beq, lb, ub, [], options);
             disp(['Final cost = ' num2str(final_cost)]);
 
             % Extract the state and control from the variable y
-            [x, u] = LOU.extractStateAndControl(y, P);    
+            [x, u] = obj.extractStateAndControl(y);    
         end
 
-        function [x, u] = sequentialOptimization(u0, P)
-        % LOU.sequentialOptimization optimizes over the control. At each iteration the
+        function [x, u] = sequentialOptimization(obj, u0)
+        % obj.sequentialOptimization optimizes over the control. At each iteration the
         % control is used to calculate the state which are both used to calculate
         % the cost
         %
@@ -88,7 +144,7 @@ classdef LOU
         %   u: Optimized control (u_0 to u_N-1 in a single column vector)
 
             % Output the initial cost
-            c_init = LOU.costSequential(u0, P)
+            %c_init = obj.costSequential(u0)
 
             % Initialize the solve variables
             options = optimoptions(@fmincon, 'Algorithm', 'sqp'); % choose sequential-quadratic-programming
@@ -96,11 +152,12 @@ classdef LOU
             options = optimoptions(options, 'SpecifyObjectiveGradient', true); % Indicate whether to use gradients (Note that there are no constraint gradients)
             options = optimoptions(options, 'OptimalityTolerance', 0.1); % Tolerance for optimization
             %options.Display = 'iter'; % Have Matlab display the optimization information with each iteration
+            options.Display = 'off'; % Have Matlab display the optimization information with each iteration
 
             % Define the linear inequality constraints (empty matrices because we
             % do not have any)
-            A = [];
-            B = [];
+            A_ineq = [];
+            B_ineq = [];
 
             % Define the linear equality constraints (empty matrices because we do
             % not have any)
@@ -113,15 +170,15 @@ classdef LOU
             ub = []; 
 
             % Matlab call:
-            [u, final_cost] = fmincon(@(u_in) LOU.costSequential(u_in, P), u0, A, B, Aeq, Beq, lb, ub, [], options);
+            [u, final_cost] = fmincon(@(u_in) obj.costSequential(u_in), u0, A_ineq, B_ineq, Aeq, Beq, lb, ub, [], options);
             disp(['Final cost = ' num2str(final_cost)]);
 
             % Simulate the state forward in time to be able to output the result
-            x = LOU.discreteSim(u, P);    
+            x = obj.discreteSim(u);    
         end
 
-        function [A_eq, B_eq] = calculateStepwiseEquality(P)
-        %LOU.calculateStepwiseEquality Calculates the equality constraint one step at a
+        function [A_eq, B_eq] = calculateStepwiseEquality(obj)
+        %obj.calculateStepwiseEquality Calculates the equality constraint one step at a
         %time
         %
         % Inputs:
@@ -131,70 +188,70 @@ classdef LOU
         %   Matrices such that A_eq*y = B_eq
 
             %% Calculate the state portion of the constraint
-            A_eq_state = -eye(P.n_state); % Portion corresponding to next state
+            A_eq_state = -eye(obj.n_state); % Portion corresponding to next state
 
             % Lower diagonal term is a block matrix of Abar matrices
-            ind_row = (P.n_x+1):(2*P.n_x); % Row index for the matrix
-            ind_col = 1:P.n_x; % Column index for the matrix
-            for k = 1:P.N
+            ind_row = (obj.n_x+1):(2*obj.n_x); % Row index for the matrix
+            ind_col = 1:obj.n_x; % Column index for the matrix
+            for k = 1:obj.N
                 % Add the state update matrix
-                A_eq_state(ind_row, ind_col) = P.Abar;
+                A_eq_state(ind_row, ind_col) = obj.Abar;
 
                 % Increment the indices
-                ind_row = ind_row + P.n_x;
-                ind_col = ind_col + P.n_x;
+                ind_row = ind_row + obj.n_x;
+                ind_col = ind_col + obj.n_x;
             end
 
             %% Calculate the input portion of the constraint
-            A_eq_ctrl = zeros(P.n_state, P.n_ctrl);
-            ind_row = (P.n_x+1):(2*P.n_x); % Row index for the matrix
-            ind_col = 1:P.n_u; % Column index for the matrix
-            for k = 1:P.N
-                A_eq_ctrl(ind_row, ind_col) = P.Bbar;
+            A_eq_ctrl = zeros(obj.n_state, obj.n_ctrl);
+            ind_row = (obj.n_x+1):(2*obj.n_x); % Row index for the matrix
+            ind_col = 1:obj.n_u; % Column index for the matrix
+            for k = 1:obj.N
+                A_eq_ctrl(ind_row, ind_col) = obj.Bbar;
 
                 % Update indices
-                ind_row = ind_row + P.n_x;
-                ind_col = ind_col + P.n_u;
+                ind_row = ind_row + obj.n_x;
+                ind_col = ind_col + obj.n_u;
             end
 
             % Put the state and input portions of the matrix together
             A_eq = [A_eq_state, A_eq_ctrl];
 
             %% Calculate the B_eq matrix
-            B_eq = zeros(P.n_state, 1);
-            B_eq(1:P.n_x) = -P.x0; % The first state must be equal to the initialization
+            B_eq = zeros(obj.n_state, 1);
+            B_eq(1:obj.n_x) = -obj.x0; % The first state must be equal to the initialization
 
 
         %     %% Test the gradient (should be commented out)
         %     % Calculate the numerical jacobian
-        %     A_eq_num = jacobianest(@(y_in) LOU.stepWiseEqualityConstraint(y_in, P), rand(P.n_state+P.n_ctrl, 1)*100);
+        %     A_eq_num = jacobianest(@(y_in) obj.stepWiseEqualityConstraint(y_in, P), rand(P.n_state+P.n_ctrl, 1)*100);
         %     
         %     % Calculate the error
         %     A_eq_err = norm(A_eq - A_eq_num, 'fro')
         end
 
-        function h = stepWiseEqualityConstraint(y, P)
+        function h = stepWiseEqualityConstraint(obj, y)
             % Extract state and input
-            [x, u] = LOU.extractStateAndControl(y, P);
+            [x, u] = obj.extractStateAndControl(y);
 
             % Calculate the state matrices
-            [x_mat, u_mat] = LOU.getInputStateMatrices(x, u, P);
+            [x_mat, u_mat] = obj.getInputStateMatrices(x, u);
 
             % Calculate the constraint
-            h = zeros(P.n_state, 1);
-            h(1:P.n_x) = -x_mat(:,1) + P.x0;
-            ind_h = (P.n_x+1):(2*P.n_x);
-            for j = 1:P.N % Note that j = k+1
+            h = zeros(obj.n_state, 1);
+            h(1:obj.n_x) = -x_mat(:,1) + obj.x0;
+            ind_h = (obj.n_x+1):(2*obj.n_x);
+            for j = 1:obj.N % Note that j = k+1
                 % Calculate the constraint
-                h(ind_h) = P.Abar*x_mat(:,j)+P.Bbar*u_mat(:,j) - x_mat(:,j+1);
+                h(ind_h) = obj.Abar*x_mat(:,j)+obj.Bbar*u_mat(:,j) - x_mat(:,j+1);
 
                 % Increment the index
-                ind_h = ind_h + P.n_x;
+                ind_h = ind_h + obj.n_x;
             end
         end
 
-        function [A_eq, B_eq] = calculateFullEffectEquality(P)
-        %LOU.calculateFullEffectEquality Calculates the equality constraint using steps
+        function [A_eq, B_eq] = calculateFullEffectEquality(obj)
+        %obj.calculateFullEffectEquality Calculates the equality constraint using steps
         %from the initial state and inputs to the state in question
         %
         % Inputs:
@@ -204,75 +261,75 @@ classdef LOU
         %   Matrices such that A_eq*y = B_eq
 
             %% Calculate the state portion of the constraint
-            A_eq_state = -eye(P.n_state); % Portion corresponding to next state
+            A_eq_state = -eye(obj.n_state); % Portion corresponding to next state
 
             % Lower diagonal term is a block matrix of Abar matrices
-            ind_row = (P.n_x+1):(2*P.n_x); % Row index for the matrix
-            ind_col = 1:P.n_x; % Column index for the matrix
-            for k = 1:P.N
+            ind_row = (obj.n_x+1):(2*obj.n_x); % Row index for the matrix
+            ind_col = 1:obj.n_x; % Column index for the matrix
+            for k = 1:obj.N
                 % Add the state update matrix
-                A_eq_state(ind_row, ind_col) = P.Abar^k;
+                A_eq_state(ind_row, ind_col) = obj.Abar^k;
 
                 % Increment the indices (note, the column matrix does not update)
-                ind_row = ind_row + P.n_x;        
+                ind_row = ind_row + obj.n_x;        
             end
 
             %% Calculate the input portion of the constraint
-            A_eq_ctrl = zeros(P.n_state, P.n_ctrl);
-            ind_row = (P.n_x+1):(2*P.n_x); % Row index for the matrix
-            for blk_row = 1:P.N
+            A_eq_ctrl = zeros(obj.n_state, obj.n_ctrl);
+            ind_row = (obj.n_x+1):(2*obj.n_x); % Row index for the matrix
+            for blk_row = 1:obj.N
                 % loop through columns
-                ind_col = 1:P.n_u;
+                ind_col = 1:obj.n_u;
                 for col = (blk_row-1):-1:0
-                    A_eq_ctrl(ind_row, ind_col) = P.Abar^col*P.Bbar;
+                    A_eq_ctrl(ind_row, ind_col) = obj.Abar^col*obj.Bbar;
 
                     % Update column indices
-                    ind_col = ind_col + P.n_u;
+                    ind_col = ind_col + obj.n_u;
                 end
 
                 % Update row indices
-                ind_row = ind_row + P.n_x;
+                ind_row = ind_row + obj.n_x;
             end
 
             % Put the state and input portions of the matrix together
             A_eq = [A_eq_state, A_eq_ctrl];
 
             %% Calculate the B_eq matrix
-            B_eq = zeros(P.n_state, 1);
-            B_eq(1:P.n_x) = -P.x0; % The first state must be equal to the initialization
+            B_eq = zeros(obj.n_state, 1);
+            B_eq(1:obj.n_x) = -obj.x0; % The first state must be equal to the initialization
 
         %     %% Test the full constraint
         %     u = rand(P.n_ctrl, 1)*100;
-        %     x = LOU.discreteSim(u, P);
-        %     h = LOU.stepWiseFullEffectConstraint([x; u], P)
+        %     x = obj.discreteSim(u, P);
+        %     h = obj.stepWiseFullEffectConstraint([x; u], P)
         %     
         %     %% Test the gradient (should be commented out)
         %     % Calculate the numerical jacobian
-        %     A_eq_num = jacobianest(@(y_in) LOU.stepWiseFullEffectConstraint(y_in, P), rand(P.n_state+P.n_ctrl, 1)*100);
+        %     A_eq_num = jacobianest(@(y_in) obj.stepWiseFullEffectConstraint(y_in, P), rand(P.n_state+P.n_ctrl, 1)*100);
         %     
         %     % Calculate the error
         %     A_eq_err = norm(A_eq - A_eq_num, 'fro')
         end
 
-        function h = stepWiseFullEffectConstraint(y, P)
+        function h = stepWiseFullEffectConstraint(obj, y)
             % Extract state and input
-            [x, u] = LOU.extractStateAndControl(y, P);
+            [x, u] = obj.extractStateAndControl(y);
 
             % Calculate the state matrices
-            [x_mat, u_mat] = LOU.getInputStateMatrices(x, u, P);
+            [x_mat, u_mat] = obj.getInputStateMatrices(x, u);
 
             % Calculate the constraint
-            h = zeros(P.n_state, 1);
-            h(1:P.n_x) = -x_mat(:,1) + P.x0;
-            ind_row = (P.n_x+1):(2*P.n_x);
-            for blk_row = 1:P.N % Note that blk_row = k+1
+            h = zeros(obj.n_state, 1);
+            h(1:obj.n_x) = -x_mat(:,1) + obj.x0;
+            ind_row = (obj.n_x+1):(2*obj.n_x);
+            for blk_row = 1:obj.N % Note that blk_row = k+1
                 % Calculate the effect on the combined state of the initial state
-                x_comb = P.Abar^blk_row*x_mat(:,1);
+                x_comb = obj.Abar^blk_row*x_mat(:,1);
 
                 % Calculate the effect on the input
                 ind_u = 1;
                 for exp = blk_row:-1:1
-                    x_comb = x_comb + P.Abar^(exp-1)*P.Bbar*u_mat(:,ind_u);
+                    x_comb = x_comb + obj.Abar^(exp-1)*obj.Bbar*u_mat(:,ind_u);
                     ind_u = ind_u + 1;
                 end
 
@@ -280,12 +337,12 @@ classdef LOU
                 h(ind_row) = x_comb - x_mat(:,blk_row+1);
 
                 % Increment the index
-                ind_row = ind_row + P.n_x;
+                ind_row = ind_row + obj.n_x;
             end
         end
         %%%% Cost functions
-        function [c, dc_dy] = costCombined(y, P)
-        %LOU.costCombined calculates the cost and gradient of the cost with respect to
+        function [c, dc_dy] = costCombined(obj, y)
+        %obj.costCombined calculates the cost and gradient of the cost with respect to
         %the aggregate state, y = [x; u]
         %
         % Inputs:
@@ -297,27 +354,27 @@ classdef LOU
         %   dc_dy: partial derivative of the cost wrt y
 
             % Separate out the states
-            [x, u] = LOU.extractStateAndControl(y, P);
+            [x, u] = obj.extractStateAndControl(y);
 
             % Calculate the cost
-            c = LOU.cost(x, u, P);
+            c = obj.cost(x, u);
 
             % Calculate the partial
             if nargout > 1 % Only calculate the partial if the calling function wants it
-                dc_dy = [LOU.calculatePartialWrtState(x,u,P), ... % dc/dx
-                         LOU.calculatePartialWrtInput(x,u,P)];    % dc/du
+                dc_dy = [obj.calculatePartialWrtState(x,u), ... % dc/dx
+                         obj.calculatePartialWrtInput(x,u)];    % dc/du
             else
                 dc_dy = []; % Output an empty value if not needed
             end
 
         %     %% Check partials (Comment this code when working)
         %     % Calculate individual partials
-        %     dc_dx = LOU.calculatePartialWrtState(x,u,P);
-        %     dc_du = LOU.calculatePartialWrtInput(x,u,P);
+        %     dc_dx = obj.calculatePartialWrtState(x,u,P);
+        %     dc_du = obj.calculatePartialWrtInput(x,u,P);
         %     
         %     % Calculate numerical partials
-        %     dc_dx_num = jacobianest(@(x_in) LOU.cost(x_in, u, P), x);
-        %     dc_du_num = jacobianest(@(u_in) LOU.cost(x, u_in, P), u);
+        %     dc_dx_num = jacobianest(@(x_in) obj.cost(x_in, u, P), x);
+        %     dc_du_num = jacobianest(@(u_in) obj.cost(x, u_in, P), u);
         %     
         %     % Calculate error
         %     dc_dx_err = norm(dc_dx - dc_dx_num, 'fro')
@@ -325,8 +382,8 @@ classdef LOU
 
         end
 
-        function [c, dc_du] = costSequential(u, P)
-        %LOU.costSequential calculates the cost and gradient of the cost with respect to
+        function [c, dc_du] = costSequential(obj, u)
+        %obj.costSequential calculates the cost and gradient of the cost with respect to
         %the input, u
         %
         % Inputs:
@@ -338,20 +395,20 @@ classdef LOU
         %   dc_du: partial derivative of the cost wrt u
 
             % Calculate the state based upon the controls
-            x = LOU.discreteSim(u, P);
+            x = obj.discreteSim(u);
 
             % Calcualte the cost
-            c = LOU.cost(x, u, P);
+            c = obj.cost(x, u);
 
             % Calculate the partial
             if nargout > 1
-                dc_du = LOU.sequentialPartial(x, u, P);        
+                dc_du = obj.sequentialPartial(x, u);        
             else
                 dc_du = [];
             end
         end
 
-        function c = cost(x, u, P)
+        function c = cost(obj, x, u)
         %cost calculates the cost given the state and inputs
         %
         % Inputs: 
@@ -363,29 +420,29 @@ classdef LOU
         %   dc_du: Partial of cost wrt the input
 
             % Extract variables
-            [x_mat, u_mat] = LOU.getInputStateMatrices(x, u, P);
+            [x_mat, u_mat] = obj.getInputStateMatrices(x, u);
 
             % Loop through and calculate the instantaneous cost
             c = 0;
-            for j = 1:P.N % Note that j = k+1
+            for j = 1:obj.N % Note that j = k+1
                 % Extract the state and input
                 uk = u_mat(:,j);
                 xk = x_mat(:,j);
-                xd = P.xd(:,j);
-                xe = xk - xd;
+                xd_j = obj.xd(:,j);
+                xe = xk - xd_j;
 
                 % Calculate cost
-                c = c + uk'*P.R*uk;
-                c = c + xe'*P.Q*xe;
+                c = c + uk'*obj.R*uk;
+                c = c + xe'*obj.Q*xe;
             end
 
             % Calculate terminal cost
-            xe = x_mat(:,end) - P.xd(:,end);
-            c = c + xe'*P.S*xe; % Quadratic in the error
+            xe = x_mat(:,end) - obj.xd(:,end);
+            c = c + xe'*obj.S*xe; % Quadratic in the error
         end
 
-        function dc_dx = calculatePartialWrtState(x,u,P)
-        %LOU.calculatePartialWrtState Calculates the partial of the cost wrt each state
+        function dc_dx = calculatePartialWrtState(obj,x,u)
+        %obj.calculatePartialWrtState Calculates the partial of the cost wrt each state
         %
         % Inputs:
         %   x: State (x_0 to x_N in a single column vector)
@@ -396,33 +453,33 @@ classdef LOU
         %   dc_dx: partial of the cost wrt the state
 
             % Reformulate the states to be in terms of the column vectors
-            [x_mat, ~] = LOU.getInputStateMatrices(x, u, P);
+            [x_mat, ~] = obj.getInputStateMatrices(x, u);
 
             % Initialize the gradient
-            ind_x = 1:P.n_x;
-            dc_dx = zeros(1, P.n_state);
-            for j = 1:P.N % Note that j = k+1
+            ind_x = 1:obj.n_x;
+            dc_dx = zeros(1, obj.n_state);
+            for j = 1:obj.N % Note that j = k+1
                 % Get the state error
                 xk = x_mat(:,j);
-                xd = P.xd(:,j);
-                xe = xk - xd;
+                xd_j = obj.xd(:,j);
+                xe = xk - xd_j;
 
                 % Calculate the partial (assuming Q = Q')
-                dc_dx(ind_x) = 2.*xe'*P.Q;
+                dc_dx(ind_x) = 2.*xe'*obj.Q;
 
                 % Increment the partial index
-                ind_x = ind_x + P.n_x;
+                ind_x = ind_x + obj.n_x;
             end
 
             % Calculate the partial for the terminal state
             xk = x_mat(:,end);
-            xd = P.xd(:,end);
-            xe = xk - xd;
-            dc_dx(ind_x) = 2.*xe'*P.S;    
+            xd_e = obj.xd(:,end);
+            xe = xk - xd_e;
+            dc_dx(ind_x) = 2.*xe'*obj.S;    
         end
 
-        function dc_du = calculatePartialWrtInput(x,u,P)
-        %LOU.calculatePartialWrtState Calculates the partial of the cost wrt each input
+        function dc_du = calculatePartialWrtInput(obj,x,u)
+        %obj.calculatePartialWrtState Calculates the partial of the cost wrt each input
         %
         % Inputs:
         %   x: State (x_0 to x_N in a single column vector)
@@ -433,26 +490,26 @@ classdef LOU
         %   dc_du: partial of the cost wrt the input
 
             % Reformulate the states to be in terms of the column vectors
-            [~, u_mat] = LOU.getInputStateMatrices(x, u, P);
+            [~, u_mat] = obj.getInputStateMatrices(x, u);
 
             % Initialize the gradient
-            ind_u = 1:P.n_u;
-            dc_du = zeros(1, P.n_ctrl);
-            for j = 1:P.N % Note that j = k+1
+            ind_u = 1:obj.n_u;
+            dc_du = zeros(1, obj.n_ctrl);
+            for j = 1:obj.N % Note that j = k+1
                 % Get the control input
                 uk = u_mat(:,j);
 
                 % Calculate the partial (assuming R = R')
-                dc_du(ind_u) = 2.*uk'*P.R;
+                dc_du(ind_u) = 2.*uk'*obj.R;
 
                 % Increment the partial index
-                ind_u = ind_u + P.n_u;
+                ind_u = ind_u + obj.n_u;
             end
         end
 
         %%% Sequential optimization functions
-        function dc_du = sequentialPartial(x, u, P)
-        %LOU.sequentialPartial: Calculates the partial of the cost wrt the input u
+        function dc_du = sequentialPartial(obj, x, u)
+        %obj.sequentialPartial: Calculates the partial of the cost wrt the input u
         % Note that the partial takes the form:
         %       dc/duk = dL/duk + lam_{k+1}^T df/duk
         % Inputs: 
@@ -464,14 +521,14 @@ classdef LOU
         %   dc_du: Partial of cost wrt the input
 
             % Initialize the partial
-            dc_du = zeros(P.n_u, P.N); % We will use one column per gradient and then reshape to make a row vector at the end
+            dc_du = zeros(obj.n_u, obj.N); % We will use one column per gradient and then reshape to make a row vector at the end
 
             % Reshape vectors for easy access
-            [x_mat, u_mat] = LOU.getInputStateMatrices(x, u, P);
+            [x_mat, u_mat] = obj.getInputStateMatrices(x, u);
 
             % Initialize final lagrange multiplier (lam_N = dphi/dx(x_N)
             ind_x = size(x_mat, 2); % Final column index corresponds to the final state
-            lam_kp1 = (2.*(x_mat(:,ind_x)-P.xd(:, ind_x))'*P.S)'; % dphi/dx(x_N) <-- This variable is used as lam_{k+1}
+            lam_kp1 = (2.*(x_mat(:,ind_x)-obj.xd(:, ind_x))'*obj.S)'; % dphi/dx(x_N) <-- This variable is used as lam_{k+1}
             lam_k = lam_kp1; % duplicate for initializaiton purposes (the loop moves backward 
                              % in time so at the beginning it changes iterations by
                              % setting lam_{k+1} = lam_k as k has been decremented
@@ -479,21 +536,21 @@ classdef LOU
             % Simulate backward in time
             ind_u = size(u_mat, 2); % Index of the uk at iteration k (start with last column for k = P.N-1
             ind_x = ind_x - 1; % Index of xk at iteration k (start with second to last column for k = P.N-1)
-            for k = (P.N-1):-1:0 % Simulate backwards in time
+            for k = (obj.N-1):-1:0 % Simulate backwards in time
                 % Extract the state and input
                 uk = u_mat(:,ind_u); % Input at iteration k
                 xk = x_mat(:, ind_x); % State at iteration k
                 lam_kp1 = lam_k; % Update k index for the lagrange multipliers - \lambda at iteration k+1
 
                 % Calculate partials needed for updates
-                dLk_duk = 2.*uk'*P.R;
-                dfk_duk = P.Bbar;
-                dfk_dxk = P.Abar;
+                dLk_duk = 2.*uk'*obj.R;
+                dfk_duk = obj.Bbar;
+                dfk_dxk = obj.Abar;
 
                 % Calculate partial of cost wrt state
-                xd = P.xd(:,ind_x);
-                xe = xk - xd;
-                dLk_dxk = 2.*xe'*P.Q; % Instantaneous cost does not depend on xk
+                xd_k = obj.xd(:,ind_x);
+                xe = xk - xd_k;
+                dLk_dxk = 2.*xe'*obj.Q; % Instantaneous cost does not depend on xk
 
                 % Calculate partial
                 dc_du(:, ind_u) = (dLk_duk + lam_kp1'*dfk_duk)'; % Transposed to fit in temporary variable
@@ -507,13 +564,12 @@ classdef LOU
             end
 
             % Reshape partial to be proper output
-            dc_du = reshape(dc_du, 1, P.n_ctrl); % changes it from partial in columns for each iteration to one single row
+            dc_du = reshape(dc_du, 1, obj.n_ctrl); % changes it from partial in columns for each iteration to one single row
         end
 
-
         %%%% Desired state functions
-        function xd_mat = calculateDesiredState(P, k_start)
-        %LOU.calculateDesiredState Calculates the desired states over the entire time
+        function xd_mat = calculateDesiredState(obj, k_start)
+        %obj.calculateDesiredState Calculates the desired states over the entire time
         %horizon from k = 0 to k = N
         %
         % Inputs:
@@ -523,21 +579,21 @@ classdef LOU
         %   xd_mat: desired state where each column corresponds to a discrete index
         
             % Initialize the desired state matrix
-            xd_mat = zeros(P.n_x, P.N+1);
+            xd_mat = zeros(obj.n_x, obj.N+1);
             
             % Loop through all discrete time values
             col_ind = 1;
-            k_ind = [0:P.N] + k_start;
+            k_ind = (0:obj.N) + k_start;
             for k = k_ind
-                xd_mat(:,col_ind) = LOU.getDesiredState(k, P);
+                xd_mat(:,col_ind) = obj.getDesiredState(k);
                 
                 % Increment column index
                 col_ind = col_ind + 1;
             end
         end
 
-%         function xd_mat = calculateDesiredState(P)
-%         %LOU.calculateDesiredState Calculates the desired states over the entire time
+%         function xd_mat = calculateDesiredState(obj)
+%         %obj.calculateDesiredState Calculates the desired states over the entire time
 %         %horizon from k = 0 to k = N
 %         %
 %         % Inputs:
@@ -578,8 +634,8 @@ classdef LOU
 % 
 %         end
 
-        function xd = getDesiredState(k, P)
-        %LOU.getDesiredState calculates the desired state given the discrete index, k
+        function xd = getDesiredState(obj, k)
+        %obj.getDesiredState calculates the desired state given the discrete index, k
         %
         % Inputs:
         %   k: discrete index between 0 and P.N
@@ -589,10 +645,10 @@ classdef LOU
         %   xd: Desired state for x_k
 
             % Calculate the time for which k corresponds
-            t = k*P.dt;
+            t = k*obj.dt;
 
             % Calcualte the state (right now it is a sinusoid)
-            xd = zeros(P.n_x, 1);
+            xd = zeros(obj.n_x, 1);
             xd(1) = sin(t); % Position
             xd(2) = t; 
             xd(3) = cos(t); % Velocity
@@ -603,8 +659,8 @@ classdef LOU
 %             xd(8) = 0;
         end
 
-        function ud_mat = calculateDesiredInput(P, k_start)
-        %LOU.calculateDesiredInput Calculates the desired input over the entire time
+        function ud_mat = calculateDesiredInput(obj, k_start)
+        %obj.calculateDesiredInput Calculates the desired input over the entire time
         %horizon from k = 0 to k = N-1
         %
         % Inputs:
@@ -614,21 +670,21 @@ classdef LOU
         %   ud_mat: desired input where each column corresponds to a discrete index
 
             % Initialize the desired state matrix
-            ud_mat = zeros(P.n_u, P.N);
+            ud_mat = zeros(obj.n_u, obj.N);
 
             % Loop through all discrete time values
             col_ind = 1;
-            k_ind = [0:P.N-1] + k_start;
+            k_ind = (0:obj.N-1) + k_start;
             for k = k_ind
-                ud_mat(:,col_ind) = LOU.getDesiredInput(k, P);
+                ud_mat(:,col_ind) = obj.getDesiredInput(k);
 
                 % Increment column index
                 col_ind = col_ind + 1;
             end
         end
 
-        function ud = getDesiredInput(k, P)
-        %LOU.getDesiredInput calculates the desired input given the discrete index, k
+        function ud = getDesiredInput(obj, k)
+        %obj.getDesiredInput calculates the desired input given the discrete index, k
         %
         % Inputs:
         %   k: discrete index between 0 and P.N
@@ -638,18 +694,18 @@ classdef LOU
         %   xd: Desired state for x_k
 
             % Calculate the time for which k corresponds
-            t = k*P.dt;
+            t = k*obj.dt;
 
             % Calcualte the state (right now it is a sinusoid)
-            ud = zeros(P.n_u, 1);
+            ud = zeros(obj.n_u, 1);
             ud(1) = -cos(t); % Jerk
             %ud(1) = sin(t); % Snap
             ud(2) = 0;     
         end
 
         %%%% State access functions
-        function [x_mat, u_mat] = getInputStateMatrices(x, u, P)
-        % LOU.getInputStateMatrices converts the vector state and input to a matrix where each column
+        function [x_mat, u_mat] = getInputStateMatrices(obj, x, u)
+        % obj.getInputStateMatrices converts the vector state and input to a matrix where each column
         % corresponds to an iteration time
         %
         % Inputs:
@@ -662,12 +718,12 @@ classdef LOU
         %          P.N+1
         %   u_mat: Matrix of inputs, number of rows = P.n_u and number of columns =
         %          P.N
-            x_mat = LOU.getStateMatrix(x, P);
-            u_mat = LOU.getInputMatrix(u, P);
+            x_mat = obj.getStateMatrix(x);
+            u_mat = obj.getInputMatrix(u);
         end
 
-        function u_mat = getInputMatrix(u, P)
-        % LOU.getInputMatrix converts the vector input to a matrix where each column
+        function u_mat = getInputMatrix(obj, u)
+        % obj.getInputMatrix converts the vector input to a matrix where each column
         % corresponds to an iteration time
         %
         % Inputs:
@@ -677,11 +733,11 @@ classdef LOU
         % Outputs:
         %   u_mat: Matrix of inputs, number of rows = P.n_u and number of columns =
         %   P.N
-            u_mat = reshape(u, P.n_u, P.N);
+            u_mat = reshape(u, obj.n_u, obj.N);
         end
 
-        function x_mat = getStateMatrix(x, P)
-        % LOU.getStateMatrix converts the vector state to a matrix where each column
+        function x_mat = getStateMatrix(obj, x)
+        % obj.getStateMatrix converts the vector state to a matrix where each column
         % corresponds to an iteration time
         %
         % Inputs:
@@ -691,11 +747,11 @@ classdef LOU
         % Outputs:
         %   x_mat: Matrix of states, number of rows = P.n_x and number of columns =
         %   P.N+1
-            x_mat = reshape(x, P.n_x, P.N+1);
+            x_mat = reshape(x, obj.n_x, obj.N+1);
         end
 
-        function [x, u] = extractStateAndControl(y, P)
-        % LOU.sequentialOptimization extracts the state, x, and control, u, from the
+        function [x, u] = extractStateAndControl(obj, y)
+        % obj.sequentialOptimization extracts the state, x, and control, u, from the
         % aggregate optimization variables y = [x; u]
         %
         % Inputs:
@@ -708,41 +764,41 @@ classdef LOU
         %
 
             % Separate out the states
-            x = y(1:P.n_state);
-            u = y(P.n_state+1:end);
+            x = y(1:obj.n_state);
+            u = y(obj.n_state+1:end);
         end
 
-        function [Abar, Bbar] = calculateDiscreteTimeMatrices(P)
+        function [Abar, Bbar] = calculateDiscreteTimeMatrices(obj)
 
             % Calculate the discrete time state matrix
-            Abar = expm(P.A*P.dt);
+            Abar = expm(obj.A*obj.dt);
 
             % Calculate the discrete time input matrix
-            b0 = zeros(P.n_x*P.n_x, 1);
-            [~, Bbar_mat] = ode45(@(t, x) bBarDynamics(t, x, P), [0, P.dt], b0);
+            b0 = zeros(obj.n_x*obj.n_x, 1);
+            [~, Bbar_mat] = ode45(@(t, x) obj.bBarDynamics(t, x), [0, obj.dt], b0);
             Bbar_mat = Bbar_mat';
-            Bbar = reshape(Bbar_mat(:, end), P.n_x, P.n_x)*P.B;
-
-            % Dynamics function for calculating Bbar
-            function b_dot = bBarDynamics(tau, b_bar, P)
-                b_dot = expm(P.A*(P.dt-tau)); % Calculate the time derivative at tau
-                b_dot = reshape(b_dot, P.n_x*P.n_x, 1); % Reshape to a column vector
-            end
+            Bbar = reshape(Bbar_mat(:, end), obj.n_x, obj.n_x)*obj.B;
+        end
+        
+        % Dynamics function for calculating Bbar
+        function b_dot = bBarDynamics(obj, tau, ~)
+            b_dot = expm(obj.A*(obj.dt-tau)); % Calculate the time derivative at tau
+            b_dot = reshape(b_dot, obj.n_x*obj.n_x, 1); % Reshape to a column vector
         end
 
         %%%% Test and plotting functions
-        function plotStateAndInput(x, u, P)
+        function plotStateAndInput(obj, x, u)
             % Get the state and input in matrix form
-            [x_mat, u_mat] = LOU.getInputStateMatrices(x, u, P);
+            [x_mat, u_mat] = obj.getInputStateMatrices(x, u);
 
             % Plot the state
             figure;
             names = {'x_1', 'x_2', 'xd_1', 'xd_2', 'xdd_1', 'xdd_2', 'xddd_1', 'xddd_2'};
             sub_plot_ind = 1;
-            for k = 1:P.n_x
+            for k = 1:obj.n_x
                 % Plot the desired state
-                subplot(P.n_x, 2, sub_plot_ind);
-                plot(P.xd(k,:), 'r:', 'linewidth', 3); hold on;
+                subplot(obj.n_x, 2, sub_plot_ind);
+                plot(obj.xd(k,:), 'r:', 'linewidth', 3); hold on;
 
                 % Plot the actual state
                 plot(x_mat(k,:), 'b', 'linewidth', 2);
@@ -755,10 +811,10 @@ classdef LOU
             % Plot the inputs
             names = {'u_1', 'u_2'};
             sub_plot_ind = 2;
-            for k = 1:P.n_u
+            for k = 1:obj.n_u
                 % Plot the desired state
-                subplot(P.n_x, 2, sub_plot_ind);
-                plot(P.ud(k,:), 'r:', 'linewidth', 3); hold on;
+                subplot(obj.n_x, 2, sub_plot_ind);
+                plot(obj.ud(k,:), 'r:', 'linewidth', 3); hold on;
 
                 % Plot the actual state
                 plot(u_mat(k,:), 'b', 'linewidth', 2);
@@ -769,49 +825,49 @@ classdef LOU
             end
         end
 
-        function [h_d, h_x] = plot2dPosition(x, P, ax, h_d, h_x)
+        function [h_d, h_x] = plot2dPosition(obj, x, ax, h_d, h_x)
             % Extract data
-            x_mat = LOU.getStateMatrix(x, P);
+            x_mat = obj.getStateMatrix(x);
 
             % Plot the results
             if isempty(h_d)
-                h_d = plot(ax, P.xd(1, :), P.xd(2, :), 'r:', 'linewidth', 3); hold on;
+                h_d = plot(ax, obj.xd(1, :), obj.xd(2, :), 'r:', 'linewidth', 3); hold on;
                 h_x = plot(ax, x_mat(1,:), x_mat(2,:), 'b', 'linewidth', 2);   
             else
-                set(h_d, 'xdata', P.xd(1, :), 'ydata', P.xd(2, :));
+                set(h_d, 'xdata', obj.xd(1, :), 'ydata', obj.xd(2, :));
                 set(h_x, 'xdata', x_mat(1,:), 'ydata', x_mat(2,:));
             end
         end
 
-        function testDiscreteDynamics(P)
+        function testDiscreteDynamics(obj)
             % Choose a random first state and control input
-            x0 = rand(P.n_x, 1)*100;
-            u = rand(P.n_u, 1)*10;
+            x0_test = rand(obj.n_x, 1)*100;
+            u = rand(obj.n_u, 1)*10;
 
             % Take a continuous-time step for the sampling interval
-            [tmat, xmat] = ode45(@(t, x) LOU.continuousDynamics(t, x, u, P), [0 P.dt], x0);
+            [tmat, xmat] = ode45(@(t, x) obj.continuousDynamics(t, x, u), [0 obj.dt], x0_test);
             xmat = xmat';
 
             % Take a discrete-time step for the sampling interval
-            x1_disc = P.Abar*x0 + P.Bbar*u;
+            x1_disc = obj.Abar*x0_test + obj.Bbar*u;
 
             % Plot the continuous and discrete trajectories
             figure;
             names = {'x_1', 'x_2', 'xd_1', 'xd_2', 'xdd_1', 'xdd_2', 'xddd_1', 'xddd_2'};
-            for k = 1:P.n_x
+            for k = 1:obj.n_x
                 % Plot the continuous trajectory
-                subplot(P.n_x, 1, k);
+                subplot(obj.n_x, 1, k);
                 plot(tmat, xmat(k,:), 'b', 'linewidth', 2); hold on;
 
                 % Plot the discrete trajectory
-                plot([0 P.dt], [x0(k) x1_disc(k)], 'ro', 'linewidth', 2);
+                plot([0 obj.dt], [x0_test(k) x1_disc(k)], 'ro', 'linewidth', 2);
                 ylabel(names{k});        
             end
             xlabel('time');
         end
 
-        function xdot = continuousDynamics(t, x, u, P)
-        xdot = P.A * x + P.B*u;
+        function xdot = continuousDynamics(obj, ~, x, u)
+            xdot = obj.A * x + obj.B*u;
         end
 
     end
