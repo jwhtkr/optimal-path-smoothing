@@ -24,14 +24,14 @@ close all;
     h_x = [];
     
     % Optimize
-    for k = 0:10
+    for k = 0:100000
         % Calculate desired state and inputs
         P.xd = P.calculateDesiredState(k);
         P.ud = P.calculateDesiredInput(k);
     
         % Optimize
         tic
-        %[x, u] = P.simultaneousOptimization(x0, u0, P);
+        %[x, u] = P.simultaneousOptimization(x0, u0);
         [x, u] = P.sequentialOptimization(u0);
         time_opt = toc
         
@@ -43,8 +43,7 @@ close all;
         xf = x(end-P.n_x+1:end);
         u0 = [u(P.n_u+1:end); zeros(P.n_u, 1)];
         x0 = [x(P.n_x+1:end); P.Abar*xf];
-        P.x0 = x0(1:P.n_x);
-        
+        P.x0 = x0(1:P.n_x);        
     end
     
     % Plot the results
