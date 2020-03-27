@@ -13,6 +13,8 @@ function smoothed_traj = SmoothTrajOpt(traj_mat, Q, R, S, A_c, b_c)
 %               number of constraints at each time instance.
 %   @param b_c: the linear inequality constraints for each time step as a
 %               matrix of size: (p,N) with p,N as previously defined.
+%   @return smoothed_traj: the optimally smoothed trajectory as a matrix
+%                          the same size as traj_mat
 
 
 end

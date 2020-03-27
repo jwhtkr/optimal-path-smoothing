@@ -6,7 +6,9 @@ function smoothed_traj = SmoothFollowerTraj(follower_traj, leader_traj, A_begin,
 %   @param A_begin: the position linear constraint A matrix (from Voronoi) 
 %                   for this follower at time zero.
 %   @param b_begin: the position linear constraint b vector (from Voronoi)
-%                   for this follower at time zero.
+%                   for this follower at time zero.\
+%   @return smoothed_traj: the optimally smoothed trajectory as a
+%                          Trajectory2D object
 %
 %   A_begin and b_begin are such that A_begin * [x;y] <= b_begin represent
 %   the linear inequalities that bound the starting point of this follower
@@ -25,7 +27,23 @@ Q = diag([1 1 0 0 0 0 0 0 0 0]);
 R = diag([1 1]);
 S = diag([1 1 0 0 0 0 0 0 0 0]);
 
-smoothed_traj = SmoothTrajOpt(xd_mat, Q, R, S, A, b);
+% Get optimally smoothed trajectory as a matrix
+smoothed_traj_mat = SmoothTrajOpt(xd_mat, Q, R, S, A, b);
+
+% Convert to Trajectory2D object
+smoothed_traj = Trajectory2D();
+smoothed_traj.x = smoothed_traj_mat(1,1,:);
+smoothed_traj.xdot = smoothed_traj_mat(1,2,:);
+smoothed_traj.xddot = smoothed_traj_mat(1,3,:);
+smoothed_traj.xdddot = smoothed_traj_mat(1,4,:);
+smoothed_traj.xddddot = smoothed_traj_mat(1,5,:);
+smoothed_traj.y = smoothed_traj_mat(2,1,:);
+smoothed_traj.ydot = smoothed_traj_mat(2,2,:);
+smoothed_traj.yddot = smoothed_traj_mat(2,3,:);
+smoothed_traj.ydddot = smoothed_traj_mat(2,4,:);
+smoothed_traj.yddddot = smoothed_traj_mat(2,5,:);
+% Update the other trajectory vals based on x,y and their derivatives
+smoothed_traj.updateTrajWithPositionalValues();
 end
 
 function R = R_leader(psi)
