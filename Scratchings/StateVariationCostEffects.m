@@ -1,23 +1,6 @@
 
-
-
 % Clear previous work
 clc; close all; clear all;
-
-% Configure file path
-addpath Dependencies
-addpath Dependencies/intersections
-addpath Scenarios
-addpath Sensors
-addpath VectorFields
-addpath Vehicle
-addpath Vehicle/Kinematics
-addpath World
-addpath TrajectoryPlanners/MultiArcBased/Opt_dep
-addpath TrajectoryPlanners/Clothoid
-addpath TrajectoryPlanners
-
-
 
 % Sim variables
 dt = .01;       % sim time step
@@ -134,8 +117,8 @@ xlabel('yaw')
 
 ind = 4;
 subplot(5,1,ind)
-plot(vel_range,cond4_inequality(ind,:)); hold on;
-plot([vel_range(1) vel_range(end)],[0 0], ':r');
+plot(trajectory.v(1) - vel_range ,cond4_inequality(ind,:)); hold on;
+plot(trajectory.v(1) - [vel_range(1) vel_range(end)],[0 0], ':r');
 xlabel('velocity')
 
 ind = 5;

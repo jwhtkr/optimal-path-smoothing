@@ -33,12 +33,12 @@ function launch()
     
    
 % state variation testing sim
-    path = [0 0; 2 4; 5 -2.5; 7.75 4.5];
-    scenario = SingleAgentParamOptScenario(EmptyWorld, BetterUnicycleVehicle([0;0;1.107148717794090;1;0]),path);
+%     path = [0 0; 2 4; 5 -2.5; 7.75 4.5];
+%     scenario = SingleAgentParamOptScenario(EmptyWorld, BetterUnicycleVehicle([0;0;1.107148717794090;1;0]),path);
     
 % Example 1
-%     path = [0 0; 12 0; 12 8; 20 8; 20 0];
-%     scenario = SingleAgentParamOptScenario(CorridorWorld, BetterUnicycleVehicle([0;0;0;1;0]),path);
+    path = [0 0; 12 0; 12 8; 20 8; 20 0];
+    scenario = SingleAgentParamOptScenario(CorridorWorld, BetterUnicycleVehicle([0;0;0;1;0]),path);
 % Example 2
 %     path = [0 0; 2 4; 5 -2.5; 7.75 4.5; 11 -2.5; 15 11; 20 8; 20 0];
 %     scenario = SingleAgentParamOptScenario(CorridorWorldStraight, BetterUnicycleVehicle([0;0;1.107148717794090;1;0]),path); 

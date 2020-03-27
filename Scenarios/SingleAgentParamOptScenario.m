@@ -39,38 +39,38 @@ classdef SingleAgentParamOptScenario < Scenario
             
             obj.planner.xd = obj.trajectory.stateAtTime(t+obj.planner.tf); %obj.leader.getDesiredFollowerGoal(k);
             
-% %             obj.planner.leader_traj = obj.leader.trajectory;
-%             [xo,yo,do] = obj.vehicle.getObstacleDetections(obj.world);
-%             obj.planner.setObstacles(xo,yo,do);
-%             % method to calculate desired velocities
-% 
-%             u_agent = obj.planner.minimize(t,obj.vehicle.x,obj.vehicle.u_init);
-%             obj.vehicle.v_d = u_agent(obj.planner.ind_v1);
-%             obj.vehicle.w_d = u_agent(obj.planner.ind_w1);
-%             if u_agent(obj.planner.ind_time1) == 0 
-%                 obj.vehicle.v_d = u_agent(obj.planner.ind_v2);
-%                 obj.vehicle.w_d = u_agent(obj.planner.ind_w2);
-%                 if u_agent(obj.planner.ind_time2) == 0 
-%                     obj.vehicle.v_d = u_agent(obj.planner.ind_v3);
-%                     obj.vehicle.w_d = u_agent(obj.planner.ind_w3);
-%                 end
-%             end
-%             obj.vehicle.u_init = u_agent;
-%             if u_agent(obj.planner.ind_time1) == 0 && u_agent(obj.planner.ind_time2) == 0 && u_agent(obj.planner.ind_time3) == 0 
-%                 u = obj.trackControl(t);
-%             else
-%                 u = obj.vehicle.velocityControl(obj.vehicle.v_d, obj.vehicle.w_d, obj.vehicle.x);
-%             end
+%             obj.planner.leader_traj = obj.leader.trajectory;
+            [xo,yo,do] = obj.vehicle.getObstacleDetections(obj.world);
+            obj.planner.setObstacles(xo,yo,do);
+            % method to calculate desired velocities
 
-            u_agent = [0;0;0;0;0;0;0;0;0];
-            obj.planner.reset(x);
-            obj.planner.t_sim = t;
+            u_agent = obj.planner.minimize(t,obj.vehicle.x,obj.vehicle.u_init);
+            obj.vehicle.v_d = u_agent(obj.planner.ind_v1);
+            obj.vehicle.w_d = u_agent(obj.planner.ind_w1);
+            if u_agent(obj.planner.ind_time1) == 0 
+                obj.vehicle.v_d = u_agent(obj.planner.ind_v2);
+                obj.vehicle.w_d = u_agent(obj.planner.ind_w2);
+                if u_agent(obj.planner.ind_time2) == 0 
+                    obj.vehicle.v_d = u_agent(obj.planner.ind_v3);
+                    obj.vehicle.w_d = u_agent(obj.planner.ind_w3);
+                end
+            end
+            obj.vehicle.u_init = u_agent;
+            if u_agent(obj.planner.ind_time1) == 0 && u_agent(obj.planner.ind_time2) == 0 && u_agent(obj.planner.ind_time3) == 0 
+                u = obj.trackControl(t);
+            else
+                u = obj.vehicle.velocityControl(obj.vehicle.v_d, obj.vehicle.w_d, obj.vehicle.x);
+            end
+
+%             u_agent = [0;0;0;0;0;0;0;0;0];
+%             obj.planner.reset(x);
+%             obj.planner.t_sim = t;
             obj.dphi_dx = [obj.dphi_dx; obj.planner.terminalStatePartial(x)];
             obj.f = [obj.f obj.planner.unicycleDualModeDynamics(obj.planner.dt, x, u_agent) - obj.trajectory.xdotAtTime(t)];
             obj.L = [obj.L; obj.planner.instantaneousCost(obj.planner.dt, x, u_agent)];
 %             cost = obj.planner.cost([0;0;0;0;0;0;0;0;0])
             obj.cost = [obj.cost; obj.planner.cost(u_agent)];
-            u = obj.trackControl(t);
+%             u = obj.trackControl(t);
 
         end
         

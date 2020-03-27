@@ -9,7 +9,7 @@ classdef Scenario < handle
         % Simulation parameters
         plot_during_sim; % true => plot while simulating (requires euler integration)
         t0 = 0; % Initial time of simulation
-        dt = 0.001; % Simulation step size
+        dt = 0.05; % Simulation step size
         tf = 40; % Final time of simulation
         
         % Simulation results
