@@ -8,7 +8,8 @@ close all;
     A = [Z I Z; Z Z I; Z Z Z]; % state matrix
     B = [Z; Z; I]; % Input matrix
     
-    P = LinearSystemQuadraticCost(A, B, 50);
+    %P = LinearSystemQuadraticCost(A, B, 50);
+    P = LinearSystemQuadraticCostOSQP(A, B, 50, [], [], []);
     
     % Test the discrete dynamics
     P.testDiscreteDynamics();
@@ -37,8 +38,8 @@ close all;
     
         % Optimize
         tic
-        %[x, u] = P.simultaneousOptimization(x0, u0);
-        [x, u] = P.sequentialOptimization(u0);
+        [x, u] = P.simultaneousOptimization(x0, u0);
+        %[x, u] = P.sequentialOptimization(u0);
         time_opt = toc
         
         % Store the updated data

@@ -86,6 +86,20 @@ classdef LinearSystemQuadraticCostOSQP < LinearSystemQuadraticCost
             obj.l = [b_eq; l_c];
             obj.u = [b_eq; u_c];
         end
+        
+        function obj = setInitialState(obj, x0)
+        %setInitialState stores the initial state
+            obj = setInitialState@LinearSystemQuadraticCost(obj, x0);
+            
+            % Set the upper and lower bounds for the solver
+            obj.l(1:obj.n_x) = -obj.x0;
+            obj.u(1:obj.n_x) = -obj.x0;
+            
+            % Set the new constraints for the system (note: we could
+            % probably do away with this if we didn't allow x0 to be a
+            % variable of optimization)
+            obj.solver.update('l', obj.l, 'u', obj.u);
+        end
     end
     
     methods
