@@ -21,10 +21,15 @@ classdef LinearSystemQuadraticCostOSQP < LinearSystemQuadraticCost
         u
         A_constraints
         solver
+        
+        % Additional constraints
+        A_c = []
+        l_c = []
+        u_c = []
     end
     
     methods
-        function obj = LinearSystemQuadraticCostOSQP(A, B, N, A_c, l_c, u_c)
+        function obj = LinearSystemQuadraticCostOSQP(A, B, N, dt, A_c, l_c, u_c)
             %LINEARSYSTEMQUADRATICCOSTOSQP Construct an instance of this class
             %   @param A: Continuous-time state matrix
             %   @param B: Continuous-time input matrix
@@ -36,10 +41,10 @@ classdef LinearSystemQuadraticCostOSQP < LinearSystemQuadraticCost
             %   A_c, l_c, and u_c can be passed in as empty arrays if not
             %   applicable to the problem.
             
-            obj = obj@LinearSystemQuadraticCost(A, B, N);
-            obj = obj.calculateLinearConstraints(A_c, l_c, u_c);
-            obj.solver = osqp;
-            obj.solver.setup(obj.P, obj.q, obj.A_constraints, obj.l, obj.u);
+            obj = obj@LinearSystemQuadraticCost(A, B, N, dt);
+            obj.A_c = A_c;
+            obj.l_c = l_c;
+            obj.u_c = u_c;
         end
         
         function obj = initializeParameters(obj)
@@ -71,6 +76,11 @@ classdef LinearSystemQuadraticCostOSQP < LinearSystemQuadraticCost
                                        % zeros in q corresponding to the u 
                                        % portion of y
             obj.q = -obj.P * [xd; ud];
+            
+            % Setup solver
+            obj = obj.calculateLinearConstraints(obj.A_c, obj.l_c, obj.u_c);
+            obj.solver = osqp;
+            obj.solver.setup(obj.P, obj.q, obj.A_constraints, obj.l, obj.u);
         end
         
         function obj = calculateLinearConstraints(obj, A_c, l_c, u_c)
@@ -81,10 +91,10 @@ classdef LinearSystemQuadraticCostOSQP < LinearSystemQuadraticCost
             % get the equality constraints corresponding to the dynamics
             [A_eq, b_eq] = obj.calculateStepwiseEquality();
             % append the other linear constraints
-            obj.A_constraints = [A_eq; A_c];
+            obj.A_constraints = [A_eq; eye(obj.n_ctrl + obj.n_state); A_c];
             % with the appropriate lower and upper bounds
-            obj.l = [b_eq; l_c];
-            obj.u = [b_eq; u_c];
+            obj.l = [b_eq; obj.P_simult.lb; l_c];
+            obj.u = [b_eq; obj.P_simult.ub; u_c];
         end
         
         function obj = setInitialState(obj, x0)

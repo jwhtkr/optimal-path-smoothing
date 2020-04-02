@@ -27,9 +27,16 @@ classdef BetterUnicycleVehicle < Vehicle
         v_d;
         w_d;
         
+    end
+    
+    properties(Constant)
+        % Additional state variables
         v_ind = 4;
         w_ind = 5;
         
+        % Input indices
+        u_a_ind = 1; % Translational acceleration input
+        u_alpha_ind = 2; % Rotational acceleration input
     end
     
     methods

@@ -16,8 +16,6 @@ classdef MultiAgentScenario < handle
         plot_during_sim; % true => plot while simulating (requires euler integration)
         make_movie = false; % true => Movie will be made during plot
         video % Stores all frames of a movie
-        t0 = 0; % Initial time of simulation
-        dt = 0.05; % Simulation step size
         tf = 40; % Final time of simulation
         plotters % Cell structure holding instances of the Plotter class
         n_plotters % Number of plotters
@@ -29,6 +27,11 @@ classdef MultiAgentScenario < handle
         % Plotting updates
         T = .2 % Plotting period
         t_latest = tic % Timer for plotting
+    end
+    
+    properties(Constant)
+        t0 = 0; % Initial time of simulation
+        dt = 0.05; % Simulation step size        
     end
     
     methods(Abstract)
@@ -179,7 +182,7 @@ classdef MultiAgentScenario < handle
                 
                 % Plot the state
                 obj.storeNewStateData(t, k, x_t);
-                if obj.isPlotReady() || obj.make_movie 
+                if true %obj.isPlotReady() || obj.make_movie 
                     obj.plotState(t);
                     obj.plotWorld(t); 
                     pause(obj.dt/4);
@@ -201,6 +204,15 @@ classdef MultiAgentScenario < handle
         
         function ind = getStateIndex(obj, t)
             ind = (t-obj.t0)/obj.dt;
+        end
+    end
+    
+    %%% Static methods
+    methods(Static)
+        function step = convertTimeToStep(t)
+        %convertTimeToStep takes in input time and converts it to a
+        %discrete index
+            step = round( (t - MultiAgentScenario.t0) ./ MultiAgentScenario.dt) + 1; % +1 for matlab's 1-indexing            
         end
     end
 end

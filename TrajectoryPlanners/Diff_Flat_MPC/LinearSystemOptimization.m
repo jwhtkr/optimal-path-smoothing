@@ -4,7 +4,7 @@ classdef LinearSystemOptimization
         B % continuous time input matrix
         Abar % discrete time state matrix
         Bbar % discrete time state matrix
-        dt = 0.1; % Discrete time interval
+        dt % Discrete time interval
         n_x % Number of states
         n_u % Number of inputs
         
@@ -35,23 +35,24 @@ classdef LinearSystemOptimization
     
     %%% Initialization functions %%%
     methods
-        function obj = LinearSystemOptimization(A, B, N)
+        function obj = LinearSystemOptimization(A, B, N, dt)
             %LOU Construct an instance of this class
             %
             % Inputs:
             %   A: Continous-time state matrix
             %   B: Continuous-time input matrix
+            %   N: Number of steps
+            %   dt: Discrete time interval
             
             % Store inputs
             obj.A = A;
             obj.B = B;
             obj.N = N;
+            obj.dt = dt;
             
             % Process state variables
             obj.n_x = size(A, 1);
             obj.n_u = size(B, 2);
-            
-            obj = obj.initializeParameters();
         end
         
         function obj = initializeParameters(obj)

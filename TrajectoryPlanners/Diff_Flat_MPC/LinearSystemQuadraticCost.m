@@ -7,8 +7,8 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
         
         % Variable bounds
         u_max = [1; 1];
-        x_max = [10.1; 10.1; 5; 5; 5; 5];
-        x_min = [-1; -1; -5; -5; -5; -5];
+        x_max = [10; 10; 0.5; 0.5; 5; 5];
+        x_min = [-1; -1; -0.5; -0.5; -5; -5];
 %         x_max = inf.*ones(6, 1);
 %         x_min = -inf.*ones(6, 1);
         
@@ -19,14 +19,14 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
     
     %%% Initialization functions %%%
     methods
-        function obj = LinearSystemQuadraticCost(A, B, N)
+        function obj = LinearSystemQuadraticCost(A, B, N, dt)
             %Construct an instance of this class
             %
             % Inputs:
             %   A: Continous-time state matrix
             %   B: Continuous-time input matrix
             
-            obj = obj@LinearSystemOptimization(A, B, N);
+            obj = obj@LinearSystemOptimization(A, B, N, dt);
         end
         
         function obj = initializeParameters(obj)
@@ -59,6 +59,21 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
             obj.P_simult.lb = [lb_state; lb_ctrl];
             obj.P_simult.ub = [ub_state; ub_ctrl];
             obj.P_simult.options.Display = 'notify-detailed';
+        end
+        
+        function obj = updateSimBounds(obj, x_min, x_max, u_max)
+        %updateSimBounds updates the bounds on the state and control (it is
+        %assumed that the control bounds are symmetric)
+        %
+        % Inputs:
+        %   x_min: 6x1 vector describing the lower bounds for the states
+        %   x_max: 6x1 vector describing the upper bounds for the states
+        %   u_max: 2x1 vector describing the upper bounds for the control
+        %   and the lower bound using -u_max
+            obj.x_min = x_min;
+            obj.x_max = x_max;
+            obj.u_max = u_max;
+            obj = obj.initializeParameters();
         end
     end
     
