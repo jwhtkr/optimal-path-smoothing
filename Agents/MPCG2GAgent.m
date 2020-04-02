@@ -23,21 +23,31 @@ classdef MPCG2GAgent < SingleAgent
             obj = obj@SingleAgent(BetterUnicycleVehicle(x0), world);
             obj.vehicle.sensor.initializeSensor(obj.n_sensors, obj.max_sensor_range);
             
+            % Initialize epsilon control
+            obj.vehicle.use_dim_eps = false; % Do not have epsilon diminish
+            obj.vehicle.eps_path = 0.2;
+            
             % Store the desired end state
             xd = [qd; zeros(3,1)];
             
             % Create the continuous time linear system
             Z = zeros(2); % 2x2 matrix of zeros
             I = eye(2); % 2x2 identity matrix
-            A = [Z I Z; Z Z I; Z Z Z]; % state matrix
-            B = [Z; Z; I]; % Input matrix            
+            A = [Z I Z Z; Z Z I Z; Z Z Z I; Z Z Z Z]; % state matrix
+            B = [Z; Z; Z; I]; % Input matrix           
             
             % Create MPC solver
             obj.solver = LinearSystemQuadraticCostOSQP(A, B, 100, MultiAgentScenario.dt, [], [], []);
             obj.solver = obj.solver.initializeParameters();
             
+            % Set state and input bounds
+            x_max = [10; 10; 0.5; 0.5; 1; 1; 5; 5];
+            x_min = -x_max;
+            u_max = [1.0; 1.0];
+            obj.solver = obj.solver.updateSimBounds(x_min, x_max, u_max);
+            
             % Set initial state of the MPC
-            obj.x_flat_latest = obj.getFlatStateFromVehicleState(x0, [0;0]);
+            obj.x_flat_latest = [obj.getFlatStateFromVehicleState(x0, [0;0]); 0; 0];
             obj.solver = obj.solver.setInitialState(obj.x_flat_latest);
             
             % Create the initial input and state for warm starting
@@ -50,7 +60,7 @@ classdef MPCG2GAgent < SingleAgent
         end
         
         %%%%  Superclass Method Implementation %%%%
-        function u = control(obj, t, x, ~)
+        function u = control(obj, t, x_state, ~)
             % Set the desired states in the MPC for differentially flat
             % state
             k = MultiAgentScenario.convertTimeToStep(t);
@@ -64,6 +74,9 @@ classdef MPCG2GAgent < SingleAgent
             
             % Extract the desired state
             obj.x_flat_latest = x(1:obj.solver.n_x);
+            qd = obj.x_flat_latest(1:2);
+            qd_dot = obj.x_flat_latest(3:4);
+            qd_ddot = obj.x_flat_latest(5:6);
             
             % Update for the next iteration
             xf = x(end-obj.solver.n_x+1:end);
@@ -71,17 +84,11 @@ classdef MPCG2GAgent < SingleAgent
             obj.x_warm = [x(obj.solver.n_x+1:end); obj.solver.Abar*xf];
             obj.solver = obj.solver.setInitialState(obj.x_warm(1:obj.solver.n_x));    
             
-            % Calculate the current state in the differentially flat
-            % coordinate system
-            
-            % Update the initial state
-            
-            % Calculate the MPC
-            
-            % Calculate the first control
+            % Calculate the epsilon tracking control
+            u = obj.vehicle.pathControl(t, qd, qd_dot, qd_ddot, x_state);
             
             % MPC here
-            u = [0;0];
+            %u = [0;0];
         end
     end
     

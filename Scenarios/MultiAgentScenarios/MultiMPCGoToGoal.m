@@ -12,6 +12,9 @@ classdef MultiMPCGoToGoal < MultiAgentScenario
         
         % Plotting flags for results
         plot_agent_traj_results = true; % true => each agent's actual trajectory will be overlayed onto the world plot
+        
+        % Storage for the desired differentially flat state
+        x_diff_flat = {}
     end
     
     methods
@@ -80,11 +83,74 @@ classdef MultiMPCGoToGoal < MultiAgentScenario
                     y_ind = obj.state_ind{i}(2);
 
                     % Plot the actual trajectory
-                    plot(obj.xmat(x_ind, :), obj.xmat(y_ind, :), 'linewidth', 2, 'color', obj.agent_colors(i,:));
+                    plot(obj.xmat(x_ind, :), obj.xmat(y_ind, :), ':', 'linewidth', 2, 'color', obj.agent_colors(i,:));
                 end
             end
             
+            % Loop through and plot position error for each agent
+            for i = 1:obj.n_agents
+                % Create a figure for the actual and desired positions
+                figure('units', 'normalized', 'outerposition', [0 0 1 1])
+                
+                % Get the state indices
+                x_ind = obj.state_ind{i}(1);
+                y_ind = obj.state_ind{i}(2);
+                
+                % Plot the trajectory
+                subplot(4, 1, 1);
+                plot(obj.x_diff_flat{i}(1, :), obj.x_diff_flat{i}(2, :), 'r:', 'linewidth', 3); hold on;
+                plot(obj.xmat(x_ind, :), obj.xmat(y_ind, :), 'b', 'linewidth', 2); hold on;
+                
+                % Plot the x position
+                subplot(4, 1, 2);
+                plot(obj.tmat, obj.x_diff_flat{i}(1, :), 'r:', 'linewidth', 3); hold on;
+                plot(obj.tmat, obj.xmat(x_ind, :), 'b', 'linewidth', 2);
+                ylabel('x');
+                
+                % Plot the y position
+                subplot(4, 1, 3);
+                plot(obj.tmat, obj.x_diff_flat{i}(2, :), 'r:', 'linewidth', 3); hold on;
+                plot(obj.tmat, obj.xmat(y_ind, :), 'b', 'linewidth', 2);
+                ylabel('y');
+                
+                % Plot the error vs time
+                subplot(4, 1, 4);
+                diff = obj.x_diff_flat{i}(1:2, :) - obj.xmat([x_ind, y_ind], :);
+                err = vecnorm(diff);
+                plot(obj.tmat, err, 'r', 'linewidth', 2);
+                ylabel('error');
+                xlabel('time (s)');                
+            end
             
+            
+        end
+        
+        function initializeStateDataStorage(obj, steps)
+        % initializeStateDataStorage initialization function to create
+        % storage values - Default is to do nothing
+        %
+        % Inputs:
+        %   steps: the number of steps in the simulation (corresponds to the same size as tmat 
+            obj.x_diff_flat = cell(1, obj.n_agents);
+            n_diff_flat_states = length(obj.agents{1}.x_flat_latest); % Number of differentially flat states
+            for i = 1:obj.n_agents
+                obj.x_diff_flat{i} = zeros(n_diff_flat_states, steps);
+            end
+        end
+        
+        function storeNewStateData(obj, t, k, x)
+           %storeNewStateData stores the following data at each euler step
+           %    * Vehicle state
+           %
+           % Inputs:
+           %    t: time value
+           %    k: simulation step
+           %    x: state at time t
+           
+            % Store the state of each agent
+            for i = 1:obj.n_agents
+                obj.x_diff_flat{i}(:,k) = obj.agents{i}.x_flat_latest;
+            end
         end
     end
 end

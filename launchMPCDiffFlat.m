@@ -29,7 +29,7 @@ function launchMPCDiffFlat()
 
     scenario = MultiMPCGoToGoal(EmptyWorld, goalpoints, x0);
     
-    scenario.tf = 50;
+    scenario.tf = 25;
     
     % Run the scenario
     scenario.runScenario();

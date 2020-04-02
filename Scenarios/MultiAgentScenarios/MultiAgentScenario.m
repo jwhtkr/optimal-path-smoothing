@@ -65,6 +65,7 @@ classdef MultiAgentScenario < handle
         function runScenario(obj)
             % Initialize time vector
             obj.tmat = [obj.t0:obj.dt:obj.tf]';
+            obj.initializeStateDataStorage(length(obj.tmat));
             
             % Initialize plots
             obj.initializePlots();
@@ -131,7 +132,7 @@ classdef MultiAgentScenario < handle
            %%% update the world plot
         end
 
-	function storeNewStateData(obj, t, k, x)
+        function storeNewStateData(obj, t, k, x)
            %%% By default the function is empty, but it can be inherited to 
            %%% store or process data after each euler update
            %
@@ -139,6 +140,14 @@ classdef MultiAgentScenario < handle
            %    t: time value
            %    k: simulation step
            %    x: state at time t
+        end
+        
+        function initializeStateDataStorage(obj, steps)
+        % initializeStateDataStorage initialization function to create
+        % storage values - Default is to do nothing
+        %
+        % Inputs:
+        %   steps: the number of steps in the simulation (corresponds to the same size as tmat 
         end
     end
     

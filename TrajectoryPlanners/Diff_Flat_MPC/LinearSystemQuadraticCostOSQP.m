@@ -80,7 +80,9 @@ classdef LinearSystemQuadraticCostOSQP < LinearSystemQuadraticCost
             % Setup solver
             obj = obj.calculateLinearConstraints(obj.A_c, obj.l_c, obj.u_c);
             obj.solver = osqp;
-            obj.solver.setup(obj.P, obj.q, obj.A_constraints, obj.l, obj.u);
+            settings = obj.solver.default_settings();
+            settings.verbose = false;
+            obj.solver.setup(obj.P, obj.q, obj.A_constraints, obj.l, obj.u, settings);
         end
         
         function obj = calculateLinearConstraints(obj, A_c, l_c, u_c)

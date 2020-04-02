@@ -5,8 +5,8 @@ close all;
     % Setup continuous dynamics
     Z = zeros(2); % 2x2 matrix of zeros
     I = eye(2); % 2x2 identity matrix
-    A = [Z I Z; Z Z I; Z Z Z]; % state matrix
-    B = [Z; Z; I]; % Input matrix
+    A = [Z I Z Z; Z Z I Z; Z Z Z I; Z Z Z Z]; % state matrix
+    B = [Z; Z; Z; I]; % Input matrix
     N = 100;
     dt = 0.05;
     
@@ -15,7 +15,7 @@ close all;
     P = P.initializeParameters();
     
     % Set state and input bounds
-    x_max = [10; 10; 0.5; 0.5; 1; 1];
+    x_max = [10; 10; 0.5; 0.5; 1; 1; 5; 5];
     x_min = -x_max;
     u_max = [1.0; 1.0];
     P = P.updateSimBounds(x_min, x_max, u_max);

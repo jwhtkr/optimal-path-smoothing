@@ -2,13 +2,13 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
     properties
         % Optimization weights
         R = 0.1 .* diag([1, 1]); % Input squared cost (i.e. u'*R*u)
-        Q = 10 .* diag([1, 1,  0, 0,   0, 0]); % state error squared (x-x_d)'Q(x-x_d)
+        Q = 10 .* diag([1, 1,  0, 0,   0, 0, 0, 0]); % state error squared (x-x_d)'Q(x-x_d)
         S = [] % state error squared (x-x_d)'S(x-x_d)
         
         % Variable bounds
         u_max = [1; 1];
-        x_max = [10; 10; 0.5; 0.5; 5; 5];
-        x_min = [-1; -1; -0.5; -0.5; -5; -5];
+        x_max = [10; 10; 0.5; 0.5; 5; 5; 5; 5];
+        x_min = [-1; -1; -0.5; -0.5; -5; -5; 5; 5];
 %         x_max = inf.*ones(6, 1);
 %         x_min = -inf.*ones(6, 1);
         
