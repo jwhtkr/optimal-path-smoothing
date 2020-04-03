@@ -8,6 +8,7 @@ classdef MPCG2GAgent < SingleAgent
         u_warm % The initial input
         x_warm % The initial state
         x_flat_latest % The latest differentially flat to follow
+        zero_error_tracking = true; % Uses zero-error epsilon control for tracking if true, otherwise uses standard tracking
     end
     
     properties (Constant)
@@ -74,9 +75,6 @@ classdef MPCG2GAgent < SingleAgent
             
             % Extract the desired state
             obj.x_flat_latest = x(1:obj.solver.n_x);
-            qd = obj.x_flat_latest(1:2);
-            qd_dot = obj.x_flat_latest(3:4);
-            qd_ddot = obj.x_flat_latest(5:6);
             
             % Update for the next iteration
             xf = x(end-obj.solver.n_x+1:end);
@@ -84,11 +82,21 @@ classdef MPCG2GAgent < SingleAgent
             obj.x_warm = [x(obj.solver.n_x+1:end); obj.solver.Abar*xf];
             obj.solver = obj.solver.setInitialState(obj.x_warm(1:obj.solver.n_x));    
             
-            % Calculate the epsilon tracking control
-            u = obj.vehicle.pathControl(t, qd, qd_dot, qd_ddot, x_state);
-            
-            % MPC here
-            %u = [0;0];
+            if obj.zero_error_tracking
+                % Calculate the positions desired states for the epsilon point
+                [qe, qe_dot, qe_ddot] = getDesiredEspilonPoints(obj.x_flat_latest, obj.vehicle.eps_path, 0.1);
+
+                % Calculate the epsilon tracking control
+                u = obj.vehicle.pathControl(t, qe, qe_dot, qe_ddot, x_state);
+            else
+                % Extract the desired values
+                qd = obj.x_flat_latest(1:2);
+                qd_dot = obj.x_flat_latest(3:4);
+                qd_ddot = obj.x_flat_latest(5:6);
+                
+                % Calculate the control
+                u = obj.vehicle.pathControl(t, qd, qd_dot, qd_ddot, x_state);
+            end
         end
     end
     
@@ -162,37 +170,87 @@ classdef MPCG2GAgent < SingleAgent
     end
 end
 
+function [qe, qe_dot, qe_ddot] = getDesiredEspilonPoints(x_flat, eps, thresh)
+%getDesiredEspilonPoints will calculate the desired epsilon movement based
+%on the information contained in x_flat
+%
+% Note that this does not perform well when qd_dot is too small. When v is
+% below the defined threshold then qe_dot and qe_ddot are set to zero
+%
+% Inputs:
+%   x_flat: 8x1 vector where x_flat = [qd; qd_dot; qd_ddot; qd_dddot]
+%   eps: the distance in front of qd to find the desired epsilon point
+%   thresh: threshold for switching to pure position control
+%
+% Outputs:
+%   qe: desired epsilon point position
+%   qe_dot: desired epsilon point velocity vector
+%   qe_ddot: desired epsilon point acceleration vector
 
-    function [psi, v, w, a, alpha] = getTrajectoryInformation(traj)
-    %getTrajectoryInformation calcualte trajectory information directly from
-    %trajectory
-    %
-    % Inputs:
-    %   traj: Struct with trajectory information
-    %       .q = position
-    %       .qdot = velocity vector
-    %       .qddot = acceleration vector
-    %       .qdddot = jerk vector
-    %
-    % Outputs:
-    %   psi: orientation
-    %   v: translational velocity
-    %   w: rotational velocity
-    %   a: translational acceleration
-    %   alpha: rotational acceleration
-
-        % Extract trajectory information
-        xdot = traj.qdot(1); % Velocity vector
-        ydot = traj.qdot(2);
-        xddot = traj.qddot(1); % Accleration vector
-        yddot = traj.qddot(2);
-        xdddot = traj.qdddot(1); % Jerk vector
-        ydddot = traj.qdddot(2);
-
-        % Calculate the trajectgory variables
-        psi = atan2(ydot, xdot);
-        v = sqrt(xdot^2+ydot^2);
-        w = 1/v^2*(xdot*yddot - ydot*xddot);
-        a = (xdot*xddot + ydot*yddot)/v;
-        alpha = (xdot*ydddot-ydot*xdddot)/v^2 - 2*a*w/v;    
+    % Extract the trajectory information from x_flat
+    traj.q = x_flat(1:2);
+    traj.qdot = x_flat(3:4);
+    traj.qddot = x_flat(5:6);
+    traj.qdddot = x_flat(7:8);
+    
+    % Calculate the trajectory parameters
+    [psi, v, w, a, alpha] = getTrajectoryInformation(traj);
+    
+    % Process and group the states
+    c = cos(psi); % Pre-calculate the trig functions
+    s = sin(psi);
+    vbar = [v; w]; % Velocities
+    abar = [a; alpha]; % Accelerations    
+    
+    % Calculate the desired epsilon point
+    qe = traj.q + eps*[c; s];
+    
+    % Calculate the desired epsilon point velocity vector
+    Re = [c -eps*s; s eps*c];
+    qe_dot = Re * vbar;
+    
+    % Calculate the desired epsilon point acceleration vector
+    w_hat_e = [0 -eps*w; w/eps 0];
+    qe_ddot = Re*w_hat_e *vbar + Re*abar;
+    
+    % Threshold everything if v is small
+    if v <= thresh
+        qe_dot = [0;0];
+        qe_ddot = [0;0];
     end
+end
+
+
+function [psi, v, w, a, alpha] = getTrajectoryInformation(traj)
+%getTrajectoryInformation calcualte trajectory information directly from
+%trajectory
+%
+% Inputs:
+%   traj: Struct with trajectory information
+%       .q = position
+%       .qdot = velocity vector
+%       .qddot = acceleration vector
+%       .qdddot = jerk vector
+%
+% Outputs:
+%   psi: orientation
+%   v: translational velocity
+%   w: rotational velocity
+%   a: translational acceleration
+%   alpha: rotational acceleration
+
+    % Extract trajectory information
+    xdot = traj.qdot(1); % Velocity vector
+    ydot = traj.qdot(2);
+    xddot = traj.qddot(1); % Accleration vector
+    yddot = traj.qddot(2);
+    xdddot = traj.qdddot(1); % Jerk vector
+    ydddot = traj.qdddot(2);
+
+    % Calculate the trajectgory variables
+    psi = atan2(ydot, xdot);
+    v = sqrt(xdot^2+ydot^2)
+    w = 1/v^2*(xdot*yddot - ydot*xddot);
+    a = (xdot*xddot + ydot*yddot)/v;
+    alpha = (xdot*ydddot-ydot*xdddot)/v^2 - 2*a*w/v;    
+end
