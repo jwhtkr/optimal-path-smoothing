@@ -15,6 +15,8 @@ function launchMPCDiffFlat()
     addpath Scenarios\MultiAgentScenarios
     addpath Sensors
     addpath TrajectoryPlanners
+    addpath TrajectoryPlanners\Diff_Flat_MPC
+    addpath TrajectoryPlanners\Diff_Flat_MPC\DesiredTrajectories
     addpath TrajectoryPlanners\Clothoid
     addpath VectorFields
     addpath Vehicle
@@ -22,7 +24,7 @@ function launchMPCDiffFlat()
     addpath World
     
     % Create formation structure
-    goalpoints = [0 -1.5]; %; 13 -1.5; 13 10; 18.25 10; 18.25 -4; 0 -4]; % Waypoints of the virtual leader
+    goalpoints = [10 -10.5]; %; 13 -1.5; 13 10; 18.25 10; 18.25 -4; 0 -4]; % Waypoints of the virtual leader
     
     x0{1} = [0.5;0;0; 0.1;0];
     %x0{1} = [0.5;0;0];

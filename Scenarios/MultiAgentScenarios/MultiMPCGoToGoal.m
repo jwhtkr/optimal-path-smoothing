@@ -37,7 +37,7 @@ classdef MultiMPCGoToGoal < MultiAgentScenario
             plotters = {};
             for i = 1:length(agents)
                 % Create the agent
-                agents{i} = MPCG2GAgent(x0{i}, goalPoints(:,i), world);
+                agents{i} = MPCG2GAgent(x0{i}, goalPoints(i,:)', world);
                 
                 % Create a vehicle plotter
                 plotters{end+1} = SingleAgentPlotter(@(t)agents{i}.vehicle.getConfiguration(t), agent_colors(i,:));

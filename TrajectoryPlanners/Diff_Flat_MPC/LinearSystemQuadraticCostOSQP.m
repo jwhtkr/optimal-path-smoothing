@@ -29,11 +29,14 @@ classdef LinearSystemQuadraticCostOSQP < LinearSystemQuadraticCost
     end
     
     methods
-        function obj = LinearSystemQuadraticCostOSQP(A, B, N, dt, A_c, l_c, u_c)
+        function obj = LinearSystemQuadraticCostOSQP(A, B, N, dt, des_traj, A_c, l_c, u_c)
             %LINEARSYSTEMQUADRATICCOSTOSQP Construct an instance of this class
             %   @param A: Continuous-time state matrix
             %   @param B: Continuous-time input matrix
             %   @param N: Number of discrete time-steps
+            %   @param dt: discrete step time
+            %   @param des_traj: instance of DesiredFlatTrajectory object
+            %   defining the desired trajectory
             %   @param A_c: The non-dynamic constraints of the system
             %   @param l_c: The corresponding lower bound vector to A_c
             %   @param u_c: The corresponding upper bound vector to A_c
@@ -41,7 +44,7 @@ classdef LinearSystemQuadraticCostOSQP < LinearSystemQuadraticCost
             %   A_c, l_c, and u_c can be passed in as empty arrays if not
             %   applicable to the problem.
             
-            obj = obj@LinearSystemQuadraticCost(A, B, N, dt);
+            obj = obj@LinearSystemQuadraticCost(A, B, N, dt, des_traj);
             obj.A_c = A_c;
             obj.l_c = l_c;
             obj.u_c = u_c;
@@ -71,11 +74,8 @@ classdef LinearSystemQuadraticCostOSQP < LinearSystemQuadraticCost
             obj.P(obj.n_state-obj.n_x+1:obj.n_state, obj.n_state-obj.n_x+1:obj.n_state) = obj.S;
 
             % get q vector (using xd and ud)
-            xd = reshape(obj.calculateDesiredState(0), [], 1);
-            ud = zeros(obj.n_ctrl,1);  % this is a short-cut way of getting
-                                       % zeros in q corresponding to the u 
-                                       % portion of y
-            obj.q = -obj.P * [xd; ud];
+            obj = obj.calculateLinearCostTerm(obj.calculateDesiredState(0), ...
+                obj.calculateDesiredInput(0));
             
             % Setup solver
             obj = obj.calculateLinearConstraints(obj.A_c, obj.l_c, obj.u_c);
@@ -111,6 +111,34 @@ classdef LinearSystemQuadraticCostOSQP < LinearSystemQuadraticCost
             % probably do away with this if we didn't allow x0 to be a
             % variable of optimization)
             obj.solver.update('l', obj.l, 'u', obj.u);
+        end
+        
+        function obj = updateDesiredTrajectory(obj, step)
+            % Update the desired state as per the super class
+            obj = updateDesiredTrajectory@LinearSystemQuadraticCost(obj, step);
+            
+            % Recalculate the cost term based on the desired state
+            obj = obj.calculateLinearCostTerm(obj.xd, obj.ud);
+            
+            % Update the solver based on the desired state
+            obj.solver.update('q', obj.q);
+        end
+        
+        function obj = calculateLinearCostTerm(obj, x_des_mat, u_des_mat)
+        %calculateLinearCostTerm calculates the linear portion of the cost.
+        %The cost being minimized can be written as
+        %   J = x'Px + q'x
+        %This function calculates q which can be written as -2Pyd for this
+        %cost
+        %
+        % Inputs:
+        %   x_des_mat: n_x x N+1 matrix of state values
+        %   u_des_mat: n_u x N matrix of input values
+            
+            % Reshape the state and input vectors
+            x_des = reshape(x_des_mat, [], 1);
+            u_des = reshape(u_des_mat, [], 1);
+            obj.q = -obj.P*[x_des; u_des];            
         end
     end
     

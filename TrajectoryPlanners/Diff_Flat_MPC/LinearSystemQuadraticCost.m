@@ -15,11 +15,12 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
         % Desired variables
         xd = [] % Desired state over time
         ud = [] % Desired input over time
+        des_traj % Defines the desired trajectory, instance of DesiredFlatTrajectory
     end
     
     %%% Initialization functions %%%
     methods
-        function obj = LinearSystemQuadraticCost(A, B, N, dt)
+        function obj = LinearSystemQuadraticCost(A, B, N, dt, des_traj)
             %Construct an instance of this class
             %
             % Inputs:
@@ -27,6 +28,7 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
             %   B: Continuous-time input matrix
             
             obj = obj@LinearSystemOptimization(A, B, N, dt);
+            obj.des_traj = des_traj;
         end
         
         function obj = initializeParameters(obj)
@@ -137,6 +139,11 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
     
     %%% Desired state functions %%%
     methods
+        function obj = updateDesiredTrajectory(obj, step)
+            obj.xd = obj.calculateDesiredState(step);
+            obj.ud = obj.calculateDesiredInput(step);
+        end
+        
         function xd_mat = calculateDesiredState(obj, k_start)
         %obj.calculateDesiredState Calculates the desired states over the entire time
         %horizon from k = 0 to k = N
@@ -171,27 +178,8 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
         % Outputs:
         %   xd: Desired state for x_k
 
-            % Calculate the time for which k corresponds
-            t = k*obj.dt;
-
-%             % Calcualte the state (right now it is a sinusoid)
-%             xd = zeros(obj.n_x, 1);
-%             xd(1) = sin(t); % Position
-%             xd(2) = t; 
-%             xd(3) = cos(t); % Velocity
-%             xd(4) = 1;
-%             xd(5) = -sin(t); % Acceleration
-%             xd(6) = 0;
-% %             xd(7) = -cos(t); % Jerk
-% %             xd(8) = 0;
-             % Calcualte the state (right now it is a sinusoid)
-            xd = zeros(obj.n_x, 1);
-            xd(1) = 10; % Position
-            xd(2) = 10; 
-            xd(3) = 0; % Velocity
-            xd(4) = 0;
-            xd(5) = 0; % Acceleration
-            xd(6) = 0;
+            % Calcualte the state (right now it is a sinusoid)
+            xd = obj.des_traj.getDesiredDiscreteState(k);
         end
 
         function ud_mat = calculateDesiredInput(obj, k_start)
@@ -229,13 +217,7 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
         %   xd: Desired state for x_k
 
             % Calculate the time for which k corresponds
-            t = k*obj.dt;
-
-            % Calcualte the state (right now it is a sinusoid)
-            ud = zeros(obj.n_u, 1);
-            ud(1) = -cos(t); % Jerk
-            %ud(1) = sin(t); % Snap
-            ud(2) = 0;     
+            ud = obj.des_traj.getDesiredDiscreteControl(k);    
         end
     end
     
@@ -261,7 +243,7 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
             end
 
             % Plot the state
-            figure;
+            figure('units','normalized','outerposition',[0 0 1 1]);
             names = {'x_1', 'x_2', 'xd_1', 'xd_2', 'xdd_1', 'xdd_2', 'xddd_1', 'xddd_2'};
             sub_plot_ind = 1;
             for k = 1:obj.n_x
