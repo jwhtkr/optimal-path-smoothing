@@ -24,14 +24,14 @@ function launchMPCDiffFlat()
     addpath World
     
     % Create formation structure
-    goalpoints = [10 -10.5]; %; 13 -1.5; 13 10; 18.25 10; 18.25 -4; 0 -4]; % Waypoints of the virtual leader
+    goalpoints = [5 -10]; %; 13 -1.5; 13 10; 18.25 10; 18.25 -4; 0 -4]; % Waypoints of the virtual leader
     
     x0{1} = [0.5;0;0; 0.1;0];
     %x0{1} = [0.5;0;0];
 
     scenario = MultiMPCGoToGoal(EmptyWorld, goalpoints, x0);
     
-    scenario.tf = 25;
+    scenario.tf = 50;
     
     % Run the scenario
     scenario.runScenario();

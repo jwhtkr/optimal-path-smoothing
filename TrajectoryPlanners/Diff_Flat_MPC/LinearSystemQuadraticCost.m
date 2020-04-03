@@ -2,7 +2,7 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
     properties
         % Optimization weights
         R = 0.1 .* diag([1, 1]); % Input squared cost (i.e. u'*R*u)
-        Q = 10 .* diag([1, 1,  0, 0,   0, 0, 0, 0]); % state error squared (x-x_d)'Q(x-x_d)
+        Q = 10 .* diag([1, 1,  0, 0,   100, 100, 0, 0]); % state error squared (x-x_d)'Q(x-x_d)
         S = [] % state error squared (x-x_d)'S(x-x_d)
         
         % Variable bounds
@@ -285,7 +285,8 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
             % Plot the results
             if isempty(h_d)
                 h_d = plot(ax, obj.xd(1, :), obj.xd(2, :), 'r:', 'linewidth', 3); hold on;
-                h_x = plot(ax, x_mat(1,:), x_mat(2,:), 'b', 'linewidth', 2);   
+                h_x = plot(ax, x_mat(1,:), x_mat(2,:), 'b', 'linewidth', 2);
+                
             else
                 set(h_d, 'xdata', obj.xd(1, :), 'ydata', obj.xd(2, :));
                 set(h_x, 'xdata', x_mat(1,:), 'ydata', x_mat(2,:));

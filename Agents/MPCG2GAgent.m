@@ -35,7 +35,8 @@ classdef MPCG2GAgent < SingleAgent
             B = [Z; Z; Z; I]; % Input matrix           
             
             % Setup the desired trajectory
-            traj = ConstantPosition(MultiAgentScenario.dt, 0, qd, 3);
+            %traj = ConstantPosition(MultiAgentScenario.dt, 0, qd, 3);
+            traj = OrbitTrajectory(MultiAgentScenario.dt, 0, qd, 6, 1);
             
             % Create MPC solver
             obj.solver = LinearSystemQuadraticCostOSQP(A, B, 100, MultiAgentScenario.dt, traj, [], [], []);
@@ -44,7 +45,9 @@ classdef MPCG2GAgent < SingleAgent
             %obj.solver.ud = obj.solver.calculateDesiredInput(0);
             
             % Set state and input bounds
-            x_max = [inf; inf; 0.5; 0.5; 1; 1; 5; 5];
+            %x_max = [inf; inf; 0.5; 0.5; 1; 1; 5; 5];
+            %x_max = [inf; inf; 1; 1; 1; 1; 0.5; 0.5];
+            x_max = [inf; inf; 1; 1; 0.25; 0.25; 0.125; 0.125];
             x_min = -x_max;
             u_max = [1.0; 1.0];
             obj.solver = obj.solver.updateSimBounds(x_min, x_max, u_max);
@@ -252,7 +255,7 @@ function [psi, v, w, a, alpha] = getTrajectoryInformation(traj)
 
     % Calculate the trajectgory variables
     psi = atan2(ydot, xdot);
-    v = sqrt(xdot^2+ydot^2)
+    v = sqrt(xdot^2+ydot^2);
     w = 1/v^2*(xdot*yddot - ydot*xddot);
     a = (xdot*xddot + ydot*yddot)/v;
     alpha = (xdot*ydddot-ydot*xdddot)/v^2 - 2*a*w/v;    

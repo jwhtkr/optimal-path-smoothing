@@ -11,7 +11,8 @@ close all;
     dt = 0.05;
     
     % Setup the desired trajectory
-    traj = ConstantPosition(0, dt, [5; 3], 3);
+    %traj = ConstantPosition(dt, 0, [5; 3], 3);
+    traj = OrbitTrajectory(dt, 0, [5; 3], 6, 1);
     
     %P = LinearSystemQuadraticCost(A, B, N, dt);
     P = LinearSystemQuadraticCostOSQP(A, B, N, dt, traj, [], [], []);
@@ -20,7 +21,8 @@ close all;
     P.ud = P.calculateDesiredInput(0);
     
     % Set state and input bounds
-    x_max = [10; 10; 0.5; 0.5; 1; 1; 5; 5];
+    %x_max = [10; 10; 0.5; 0.5; 1; 1; 5; 5];
+    x_max = [inf; inf; 1; 1; 0.25; 0.25; 0.125; 0.125];
     x_min = -x_max;
     u_max = [1.0; 1.0];
     P = P.updateSimBounds(x_min, x_max, u_max);
@@ -40,7 +42,7 @@ close all;
     h_x = [];
     
     % Data for MPC
-    M = 600; % Number of MPC steps to take
+    M = 1200; % Number of MPC steps to take
     xdata = zeros(P.n_x, M);
     udata = zeros(P.n_u, M);
     
