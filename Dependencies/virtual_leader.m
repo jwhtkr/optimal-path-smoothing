@@ -156,7 +156,7 @@ classdef virtual_leader < handle
             traj.dt = traj_leader.dt;
             
             % Update the values for vel, accel, jerk.
-            traj.update_new();
+            traj.updateTrajWithPositionalValues();
             
 
         end
