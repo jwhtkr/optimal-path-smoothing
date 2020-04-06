@@ -2,12 +2,12 @@ classdef ClothoidGenerator < handle
     %BetterUnicycle Implements a unicycle with direct control over the
     %accleration
     
-    properties
+    properties(Access = protected)
        dt;
        v;
        max_k;
        max_sigma; 
-       traj;
+       
        
        clothoid;
        t_span;
@@ -19,9 +19,14 @@ classdef ClothoidGenerator < handle
        max_clothoid_deflection;
        
     end
+    
+    properties
+        traj;
+    end
         
     methods
         function obj = ClothoidGenerator(max_k, v, dt, max_sigma)
+            %Creates the full clothoid region from k = 0:k_max
             obj.dt = dt;
             obj.v = v;
             obj.max_k = max_k;
@@ -44,6 +49,8 @@ classdef ClothoidGenerator < handle
         
         function clothoid = calc_clothoid(obj,v,sigma)
             x = zeros(4,1);
+            
+            % Numerical Integration
             [t_vec,x_vec] = ode45(@(t,x) obj.xdot(x,v,sigma), obj.t_span, x);
 %             plot(x_vec(:,1),x_vec(:,2))
             clothoid = x_vec';

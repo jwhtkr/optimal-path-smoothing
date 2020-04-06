@@ -29,7 +29,9 @@ classdef CCTrajectoryPlanner < handle
             obj.max_k = max_k;
             obj.max_sigma = max_sigma;
             
-            obj.clothoid = ClothoidGenerator(max_k, v, dt, max_sigma);
+            %obj.clothoid = ClothoidGenerator(max_k, v, dt, max_sigma);
+            x0 = zeros(3,1);
+            obj.clothoid = ClothoidGeneratorSnap(max_k, v, dt, max_sigma);            
             obj.max_clothoid_deflection = 2 * obj.clothoid.traj.psi(end);
             
             % See fig 3 Fraichard
@@ -60,9 +62,9 @@ classdef CCTrajectoryPlanner < handle
             
             C_l_center = rotation(waypoint.psi)*([[obj.C_l.x]; [obj.C_l.y]]);
             C_r_center = rotation(waypoint.psi)*([[obj.C_r.x]; [obj.C_r.y]]);
-            reverse_offset = 2 * obj.C_l.r * sin(obj.mu);
-            C_l_reverse_center = rotation(waypoint.psi)*([obj.C_l.x - reverse_offset; [obj.C_l.y]]);
-            C_r_reverse_center = rotation(waypoint.psi)*([obj.C_r.x - reverse_offset; [obj.C_r.y]]);
+%             reverse_offset = 2 * obj.C_l.r * sin(obj.mu);
+%             C_l_reverse_center = rotation(waypoint.psi)*([obj.C_l.x - reverse_offset; [obj.C_l.y]]);
+%             C_r_reverse_center = rotation(waypoint.psi)*([obj.C_r.x - reverse_offset; [obj.C_r.y]]);
             
             % update forward circles starting with left
             waypoint.C_l.x = waypoint.x + C_l_center(1);
@@ -78,20 +80,6 @@ classdef CCTrajectoryPlanner < handle
             waypoint.C_r_inner.x = waypoint.x + C_r_center(1);
             waypoint.C_r_inner.y = waypoint.y + C_r_center(2);
             waypoint.C_r_inner.r = obj.C_r_inner.r;
-            
-            % update reverse circles starting with left
-            waypoint.C_l_reverse.x = waypoint.x + C_l_reverse_center(1);
-            waypoint.C_l_reverse.y = waypoint.y + C_l_reverse_center(2);
-            waypoint.C_l_reverse.r = obj.C_l.r;
-            waypoint.C_l_reverse_inner = waypoint.C_l_reverse;
-            waypoint.C_l_reverse_inner.r = obj.C_l_inner.r;
-            
-            % update circles right
-            waypoint.C_r_reverse.x = waypoint.x + C_r_reverse_center(1);
-            waypoint.C_r_reverse.y = waypoint.y + C_r_reverse_center(2);
-            waypoint.C_r_reverse.r = obj.C_r.r;
-            waypoint.C_r_reverse_inner = waypoint.C_r_reverse;
-            waypoint.C_r_reverse_inner.r = obj.C_r_inner.r;
             
             waypoint.mu = obj.mu;
         end
@@ -150,34 +138,54 @@ classdef CCTrajectoryPlanner < handle
                     line_traj.x = line_traj.x + r;
                 end
                 cc_turn = line_traj.concatenate(cc_turn);
+%                 return_clothoid = ClothoidGeneratorSnap(obj.max_k,obj.v,obj.dt,obj.max_sigma,100).traj;
                 
             else
                 % All traj where k(t) reaches k_max
+                
+                % Add first Clothoid
                 cc_turn = cc_turn.concatenate(obj.clothoid.traj);
                 
-                cc_turn.y = direction * cc_turn.y;
+                % Turn the clothoid to a different direction
+                cc_turn.y = direction * cc_turn.y; % This section of code was not correct
+                cc_turn.ydot = direction * cc_turn.ydot;
+                cc_turn.yddot = direction * cc_turn.yddot;
+                cc_turn.ydddot = direction * cc_turn.ydddot;
+                cc_turn.yddddot = direction * cc_turn.yddddot;
                 cc_turn.psi = direction * cc_turn.psi;
                 cc_turn.k = direction * cc_turn.k;
                 cc_turn.sigma = direction * cc_turn.sigma;
+                cc_turn.gamma = direction * cc_turn.gamma;
                 
+                % Construct arc and add to cc_turn
                 circle_start_angle = atan2(cc_turn.y(end) - circle.y, cc_turn.x(end) - circle.x);
-                circle_end_angle = circle_start_angle + (deflection_angle - direction * obj.max_clothoid_deflection)/2;
-                
+                circle_end_angle = circle_start_angle + (deflection_angle - direction * obj.max_clothoid_deflection);
                 cc_arc = obj.build_arc_trajectory(circle, circle_start_angle, circle_end_angle, direction);
-                
                 cc_turn = cc_turn.concatenate(cc_arc);
+                
+                % Construct return clothoid
+                x0 = [cc_turn.x(end); cc_turn.y(end); cc_turn.psi(end)];
+                return_clothoid = ClothoidGeneratorSnap(obj.max_k,obj.v,obj.dt,obj.max_sigma,100,x0, direction).traj;
+%                 x_offset = return_clothoid.x(1);
+%                 return_clothoid.x = direction * (return_clothoid.x - x_offset) + x_offset;
+%                 return_clothoid.psi = direction * return_clothoid.psi;
+%                 return_clothoid.k = direction * return_clothoid.k;
+%                 return_clothoid.sigma = direction * return_clothoid.sigma;
+                
+                cc_turn = cc_turn.concatenate(return_clothoid);
             end
             
-            cc_turn = obj.reflect_traj(cc_turn);
+%             cc_turn = obj.reflect_traj(cc_turn);
             cc_turn = cc_turn.rotate_traj(pose.psi,1);
             cc_turn.x = cc_turn.x + pose.x;
             cc_turn.y = cc_turn.y + pose.y;
             
             
-            cc_turn.w = cc_turn.v .* cc_turn.k;
+%             cc_turn.w = cc_turn.v .* cc_turn.k;
             % cc_turn.alpha = cc_turn.v .* cc_turn.v .* cc_turn.sigma;
-            cc_turn.alpha = cc_turn.sigma .* cc_turn.v;
-            cc_turn.update_derivatives();
+%             cc_turn.alpha = cc_turn.sigma .* cc_turn.v;
+            cc_turn.update_derivatives(); % why do we need this function?
+            cc_turn.dt = obj.dt;
             cc_turn.t = cc_turn.s ./ cc_turn.v;
             
            
@@ -213,9 +221,13 @@ classdef CCTrajectoryPlanner < handle
             traj.s = circle.r * abs(psi - start_psi);
             traj.v = ones(1,n)*obj.v;                           %% default v value
             traj.sigma = zeros(1,n);
+            traj.gamma = zeros(1,n);
             traj.a = zeros(1,n);
             traj.update_derivatives();
             traj.t = traj.s./traj.v;
+            
+            traj.dt = obj.dt;
+            traj.cloth_len = length(traj.x);
         end
         
         function new_traj = reflect_traj(obj, traj)
@@ -227,22 +239,30 @@ classdef CCTrajectoryPlanner < handle
             % Output:
             %   new_traj: a trajectory containing traj and it's reflection
             
-            reflection_psi = traj.psi(end) + pi/2;
-            reflection_pt = [cos(reflection_psi); sin(reflection_psi)];
             
-            clothoid_end_pt = [traj.x(end);traj.y(end)];
-            reflection_pt_perp = [-reflection_pt(2); reflection_pt(1)];
+            % Create Vector to reflect ccturn about
+            reflection_psi = traj.psi(end) + pi/2;
+%             reflection_vector = [cos(reflection_psi); sin(reflection_psi)];
+%             reflection_vector_perp = [-reflection_vector(2); reflection_vector(1)];
             R = rotation(reflection_psi);
             
-            shifted_clothoid = [flip(traj.x) - clothoid_end_pt(1); flip(traj.y) - clothoid_end_pt(2)];
+            % Get End Point to move ccturn to origin at the end point
+            ccturn_end_pt = [traj.x(end);traj.y(end)];
+%             shifted_clothoid = [flip(traj.x) - ccturn_end_pt(1); flip(traj.y) - ccturn_end_pt(2)];
+            shifted_ccturn = [flip(traj.x) ; flip(traj.y)] - ccturn_end_pt;
             
-            error = [(shifted_clothoid'*reflection_pt)'; (-shifted_clothoid'* reflection_pt_perp)'];
+            % Invert the y values, rotate and translate to final position.
+            invert = [shifted_ccturn(1,:); -shifted_ccturn(2,:)];
+            reflected_ccturn = R*R*invert + ccturn_end_pt; %shifted_ccturn;
+
             
-            reflected_clothoid = R*error +clothoid_end_pt;
+%             reflected_ccturn = [rotated_ccturn(1,:); -rotated_ccturn(2,:)] + ccturn_end_pt;
+%             error = [(shifted_clothoid'*reflection_vector)'; (-shifted_clothoid'* reflection_vector_perp)'];
+%             reflected_clothoid = R*error + ccturn_end_pt;
             
-            cc_reflect = traj.reverse_traj();
-            cc_reflect.x = reflected_clothoid(1,:);
-            cc_reflect.y = reflected_clothoid(2,:);
+            cc_reflect = traj.reverse_traj(); % This appears to integrate properly, but the reflected clothoid does not
+            cc_reflect.x = reflected_ccturn(1,:);
+            cc_reflect.y = reflected_ccturn(2,:);
             cc_reflect.psi = cc_reflect.psi + 2 * traj.psi(end);
             
             new_traj = traj.concatenate(cc_reflect);
