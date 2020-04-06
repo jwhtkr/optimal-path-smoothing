@@ -15,6 +15,7 @@ function launch()
     addpath World
     addpath TrajectoryPlanners/MultiArcBased/Opt_dep
     addpath TrajectoryPlanners/Clothoid
+    addpath TrajectoryPlanners
     
     %%%%%%%%%%%%%%%%% Create scenario %%%%%%%%%%%%%%%%%%%%%
     % Reference tracking scenario
