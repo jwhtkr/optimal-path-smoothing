@@ -1,4 +1,4 @@
-function smoothed_traj = SmoothFollowerTraj(follower_traj, leader_traj, A_begin, b_begin)
+function [smoothed_traj, solver] = SmoothFollowerTraj(follower_traj, leader_traj, A_begin, b_begin, solver)
 %SMOOTHFOLLOWERTRAJ Set up to smooth the followr traj with SmoothTrajOpt
 %   @param follower_traj: The follower trajectory to be smoothed as a
 %                        Trajectory2D object
@@ -24,27 +24,29 @@ xd_mat(2,:,:) = [follower_traj.y; follower_traj.ydot; follower_traj.yddot;
 
 [A, b] = create_A_b(leader_traj, A_begin, b_begin, n, m, N);
 
-Q = diag([1 1 0 0 0 0 0 0 0 0]);
-R = diag([1 1]);
-S = diag([1 1 0 0 0 0 0 0 0 0]);
+Q = diag([1 1 0 0 0 0 0 0]);
+R = diag([2 2]);
+S = diag([10 10 0 0 0 0 0 0]);
 
 dt = follower_traj.dt;
 
 % Get optimally smoothed trajectory as a matrix
-smoothed_traj_mat = SmoothTrajOpt(xd_mat, Q, R, S, A, b, dt);
+[smoothed_traj_mat, solver] = SmoothTrajOpt(xd_mat, Q, R, S, A, b, dt, solver);
 
 % Convert to Trajectory2D object
 smoothed_traj = Trajectory2D();
-smoothed_traj.x = smoothed_traj_mat(1,1,:);
-smoothed_traj.xdot = smoothed_traj_mat(1,2,:);
-smoothed_traj.xddot = smoothed_traj_mat(1,3,:);
-smoothed_traj.xdddot = smoothed_traj_mat(1,4,:);
-smoothed_traj.xddddot = smoothed_traj_mat(1,5,:);
-smoothed_traj.y = smoothed_traj_mat(2,1,:);
-smoothed_traj.ydot = smoothed_traj_mat(2,2,:);
-smoothed_traj.yddot = smoothed_traj_mat(2,3,:);
-smoothed_traj.ydddot = smoothed_traj_mat(2,4,:);
-smoothed_traj.yddddot = smoothed_traj_mat(2,5,:);
+smoothed_traj.copy(follower_traj);  % Copy given traj to inherit unchanged member variables
+% Squeeze and transpose to get to the right size: (1,N)
+smoothed_traj.x = squeeze(smoothed_traj_mat(1,1,:))';
+smoothed_traj.xdot = squeeze(smoothed_traj_mat(1,2,:))';
+smoothed_traj.xddot = squeeze(smoothed_traj_mat(1,3,:))';
+smoothed_traj.xdddot = squeeze(smoothed_traj_mat(1,4,:))';
+smoothed_traj.xddddot = squeeze(smoothed_traj_mat(1,5,:))';
+smoothed_traj.y = squeeze(smoothed_traj_mat(2,1,:))';
+smoothed_traj.ydot = squeeze(smoothed_traj_mat(2,2,:))';
+smoothed_traj.yddot = squeeze(smoothed_traj_mat(2,3,:))';
+smoothed_traj.ydddot = squeeze(smoothed_traj_mat(2,4,:))';
+smoothed_traj.yddddot = squeeze(smoothed_traj_mat(2,5,:))';
 % Update the other trajectory vals based on x,y and their derivatives
 smoothed_traj.updateTrajWithPositionalValues();
 end

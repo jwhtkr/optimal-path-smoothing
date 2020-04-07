@@ -1,4 +1,4 @@
-function smoothed_traj = SmoothTrajOpt(traj_mat, Q, R, S, A_c_mat, b_c_mat, dt)
+function [smoothed_traj, solver] = SmoothTrajOpt(traj_mat, Q, R, S, A_c_mat, b_c_mat, dt, solver)
 %SMOOTHTRAJOPT Uses optimization to smooth an input trajectory
 %   @param traj_mat: the input trajectory as a matrix of size: (n,m,N)
 %                    where n is the dimensionality (2D, 3D, etc.), m is the 
@@ -16,9 +16,12 @@ function smoothed_traj = SmoothTrajOpt(traj_mat, Q, R, S, A_c_mat, b_c_mat, dt)
 %   @param b_c: the linear inequality constraints for each time step as a
 %               matrix of size: (p,N) with p,N as previously defined.
 %   @param dt: the time step size (for discretization)
+%   @param solver: an optional pre-setup OSQP instance that just needs to
+%                  be updated instead of completely re-created.
 %
 %   @return smoothed_traj: the optimally smoothed trajectory as a matrix
 %                          the same size as traj_mat
+%   @return solver: the setup solver (in case it is to be reused.
 %
 %   Note that the formulation of this problem is such that the vector y,
 %   what we're optimizing over, is arranged like:
@@ -60,13 +63,20 @@ x0 = traj(1:n_x);
 [A, l, u] = calc_constraints(A_c, b_c, A_eq, b_eq);
 
 %% Setup OSQP
-solver = osqp;
-solver.setup(P, q, A, l, u, 'verbose', false);
+if isempty(solver)
+    solver = osqp;
+    solver.setup(P, q, A, l, u, 'verbose', false);
+else
+    [~,~,Px] = find(P);
+    [~,~,Ax] = find(A);
+    solver.update('Px', Px, 'Ax', Ax, 'q', q, 'l', l, 'u', u);
+end
 
 %% Solve with OSQP
 solver.warm_start('x', traj);
 results = solver.solve();
 
+% smooth_solve_time = results.info.run_time
 smoothed_traj = reshape(results.x, n, m, N);
 end
 
@@ -85,7 +95,7 @@ function [A_c, b_c] = reshape_Ac_bc(A_c_mat, b_c_mat)
 %                compatible with the solver as size (p*N, 1)
 
 [p,n,m,N] = size(A_c_mat);  % Extract size variables
-A_c = zeros(p*N, n*m*N);    % Preallocate A_c
+A_c = spalloc(p*N, n*m*N, length(A_c_mat));    % Preallocate A_c
 
 b_c = reshape(b_c_mat, [], 1);  % b_c is simple reshape to column vector
 
@@ -98,7 +108,7 @@ for i=1:N
     col_ind = (i-1)*n*m + 1;
     % Populate A_c with the reshaped A_c_mat for the i^th time instance
     A_c(row_ind:row_ind+p-1, col_ind:col_ind+n*m-1) = ...
-        reshape(A_c_mat(:,:,:,i), p, n*m);
+        sparse(reshape(A_c_mat(:,:,:,i), p, n*m));
 end
 end
 
@@ -163,7 +173,7 @@ function [A_eq, b_eq] = equality_constraints(A_bar, B_bar, x0, N)
 [~,n_u] = size(B_bar);
 
 % Preallocate
-A_eq = zeros(n_x*N, (n_x+n_u)*N);
+A_eq = spalloc(n_x*N, (n_x+n_u)*N, (N-1)*(nnz(A_bar)+n_x+nnz(B_bar))+n_x);
 b_eq = zeros(n_x*N, 1);
 
 I = eye(n_x);   % Create identity matrix for convenience
@@ -210,7 +220,7 @@ n_x = n*(m-1);
 n_u = n;
 
 % Preallocate P and q
-P = zeros(n*m*N);
+P = spalloc(n*m*N, n*m*N, (N-1)*(nnz(Q)+nnz(R))+nnz(S));
 q = zeros(n*m*N,1);
 
 for i=1:N-1
