@@ -13,16 +13,16 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
     
     methods
         function obj = MultiAgent_ParamOptScenario(n_agents, world, leaderVehicle, path)
-
+            
             obj = obj@MultiScenario(leaderVehicle, n_agents, world, true, path);
             
             %Initialize leader and agents velocities and goals
             obj.v_d = 1;
             obj.w_d = 0.0;
         end
-    
+        
         %%%%  Abstract Method Implementation %%%%
-        function u = control(obj, t, x)  
+        function u = control(obj, t, x)
             % Calc Leader Control
             u = obj.leader.trackControl(t);
             
@@ -30,12 +30,12 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
             for k = 1:obj.n_agents
                 tic
                 u(:,k+1) = obj.agents(k).MPC_output(t, obj.world);
-%                 u(:,k+1) = obj.agents(k).trackControl(t);
+                %                 u(:,k+1) = obj.agents(k).trackControl(t);
                 toc
             end
             obj.ctrl = [obj.ctrl; u];
         end
-
+        
         
         %%%% Plotting methods - Add desired velocities %%%%
         function plotResults(obj)
@@ -45,51 +45,108 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
             
             % Calculate the control and velocities vs time
             t_len = length(obj.tmat);
-            ctrl = zeros(2,t_len);
             v_vec = zeros(1, t_len);
             w_vec = zeros(1, t_len);
+            vd_vec = zeros(1, t_len);
+            wd_vec = zeros(1, t_len);
+            xd_vec = zeros(1, t_len);
+            yd_vec = zeros(1, t_len);
+            err_vec = zeros(1, t_len);
+            yaw_err_vec = zeros(1, t_len);
             for k = 1:t_len
-                u = obj.ctrl(2*k:2*k+1,1);
-                ctrl(:,k) = u;
+                u = obj.ctrl(2*k-1:2*k,1);
                 [v_vec(:,k), w_vec(:,k)] = obj.leader.vehicle.kinematics.getVelocities(obj.tmat(k), obj.xmat(:,k), u(:,1));
-                %%% TODO: final Plots for each agent
-%                 for i = 1:obj.n_agents
-%                     [v_vec(i,k), w_vec(i,k)] = obj.leader.vehicle.kinematics.getVelocities(obj.tmat(k), obj.xmat(:,k), u(:,1));
-%                 end
+                err_v_vec(k) = obj.leader.trajectory.v(k+1) - v_vec(:,k);
+                err_w_vec(k) = obj.leader.trajectory.w(k+1) - w_vec(:,k);
+                
+                xd_vec(:,k) = obj.leader.trajectory.x(k+1);
+                yd_vec(:,k) = obj.leader.trajectory.y(k+1);
+                err_vec(:,k) = norm([obj.leader.trajectory.x(k+1);obj.leader.trajectory.y(k+1)] - obj.xmat(1:2,k));
+                
+                h_e = [cos(obj.leader.trajectory.psi(k+1));sin(obj.leader.trajectory.psi(k+1))] - [cos(obj.xmat(3,k));sin(obj.xmat(3,k))];
+                yaw_err_vec(:,k) = h_e'*h_e/2;
             end
             
-            % Plot Error for Leader
-            subplot(3,1,1);
-            plot([obj.tmat(1) obj.tmat(end)],[obj.v_d obj.v_d], ':r', 'linewidth', 2); hold on;
-            plot(obj.tmat, v_vec, 'b', 'linewidth', 2);
-            ylabel('v(t)');
+            %Plot Error
+            figure
+            subplot(4,1,1);
+            plot([obj.tmat(1) obj.tmat(end)],[0 0], ':r', 'linewidth', 2); hold on;
+            plot(obj.tmat, err_vec(1,:), 'b', 'linewidth', 2);
+            ylabel('Position Error');
             legend('Desired', 'Actual');
             
+            %Plot Error
+            subplot(4,1,2);
+            plot([obj.tmat(1) obj.tmat(end)],[0 0], ':r', 'linewidth', 2); hold on;
+            plot(obj.tmat, yaw_err_vec(1,:), 'b', 'linewidth', 2);
+            ylabel('Yaw Error');
+            legend('Desired', 'Actual');
+            
+            % Plot v and desired
+            subplot(4,1,3);
+            plot([obj.tmat(1) obj.tmat(end)],[0 0], ':r', 'linewidth', 2); hold on;
+            plot(obj.tmat, err_v_vec, 'b', 'linewidth', 2);
+            ylabel('Vel Error');
+            %             legend('Desired', 'Actual');
+            
             % Plot w and desired
-            subplot(3,1,2);
-            plot([obj.tmat(1) obj.tmat(end)],[obj.w_d obj.w_d], ':r', 'linewidth', 2); hold on;
-            plot(obj.tmat, w_vec, 'b', 'linewidth', 2);
-            ylabel('\omega(t)');
-
-            % Plot the control vs time
-            subplot(3,1,3);
-            plot(obj.tmat, ctrl(1,:), 'g', 'linewidth', 3); hold on;
-            plot(obj.tmat, ctrl(2,:), 'b', 'linewidth', 3); 
-            ylabel('Inputs');
-            legend('u_v', 'u_\omega');
-            xlabel('Time (s)');
+            subplot(4,1,4);
+            plot([obj.tmat(1) obj.tmat(end)],[0 0], ':r', 'linewidth', 2); hold on;
+            plot(obj.tmat, err_w_vec, 'b', 'linewidth', 2);
+            ylabel('Rotational Vel Error');
+            
+            
             
             %Plot Error for Agents
             for i = 1:obj.n_agents
                 t_len = length(obj.tmat);
-                ctrl = zeros(2,t_len);
                 v_vec = zeros(1, t_len);
                 w_vec = zeros(1, t_len);
+                xd_vec = zeros(1, t_len);
+                yd_vec = zeros(1, t_len);
+                err_vec = zeros(1, t_len);
+                yaw_err_vec = zeros(1, t_len);
                 for k = 1:t_len
-                    u = obj.ctrl(2*k:2*k+1,i+1);
-                    ctrl(:,k) = u;
-                    [v_vec(:,k), w_vec(:,k)] = obj.agent(i).vehicle.kinematics.getVelocities(obj.tmat(k), obj.xmat(:,k), u(:,1));
+                    u = obj.ctrl(2*k-1:2*k,1);
+                    [v_vec(:,k), w_vec(:,k)] = obj.agents(i).vehicle.kinematics.getVelocities(obj.tmat(k), obj.xmat(:,k), u(:,1));
+                    err_v_vec(k) = obj.agents(i).trajectory.v(k+1) - v_vec(:,k);
+                    err_w_vec(k) = obj.agents(i).trajectory.w(k+1) - w_vec(:,k);
+                    
+                    xd_vec(:,k) = obj.agents(i).trajectory.x(k+1);
+                    yd_vec(:,k) = obj.agents(i).trajectory.y(k+1);
+                    err_vec(:,k) = norm([obj.agents(i).trajectory.x(k+1);obj.agents(i).trajectory.y(k+1)] - obj.xmat(1:2,k));
+
+                    h_e = [cos(obj.agents(i).trajectory.psi(k+1));sin(obj.agents(i).trajectory.psi(k+1))] - [cos(obj.xmat(3,k));sin(obj.xmat(3,k))];
+                    yaw_err_vec(:,k) = h_e'*h_e/2;
                 end
+                
+                %Plot Error
+                figure
+                subplot(4,1,1);
+                plot([obj.tmat(1) obj.tmat(end)],[0 0], ':r', 'linewidth', 2); hold on;
+                plot(obj.tmat, err_vec(1,:), 'b', 'linewidth', 2);
+                ylabel('Position Error');
+                legend('Desired', 'Actual');
+                
+                %Plot Error
+                subplot(4,1,2);
+                plot([obj.tmat(1) obj.tmat(end)],[0 0], ':r', 'linewidth', 2); hold on;
+                plot(obj.tmat, yaw_err_vec(1,:), 'b', 'linewidth', 2);
+                ylabel('Yaw Error');
+                legend('Desired', 'Actual');
+                
+                % Plot v and desired
+                subplot(4,1,3);
+                plot([obj.tmat(1) obj.tmat(end)],[0 0], ':r', 'linewidth', 2); hold on;
+                plot(obj.tmat, err_v_vec, 'b', 'linewidth', 2);
+                ylabel('Vel Error');
+                %             legend('Desired', 'Actual');
+                
+                % Plot w and desired
+                subplot(4,1,4);
+                plot([obj.tmat(1) obj.tmat(end)],[0 0], ':r', 'linewidth', 2); hold on;
+                plot(obj.tmat, err_w_vec, 'b', 'linewidth', 2);
+                ylabel('Rotational Vel Error');
             end
         end
         
