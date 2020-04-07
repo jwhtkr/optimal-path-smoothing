@@ -70,7 +70,6 @@ classdef SmoothCurvature < handle
                 obj.t_decel_2_accel;...
                 obj.t_kappa_max];
             
-%             t_switch = flip(t_switch);
             
             % Calculate state at each key point
             if ~isempty(varargin) > 0

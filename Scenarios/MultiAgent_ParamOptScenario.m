@@ -8,6 +8,7 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
         v_d; % Desired translational velocity
         w_d; % Desired rotational velocity
         u_init;
+        ctrl = [];
     end
     
     methods
@@ -32,6 +33,7 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
 %                 u(:,k+1) = obj.agents(k).trackControl(t);
                 toc
             end
+            obj.ctrl = [obj.ctrl; u];
         end
 
         
@@ -47,8 +49,8 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
             v_vec = zeros(1, t_len);
             w_vec = zeros(1, t_len);
             for k = 1:t_len
-                u = obj.control(obj.tmat(k), obj.xmat(:,k));
-                ctrl(:,k) = u(:,1);
+                u = obj.ctrl(2*k:2*k+1,1);
+                ctrl(:,k) = u;
                 [v_vec(:,k), w_vec(:,k)] = obj.leader.vehicle.kinematics.getVelocities(obj.tmat(k), obj.xmat(:,k), u(:,1));
                 %%% TODO: final Plots for each agent
 %                 for i = 1:obj.n_agents
@@ -56,7 +58,7 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
 %                 end
             end
             
-            % Plot v and desired
+            % Plot Error for Leader
             subplot(3,1,1);
             plot([obj.tmat(1) obj.tmat(end)],[obj.v_d obj.v_d], ':r', 'linewidth', 2); hold on;
             plot(obj.tmat, v_vec, 'b', 'linewidth', 2);
@@ -76,6 +78,19 @@ classdef MultiAgent_ParamOptScenario < MultiScenario
             ylabel('Inputs');
             legend('u_v', 'u_\omega');
             xlabel('Time (s)');
+            
+            %Plot Error for Agents
+            for i = 1:obj.n_agents
+                t_len = length(obj.tmat);
+                ctrl = zeros(2,t_len);
+                v_vec = zeros(1, t_len);
+                w_vec = zeros(1, t_len);
+                for k = 1:t_len
+                    u = obj.ctrl(2*k:2*k+1,i+1);
+                    ctrl(:,k) = u;
+                    [v_vec(:,k), w_vec(:,k)] = obj.agent(i).vehicle.kinematics.getVelocities(obj.tmat(k), obj.xmat(:,k), u(:,1));
+                end
+            end
         end
         
     end

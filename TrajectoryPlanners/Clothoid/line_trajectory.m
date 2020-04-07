@@ -8,6 +8,7 @@ traj.s_geo = sqrt(dx^2 + dy^2);
 
 % x = atleast_1d(linspace(0, traj.s_geo, max(1, ceil(traj.s_geo / ds)), endpoint=True).squeeze())
 x = linspace(0,traj.s_geo,max(1,ceil(traj.s_geo / ds)));
+x = 0:ds:traj.s_geo;
 n = length(x);
 psi0 = atan2(dy, dx) * ones(1,n);  % heading used to calculate derivatives
 

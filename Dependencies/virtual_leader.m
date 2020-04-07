@@ -44,7 +44,7 @@ classdef virtual_leader < handle
             obj.vehicle = vehicle;
             obj.n_agents = n_agents;
             obj.agent_num = 0;
-            obj.trajectory = CCPathGenerator(path, v, dt, .5, .5).traj;
+            obj.trajectory = CCPathGenerator(path, v, dt, .625, .625).traj;
             traj = @(k) obj.getFollowerTrajectory(k);
             obj.agent = agent(vehicle, n_agents, obj.agent_num, 0, dt);
         end       

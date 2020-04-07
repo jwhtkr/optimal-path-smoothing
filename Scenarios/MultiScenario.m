@@ -13,7 +13,7 @@ classdef MultiScenario < handle
         % Simulation parameters
         plot_during_sim; % true => plot while simulating (requires euler integration)
         t0 = 0; % Initial time of simulation
-        dt = 0.05; % Simulation step size
+        dt = 0.1; % Simulation step size
         tf % Final time of simulation
         v = 1; % Simulation Velocity
         
@@ -84,10 +84,10 @@ classdef MultiScenario < handle
             obj.integrateEuler();
             
             % Plot the results
-%             obj.plotState(obj.tf);
-%             obj.plotWorld(obj.tf);
+            obj.plotState(obj.tf);
+            obj.plotWorld(obj.tf);
             obj.publishVideo();
-%             obj.plotResults();
+            obj.plotResults();
         end
         
         

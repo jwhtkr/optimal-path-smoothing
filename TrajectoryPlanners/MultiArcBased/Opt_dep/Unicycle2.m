@@ -2,31 +2,32 @@ classdef Unicycle2 < CostClass
     
     properties
         % Cost weights
-%         p1 = 0.50; % weight on velocity
-%         p2 = 0.50; % weight on angular velocity
-%         p3 = 0.20; % weight of avoidance
-%         p4 = 0.30; % weight of voronoi barrier
-%         p5 = 1.0; % weight on go to goal
-        
-        p1 = 0.85; % weight on velocity
-        p2 = 0.85; % weight on angular velocity
-        p3 = 0.15; % weight of avoidance
-        p4 = 0.15; % weight of voronoi barrier
-        p5 = 1.2; % weight on go to goal
+%         p1 = 0.15; % weight on velocity
+%         p2 = 0.15; % weight on angular velocity
+%         p3 = 0.6; % weight of avoidance
+%         p4 = 0.6; % weight of voronoi barrier
+%         p5 = 0.8; % weight on go to goal
+%         dmin = 0.275;
+
+        p1 = 0.15; % weight on velocity
+        p2 = 0.15; % weight on angular velocity
+        p3 = 0.6; % weight of avoidance
+        p4 = 0.6; % weight of voronoi barrier
+        p5 = 0.8; % weight on go to goal
         
         % Operational flags
         numericalPartialLogic = false;
         useEulerIntegration = true;
         
         % Cost variables
-        qd = []; % Desired position
+        xd = []; % Desired State
         qb = []; % Obstacles
         % qb = [[3;3], [4;4]];
         n_obs;
         sig = 10;
         vd = 1; % Desired Velocity
         
-        dmin = 0.1; %.25; % Distance from obstacle just before collision
+        dmin = 0.275; %.25; % Distance from obstacle just before collision
         dmax = .75;%1.25;
         dmax2 = .75;
         log_dmax_dmin;
@@ -45,6 +46,7 @@ classdef Unicycle2 < CostClass
         
         K_vel_ctrl;
         K_point_ctrl;
+        P;
         agent_num;
         leader_traj;
         trajectory;
@@ -112,9 +114,11 @@ classdef Unicycle2 < CostClass
             
             A = [zeros(2) eye(2); zeros(2,4)];
             B = [zeros(2); eye(2)];
-            Q = diag([1, 1, 1, 1]);
+            Q = diag([2, 2, 1, 1]);
             R = diag([1, 1]);
             obj.K_point_ctrl = lqr(A, B, Q, R);
+            
+            obj.P = are(A,B*inv(R)*B',Q);
             
             % Create the timing variables
             obj.t_span = 0:obj.dt:obj.T;
@@ -201,6 +205,25 @@ classdef Unicycle2 < CostClass
                     min_cost = cost(u_var);
                 end
             end
+            for i = 1:length(w1)
+                % Initialize a u to explore, T-tau3 = dt
+                u_var = [obj.vd; w1(i);obj.T*2/9;obj.vd;w1(i);obj.T*4/9;obj.vd;w1(i); obj.T*2/3];
+%                 obj.plotTraj(u_var);
+%                 pause(0.02);
+                if min_cost > cost(u_var)
+                    u0 = u_var;
+                    min_cost = cost(u_var);
+                end
+            end
+            % Test if the tracking controller is minimal
+            if ~(u0(obj.ind_time1) == 0) || ~(u0(obj.ind_time2) == 0) || ~(u0(obj.ind_time3) == 0)
+                u_var = [1; 0; 0; 1; 0; 0; 1; 0; 0];
+                if min_cost > cost(u_var)
+                    u0 = u_var;
+                    min_cost = cost(u_var);
+                end
+            end
+            
             if isinf(min_cost)
                 obj.collision_detection = true;
                 obj.cost(u0);
@@ -255,7 +278,8 @@ classdef Unicycle2 < CostClass
             
             % Get cost for velocities
             [v_traj, w_traj] = obj.trajectory.getVelocities(t+obj.t_sim);
-            L = obj.p_global(x)*obj.p1/2*(v-v_traj)^2 + obj.p_global(x)*obj.p2/2*(w-w_traj)^2;
+%             L = obj.p_global(x)*obj.p1/2*(v-v_traj)^2 + obj.p_global(x)*obj.p2/2*(w-w_traj)^2;
+            L = obj.p1/2*(v-v_traj)^2 + obj.p2/2*(w-w_traj)^2;
             
             % Get Cost for barrier
             th_l = obj.leader_traj.getYaw(t+obj.t_sim);
@@ -296,12 +320,52 @@ classdef Unicycle2 < CostClass
         end
         
         function phi = terminalCost(obj, x, u)
-            % Extract position
+            % Extract States
             q = obj.getPosition(x);
+            psi = x(obj.ind_theta);
+            [v,w] = obj.getVelocities(x);
+            eps = obj.eps_vel;
+            % epsilon point values
+            q_eps = q + eps*[cos(psi); sin(psi)];
+            q_eps_dot = v*[cos(psi); sin(psi)] + eps*w*[0 1; 1 0]*[cos(psi); sin(psi)];
             
-            % Calculate cost as squared distance to goal
-            err = q - obj.qd;
-            phi = obj.p5/2*(err'*err);
+            % epsilon point at desired terminal position
+            qd = obj.getPosition(obj.xd);
+            psid = obj.xd(obj.ind_theta);
+            [vd,wd] = obj.getVelocities(obj.xd);
+            
+            qd_eps = qd + eps*[cos(psid); sin(psid)];
+            qd_eps_dot = vd*[cos(psid); sin(psid)] + eps*wd*[0 1; 1 0]*[cos(psid); sin(psid)];
+            
+            % error vector
+            z = [q_eps; q_eps_dot] - [qd_eps; qd_eps_dot];
+            
+            % terminal Cost
+            phi = obj.p5*z'*obj.P*z;
+            
+%             if obj.xd(obj.ind_theta) > pi
+%                 obj.xd(obj.ind_theta) = obj.xd(obj.ind_theta) - 2*pi;
+%             elseif obj.xd(obj.ind_theta) < -pi
+%                 obj.xd(obj.ind_theta) = obj.xd(obj.ind_theta) + 2*pi;
+%             end
+%             
+%             if x(obj.ind_theta) > pi
+%                 x(obj.ind_theta) = x(obj.ind_theta) - 2*pi;
+%             elseif x(obj.ind_theta) < -pi
+%                 x(obj.ind_theta) = x(obj.ind_theta) + 2*pi;
+%             end
+%             
+%             % Calculate cost as state differenct squared to goal
+%             h_e = [cos(x(3));sin(x(3))] - [cos(obj.xd(3));sin(obj.xd(3))];
+%             
+%             err = x - obj.xd;
+%             if err(obj.ind_theta) > pi
+%                 err(obj.ind_theta) = err(obj.ind_theta) - 2*pi;
+%             elseif err(obj.ind_theta) < -pi
+%                 err(obj.ind_theta) = err(obj.ind_theta) + 2*pi;
+%             end
+% %             err(3) = norm(h_e);
+%             phi = obj.p5/2*(err'*err);
         end
         
         function zdot = costAndStateDynamics(obj, t, z, u)
@@ -454,11 +518,60 @@ classdef Unicycle2 < CostClass
         end
         
         function dphi_dx = terminalStatePartial(obj, x)
-            % Extract states and velocities
+            % Extract States
             q = obj.getPosition(x);
+            psi = x(obj.ind_theta);
+            [v,w] = obj.getVelocities(x);
+            eps = obj.eps_vel;
+            % epsilon point values
+            q_eps = q + eps*[cos(psi); sin(psi)];
+            q_eps_dot = v*[cos(psi); sin(psi)] + eps*w*[0 1; 1 0]*[cos(psi); sin(psi)];
             
-            % Calculate partial
-            dphi_dx = obj.p5.*[(q-obj.qd)', 0, 0, 0];
+            % Extract terminal desired states
+            qd = obj.getPosition(obj.xd);
+            psid = obj.xd(obj.ind_theta);
+            [vd,wd] = obj.getVelocities(obj.xd);
+            
+            % epsilon point at desired terminal position
+            qd_eps = qd + eps*[cos(psid); sin(psid)];
+            qd_eps_dot = vd*[cos(psid); sin(psid)] + eps*wd*[0 1; 1 0]*[cos(psid); sin(psid)];
+            
+            % error vector
+            z = [q_eps; q_eps_dot] - [qd_eps; qd_eps_dot];
+            
+
+            
+            dphi_dz = 2*z'*obj.P;
+            
+            dz_dx = [1 0 -eps*sin(psi) 0 0;
+                       0 1 eps*cos(psi) 0 0;
+                       0 0 -v*sin(psi)+eps*w*cos(psi) cos(psi) eps*sin(psi);
+                       0 0 v*cos(psi)-eps*w*sin(psi) sin(psi) eps*cos(psi)];
+            dphi_dx = obj.p5*dphi_dz*dz_dx;
+            
+            
+%             if obj.xd(obj.ind_theta) > pi
+%                 obj.xd(obj.ind_theta) = obj.xd(obj.ind_theta) - 2*pi;
+%             elseif obj.xd(obj.ind_theta) < -pi
+%                 obj.xd(obj.ind_theta) = obj.xd(obj.ind_theta) + 2*pi;
+%             end
+%             
+%             if x(obj.ind_theta) > pi
+%                 x(obj.ind_theta) = x(obj.ind_theta) - 2*pi;
+%             elseif x(obj.ind_theta) < -pi
+%                 x(obj.ind_theta) = x(obj.ind_theta) + 2*pi;
+%             end
+%             
+%             err = x - obj.xd;
+%             
+%             if err(obj.ind_theta) > pi
+%                 err(obj.ind_theta) = err(obj.ind_theta) - 2*pi;
+%             elseif err(obj.ind_theta) < -pi
+%                 err(obj.ind_theta) = err(obj.ind_theta) + 2*pi;
+%             end
+            
+%             % Calculate partial
+%             dphi_dx = obj.p5.*err';
         end
         
         function dL_dx = instStatePartial(obj, t, x, u)
@@ -520,7 +633,8 @@ classdef Unicycle2 < CostClass
                 dL_dx = dL_dx + dLavoid_dx;
             end
             [v_traj, w_traj] = obj.trajectory.getVelocities(t+obj.t_sim);
-            dL_dx = dL_dx + obj.p_global(x).*[0 0 0 obj.p1*(v-v_traj) obj.p2*(w-w_traj)];
+%             dL_dx = dL_dx + obj.p_global(x).*[0 0 0 obj.p1*(v-v_traj) obj.p2*(w-w_traj)];
+            dL_dx = dL_dx + [0 0 0 obj.p1*(v-v_traj) obj.p2*(w-w_traj)];
             
         end
         
@@ -558,7 +672,7 @@ classdef Unicycle2 < CostClass
                 df_dx = [0 0 -v*sin(theta) cos(theta) 0; 0 0 v*cos(theta) sin(theta) 0; 0 0 0 0 1; du_dx];
             else
                 df_dx = [0 0 -v*sin(theta) cos(theta) 0; 0 0 v*cos(theta) sin(theta) 0; 0 0 0 0 1; 0 0 0 -obj.K_vel_ctrl(1,1) 0; 0 0 0 0 -obj.K_vel_ctrl(2,2)];
-                % df_dx = [0 0 -v*sin(theta) cos(theta) 0; 0 0 v*cos(theta) sin(theta) 0; 0 0 0 0 1; 0 0 0 0 0; 0 0 0 0 0];
+%                 df_dx = [0 0 -v*sin(theta) cos(theta) 0; 0 0 v*cos(theta) sin(theta) 0; 0 0 0 0 1; 0 0 0 0 0; 0 0 0 0 0];
             end
         end
         
@@ -647,7 +761,7 @@ classdef Unicycle2 < CostClass
             xdot(obj.ind_y) = v*sin(theta);
             xdot(obj.ind_theta) = w;
             
-            u_control = obj.trackControl(t+obj.t_sim,x);
+            u_control = obj.trackControl(t+obj.t_sim-obj.dt,x);
             xdot(obj.ind_v) = u_control(1);
             xdot(obj.ind_w) = u_control(2);
         end
@@ -785,21 +899,29 @@ classdef Unicycle2 < CostClass
                 obj.traj_arc1 = plot(xarc1(1,:), xarc1(2,:), 'g', 'linewidth', 2);
             elseif ~isempty(xarc1)
                 set(obj.traj_arc1, 'xdata', xarc1(1,:), 'ydata', xarc1(2,:));
+            elseif isempty(xarc1) && ~isempty(obj.traj_arc1)
+                set(obj.traj_arc1, 'xdata', 0, 'ydata', 0);
             end
             if isempty(obj.traj_arc2) && ~isempty(xarc2)
                 obj.traj_arc2 = plot(xarc2(1,:), xarc2(2,:), 'r', 'linewidth', 2);
             elseif ~isempty(xarc2)
                 set(obj.traj_arc2, 'xdata', xarc2(1,:), 'ydata', xarc2(2,:));
+            elseif isempty(xarc2) && ~isempty(obj.traj_arc2)
+                set(obj.traj_arc2, 'xdata', 0, 'ydata', 0);
             end
             if isempty(obj.traj_arc3) && ~isempty(xarc3)
                 obj.traj_arc3 = plot(xarc3(1,:), xarc3(2,:), 'b', 'linewidth', 2);
             elseif ~isempty(xarc3)
                 set(obj.traj_arc3, 'xdata', xarc3(1,:), 'ydata', xarc3(2,:));
+            elseif isempty(xarc3) && ~isempty(obj.traj_arc3)
+                set(obj.traj_arc3, 'xdata', 0, 'ydata', 0);
             end
             if isempty(obj.traj_arc4) && ~isempty(xarc4)
                 obj.traj_arc4 = plot(xarc4(1,:), xarc4(2,:), 'k', 'linewidth', 2);
             elseif ~isempty(xarc4)
                 set(obj.traj_arc4, 'xdata', xarc4(1,:), 'ydata', xarc4(2,:));
+            elseif isempty(xarc4) && ~isempty(obj.traj_arc4)
+                set(obj.traj_arc4, 'xdata', 0, 'ydata', 0);
             end
         end
         

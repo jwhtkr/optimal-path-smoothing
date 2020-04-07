@@ -72,7 +72,8 @@ classdef agent < handle
         
         function u = MPC_output(obj, t, world)
             
-            obj.planner.qd = obj.trajectory.reference_traj(t+obj.planner.tf); %obj.leader.getDesiredFollowerGoal(k);
+            obj.planner.xd = obj.trajectory.stateAtTime(t+obj.planner.tf); %obj.leader.getDesiredFollowerGoal(k);
+            
 %             obj.planner.leader_traj = obj.leader.trajectory;
             [xo,yo,do] = obj.vehicle.getObstacleDetections(world);
             obj.planner.setObstacles(xo,yo,do);

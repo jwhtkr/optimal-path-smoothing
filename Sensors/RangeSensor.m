@@ -3,7 +3,7 @@ classdef RangeSensor < handle
     
     properties (SetAccess = protected, GetAccess = public)
         n_lines = 100; % Number of range measurements
-        max_dist = 4; % Max distance of the range measurements
+        max_dist = 6; % Max distance of the range measurements
     end
     
     properties (SetAccess = protected, GetAccess = protected)
