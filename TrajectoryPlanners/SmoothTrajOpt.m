@@ -153,9 +153,25 @@ function [A_bar, B_bar] = exact_discretization(A_dyn, B_dyn, dt)
 %
 %   @return A_bar: Discrete dynamics A matrix
 %   @return B_bar: Discrete dynamics B matrix
+%
+%   A naive (but slow-ish) approach is:
+%   A_bar = expm(A_dyn*dt);
+%   B_bar = integral(@(tau)expm(A_dyn*tau),0,dt, 'ArrayValued', true)*B_dyn;
+%
+%   However, a faster method is used that takes advantage of the property: 
+%   expm([A B;0 0]*dt) = [A_bar B_bar;0 I]
+%   (https://en.wikipedia.org/wiki/Discretization for more details)
 
-A_bar = expm(A_dyn*dt);
-B_bar = integral(@(tau)expm(A_dyn*tau),0,dt, 'ArrayValued', true)*B_dyn;
+% Extract size variables
+[n_x,~] = size(A_dyn);
+[~,n_u] = size(B_dyn);
+
+% store result of expm([A B;0 0]*dt)
+temp = expm([A_dyn B_dyn; zeros(n_u, n_x+n_u)]*dt);
+
+% Extract A_bar and B_bar
+A_bar = temp(1:n_x, 1:n_x);
+B_bar = temp(1:n_x, n_x+1:end);
 end
 
 function [A_eq, b_eq] = equality_constraints(A_bar, B_bar, x0, N)
@@ -165,26 +181,50 @@ function [A_eq, b_eq] = equality_constraints(A_bar, B_bar, x0, N)
 %   @param x0: the initial state of size (n,1)
 %   @param N: the number of time steps in the trajectory
 %
-%   @return A_eq: the equality constraint A matrix from Ay = b
+%   @return A_eq: the equality constraint A matrix from Ay = b 
 %   @return b_eq: the equality constraint b vector from Ay = b
+%
+%   Uses a sparse matrix for speed and memory efficiency for A_eq, but can
+%   be a little hard to follow the code. The main idea is to calculate
+%   vectors for the index pairs, (i,j), and the corresponding value, v,
+%   such that A(i(k), j(k)) = v(k) for k=1:n_nonzero. For convenience,
+%   matrices of indices and values can be used instead of vectors so that 
+%   A(i(m,n), j(m,n)) = v(m,n) for m,n necessary to represent all nonzero 
+%   values.
+%
+%   In this code this corresponds to: 
+%       A_eq(A_i(m,n), A_j(m,n)) = A_eq_vec(m,n).
 
 % Extract size variables
 [n_x,~] = size(A_bar);
 [~,n_u] = size(B_bar);
 
-% Preallocate
-A_eq = spalloc(n_x*N, (n_x+n_u)*N, (N-1)*(nnz(A_bar)+n_x+nnz(B_bar))+n_x);
+% Preallocate space
 b_eq = zeros(n_x*N, 1);
+A_i = zeros(n_x, n_x + (N-1)*(2*n_x + n_u));
+A_j = zeros(size(A_i));
 
 I = eye(n_x);   % Create identity matrix for convenience
 
 % First entries are different
-A_eq(1:n_x, 1:n_x) = -I;
+[grid1_i, grid1_j] = ndgrid(1:n_x, 1:n_x);
+A_i(:,1:n_x) = grid1_i;
+A_j(:,1:n_x) = grid1_j;
 b_eq(1:n_x) = -x0;
 
+% A_eq_vec can be made in form [-I A B -I A B -I ... A B -I]
+% with A = A_bar, B = B_bar and (N-1) sets of [A B -I] blocks
+A_eq_vec = [-I repmat([A_bar B_bar -I],1,N-1)];
+
+% Calculate the (unshifted) indices for an [A B -I] block. These are
+% shifted to reflect the current location in A_eq. This is calculated once,
+% then shifted for speed instead of recalculating every iteration of the
+% for loop.
+[grid_i, grid_j] = ndgrid(1:n_x, 1:2*n_x+n_u);
 for i=2:N
-    % fill the entries for the rest of the time steps according to dynamics
-    % results in the form A_eq = [-I  0  0  0  0  0  ...   0  0;
+    % Calculate the indices for the rest of the time steps according to the
+    % dynamics
+    % Results in the form A_eq = [-I  0  0  0  0  0  ...   0  0;
     %                              A  B -I  0  0  0  ...   0  0;
     %                              0  0  A  B -I  0  ...   0  0;
     %                              .  .     .  .  .  .     .  .;
@@ -193,13 +233,21 @@ for i=2:N
     %                              0  0              A  B -I  0]
     % with A = A_bar, B = B_bar.
     
-    % calculate row and column indices
+    % calculate indices based on the time step
     row_ind = (i-1)*n_x + 1;
     col_ind = (i-2)*(n_x+n_u) + 1;
+    grid_ind = col_ind + row_ind - 1;
     
-    A_eq(row_ind:row_ind+n_x-1, col_ind:col_ind+2*n_x+n_u-1) = ...
-        [A_bar, B_bar, -I];
+    % Shift the index grids to the current locations in A_eq
+    A_i_next = grid_i + row_ind - 1;
+    A_j_next = grid_j + col_ind - 1;
+    % add these shifted grids to the index arrays: A_i and A_j
+    A_i(:, grid_ind:grid_ind+(2*n_x+n_u)-1) = A_i_next;
+    A_j(:, grid_ind:grid_ind+(2*n_x+n_u)-1) = A_j_next;
 end
+% A_i = reshape(A_i, [], 1);
+% A_j = reshape(A_j, [], 1);
+A_eq = sparse(A_i, A_j, A_eq_vec, n_x*N, (n_x+n_u)*N);
 end
 
 function [P, q] = calc_P_q_from_Q_R_S(Q, R, S, xd, n, m, N)
@@ -214,6 +262,17 @@ function [P, q] = calc_P_q_from_Q_R_S(Q, R, S, xd, n, m, N)
 %
 %   @return P: the P matrix from the quadratic cost: x'Px+q'x
 %   @return q: the q vector from the quadratic cost: x'Px+q'x
+%
+%   Uses a sparse matrix for P for speed and memory efficiency, but can be 
+%   a little hard to follow the code. The main idea is to calculate vectors
+%   for the index pairs, (i,j), and the corresponding value, v, such that
+%   A(i(k), j(k)) = v(k) for k=1:n_nonzero. 
+%
+%   In this function this corresponds to:
+%       P(P_i(k), P_j(k)) = P_vec(k)
+%   P_i, P_j, and P_vec are calculated separately for the Q and R values
+%   due to the difference in size of Q and R, but then are concatenated for
+%   the creation of the sparse matrix P.
 
 % Calculate number of x and u.
 n_x = n*(m-1);
