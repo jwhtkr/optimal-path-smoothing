@@ -49,6 +49,8 @@ traj = reshape(traj_mat, [], 1);
 
 % Extract initial condition, x0, from trajectory
 x0 = traj(1:n_x);
+% Extract terminal condition, xN, from trajectory
+xN = traj(end-n_x-n_u+1:end-n_u);
 
 %% Create dynamic constraints
 % Create Continuous LTI dynamics
@@ -56,7 +58,7 @@ x0 = traj(1:n_x);
 % Calculate exact discretization
 [A_bar, B_bar] = exact_discretization(A_dyn, B_dyn, dt);
 % Calculate A_eq and b_eq constraint matrices
-[A_eq, b_eq] = equality_constraints(A_bar, B_bar, x0, N);
+[A_eq, b_eq] = equality_constraints(A_bar, B_bar, x0, xN, N);
 
 %% Calculate P, q, A, l, and u for OSQP
 [P, q] = calc_P_q_from_Q_R_S(Q, R, S, traj, n, m, N);
@@ -174,15 +176,19 @@ A_bar = temp(1:n_x, 1:n_x);
 B_bar = temp(1:n_x, n_x+1:end);
 end
 
-function [A_eq, b_eq] = equality_constraints(A_bar, B_bar, x0, N)
+function [A_eq, b_eq] = equality_constraints(A_bar, B_bar, x0, xN, N)
 % equality_constraints calculates constraints from the discrete dynamics
 %   @param A_bar: the discrete dynamics A matrix from x_{k+1} = Ax_k + Bu_k
 %   @param B_bar: the discrete dynamics B matrix from x_{k+1} = Ax_k + Bu_k
 %   @param x0: the initial state of size (n,1)
+%   @param xN: the terminal state, of size (n,1)
 %   @param N: the number of time steps in the trajectory
 %
 %   @return A_eq: the equality constraint A matrix from Ay = b 
 %   @return b_eq: the equality constraint b vector from Ay = b
+%
+%   Creates constraints for initial state, terminal state (start and end in
+%   the same state as the desired trajectory) and the dynamics.
 %
 %   Uses a sparse matrix for speed and memory efficiency for A_eq, but can
 %   be a little hard to follow the code. The main idea is to calculate
@@ -200,21 +206,29 @@ function [A_eq, b_eq] = equality_constraints(A_bar, B_bar, x0, N)
 [~,n_u] = size(B_bar);
 
 % Preallocate space
-b_eq = zeros(n_x*N, 1);
-A_i = zeros(n_x, n_x + (N-1)*(2*n_x + n_u));
+b_eq = zeros((N+1)*n_x, 1);
+A_i = zeros(n_x, 2*n_x + (N-1)*(2*n_x + n_u));
 A_j = zeros(size(A_i));
 
 I = eye(n_x);   % Create identity matrix for convenience
 
 % First entries are different
-[grid1_i, grid1_j] = ndgrid(1:n_x, 1:n_x);
-A_i(:,1:n_x) = grid1_i;
-A_j(:,1:n_x) = grid1_j;
+[grid_1_i, grid_1_j] = ndgrid(1:n_x, 1:n_x);
+A_i(:,1:n_x) = grid_1_i;
+A_j(:,1:n_x) = grid_1_j;
 b_eq(1:n_x) = -x0;
 
-% A_eq_vec can be made in form [-I A B -I A B -I ... A B -I]
+% Last entries are different
+row_range = N*n_x+1:(N+1)*n_x;
+col_range = (N-1)*(n_x+n_u)+1:(N-1)*(n_x+n_u)+n_x;
+[grid_N_i, grid_N_j] = ndgrid(row_range, col_range);
+A_i(:, end-n_x+1:end) = grid_N_i;
+A_j(:, end-n_x+1:end) = grid_N_j;
+b_eq(end-n_x+1:end) = -xN;
+
+% A_eq_vec can be made in form [-I A B -I A B -I ... A B -I -I]
 % with A = A_bar, B = B_bar and (N-1) sets of [A B -I] blocks
-A_eq_vec = [-I repmat([A_bar B_bar -I],1,N-1)];
+A_eq_vec = [-I repmat([A_bar B_bar -I],1,N-1) -I];
 
 % Calculate the (unshifted) indices for an [A B -I] block. These are
 % shifted to reflect the current location in A_eq. This is calculated once,
@@ -230,7 +244,8 @@ for i=2:N
     %                              .  .     .  .  .  .     .  .;
     %                              .  .        .  .  .  .  .  .;
     %                              .  .           .  .  .  .  .;
-    %                              0  0              A  B -I  0]
+    %                              0  0              A  B -I  0;
+    %                              0  0     ...      0  0 -I  0]
     % with A = A_bar, B = B_bar.
     
     % calculate indices based on the time step
@@ -247,7 +262,7 @@ for i=2:N
 end
 % A_i = reshape(A_i, [], 1);
 % A_j = reshape(A_j, [], 1);
-A_eq = sparse(A_i, A_j, A_eq_vec, n_x*N, (n_x+n_u)*N);
+A_eq = sparse(A_i, A_j, A_eq_vec, (N+1)*n_x, N*(n_x+n_u));
 end
 
 function [P, q] = calc_P_q_from_Q_R_S(Q, R, S, xd, n, m, N)
