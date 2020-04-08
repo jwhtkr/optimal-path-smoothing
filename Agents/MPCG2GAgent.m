@@ -82,6 +82,11 @@ classdef MPCG2GAgent < SingleAgent
             % Extract the desired state
             obj.x_flat_latest = x(1:obj.solver.n_x);
             
+%             % Store the state for exact representation
+%             rep = ExactTrajRep4();
+%             rep.setValues(x, u, obj.solver.dt, t);
+%             rep.plotComparison();
+            
             % Update for the next iteration
             xf = x(end-obj.solver.n_x+1:end);
             obj.u_warm = [u(obj.solver.n_u+1:end); zeros(obj.solver.n_u, 1)]; % warm-start for next iteration is simply the zero input control appended to previous horizon
