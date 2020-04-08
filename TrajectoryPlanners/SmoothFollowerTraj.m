@@ -17,16 +17,22 @@ n = 2;
 m = 5;
 N = length(follower_traj.x);
 xd_mat = zeros(n, m, N);
-xd_mat(1,:,:) = [follower_traj.x; follower_traj.xdot; follower_traj.xddot; 
-                 follower_traj.xdddot; follower_traj.xddddot];
-xd_mat(2,:,:) = [follower_traj.y; follower_traj.ydot; follower_traj.yddot; 
-                 follower_traj.ydddot; follower_traj.yddddot];
+xd_mat(1,:,:) = [follower_traj.x; 
+                 follower_traj.xdot; 
+                 0*follower_traj.xddot; 
+                 0*follower_traj.xdddot; 
+                 0*follower_traj.xddddot];
+xd_mat(2,:,:) = [follower_traj.y; 
+                 follower_traj.ydot; 
+                 0*follower_traj.yddot; 
+                 0*follower_traj.ydddot; 
+                 0*follower_traj.yddddot];
 
 [A, b] = create_A_b(leader_traj, A_begin, b_begin, n, m, N);
 
-Q = diag([1 1 0 0 0 0 0 0]);
-R = diag([2 2]);
-S = diag([10 10 0 0 0 0 0 0]);
+Q = diag([1 1 0 0 10 10 10 10]);
+R = diag([10 10]);
+S = diag([1 1 0 0 0 0 0 0]);
 
 dt = follower_traj.dt;
 
