@@ -9,6 +9,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
         waypoints % an array of path points in the desired order (e.g., [q0,q1,...,qn] 
                   % where qi = [x; y]
         traj_follow = {} % A cell structure containing the desired trajectory for each follower
+        traj_smooth = {} % A cell structure containing the smoothed desired trajectory for each follower
         traj_eps = {} % A cell structure containing the desired trajectory for the epsilon point of each follower
         agent_colors % n_agents x 3 matrix where each row represents the color of a different agent
         state_value = {} % Value of the state of each agent over time
@@ -52,12 +53,9 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 % Create the agent
                 veh_i = veh(x0{i}); veh_i.use_dim_eps = false;
                 traj_follow{i} = TrajUtil.createOffsetTrajectory(vl_traj, Q(:,i)); % Desired trajectory for follower
-                profile on
-                [traj_follow{i}, smoothing_solver] = SmoothFollowerTraj(traj_follow{i}, vl_traj, [], [], smoothing_solver);   % Smooth the trajectory
-                profile viewer
-                profile off
-                traj_eps{i} = TrajUtil.createOffsetTrajectory(traj_follow{i}, [veh_i.eps_path; 0]); % Desired trajectory for the epsilon point of the follower
-                agents{i} = ReferenceLineAvoidAgent(veh_i, world, traj_follow{i}, traj_eps{i});
+                [traj_smooth{i}, smoothing_solver] = SmoothFollowerTraj(traj_follow{i}, vl_traj, [], [], smoothing_solver);   % Smooth the trajectory
+                traj_eps{i} = TrajUtil.createOffsetTrajectory(traj_smooth{i}, [veh_i.eps_path; 0]); % Desired trajectory for the epsilon point of the follower
+                agents{i} = ReferenceLineAvoidAgent(veh_i, world, traj_smooth{i}, traj_eps{i});
                 %agents{i} = ReferencePureAvoidAgent(veh_i, world, traj_follow{i}, traj_eps{i});
                 
                 % Create a vehicle plotter
@@ -65,7 +63,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 
                 % Createa a plotter for the desired position
                 %plotters{end+1} = PositionPlotter(@(t)agents{i}.ReferenceTraj(t));
-                plotters{end+1} = PositionPlotter(@(t)traj_follow{i}.reference_traj(t), agent_colors(i,:));
+                plotters{end+1} = PositionPlotter(@(t)traj_smooth{i}.reference_traj(t), agent_colors(i,:));
                 %plotters{end+1} = PositionPlotter(@(t)traj_eps{i}.reference_traj(t), agent_colors(i,:));
                 %plotters{end+1} = TwoDRangePlotter(veh_i);
                 
@@ -84,6 +82,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             % Store object variables
             obj.waypoints = waypoints;
             obj.traj_follow = traj_follow;
+            obj.traj_smooth = traj_smooth;
             obj.traj_eps = traj_eps;
             obj.agent_colors = agent_colors;
         end
@@ -97,6 +96,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
         end
         
         function initializePlots(obj)
+            traj_d = obj.traj_smooth;
             % Plot normal plots
             initializePlots@MultiAgentScenario(obj);
             
@@ -118,13 +118,15 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 % Plot the actual trajectory
                 if i == 1
                     plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), 'linewidth', 2, 'color', obj.agent_colors(i,:));
+                    plot(traj_d{i}.x(ind),traj_d{i}.y(ind), '-.', 'LineWidth', 2, 'color', obj.agent_colors(i,:));
                 else
-                    plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), ':', 'linewidth', 1, 'color', obj.agent_colors(i,:));
+%                     plot(obj.traj_follow{i}.x(ind), obj.traj_follow{i}.y(ind), 'linewidth', 1, 'color', obj.agent_colors(i,:));
+                    plot(traj_d{i}.x(ind), traj_d{i}.y(ind), '-.', 'LineWidth', 1, 'color', obj.agent_colors(i,:));
                 end
                 
                 % Store the desired states
-                obj.qd_mat(ind_q_i, :) = [obj.traj_follow{i}.x(ind); ...
-                                          obj.traj_follow{i}.y(ind)];
+                obj.qd_mat(ind_q_i, :) = [traj_d{i}.x(ind); ...
+                                          traj_d{i}.y(ind)];
                                       
                 % Update the position indices
                 ind_q_i = ind_q_i + 2; % Add two to adjust for the two positions
@@ -139,6 +141,7 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
         
         function plotResults(obj)
             % Plot the executed trajectory for each agent
+            traj_d = obj.traj_smooth;
             if obj.plot_agent_traj_results
                 hold on;
                 for i = 1:obj.n_agents
@@ -203,21 +206,21 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
             
             % Plot the desired curvature for each agent
             figure;
-            curvature_des = zeros(obj.n_agents, length(obj.traj_follow{1}.x));
+            curvature_des = zeros(obj.n_agents, length(traj_d{1}.x));
             curvature_act = zeros(obj.n_agents, size(obj.xmat, 2));
-            t_curv = linspace(obj.tmat(1), obj.tmat(end), length(obj.traj_follow{1}.x));
+            t_curv = linspace(obj.tmat(1), obj.tmat(end), length(traj_d{1}.x));
             for i = 1:obj.n_agents
                 for k = 1:length(obj.traj_follow{i}.x)
                     % Get the commanded velocities
-                    qdot = [obj.traj_follow{i}.xdot(k); obj.traj_follow{i}.ydot(k)];
-                    qddot = [obj.traj_follow{i}.xddot(k); obj.traj_follow{i}.yddot(k)];
+                    qdot = [traj_d{i}.xdot(k); traj_d{i}.ydot(k)];
+                    qddot = [traj_d{i}.xddot(k); traj_d{i}.yddot(k)];
                     [~, ~, kappa] = calculateVelocities(qdot, qddot);
                     curvature_des(i,k) = kappa;
                     
-                    traj_vl.q = [obj.traj_follow{1}.x(k); obj.traj_follow{1}.y(k)];
-                    traj_vl.qdot = [obj.traj_follow{1}.xdot(k); obj.traj_follow{1}.ydot(k)];
-                    traj_vl.qddot = [obj.traj_follow{1}.xddot(k); obj.traj_follow{1}.yddot(k)];
-                    traj_vl.qdddot = [obj.traj_follow{1}.xdddot(k); obj.traj_follow{1}.ydddot(k)];
+                    traj_vl.q = [traj_d{1}.x(k); traj_d{1}.y(k)];
+                    traj_vl.qdot = [traj_d{1}.xdot(k); traj_d{1}.ydot(k)];
+                    traj_vl.qddot = [traj_d{1}.xddot(k); traj_d{1}.yddot(k)];
+                    traj_vl.qdddot = [traj_d{1}.xdddot(k); traj_d{1}.ydddot(k)];
                     
                     %traj = getFollowerTrajFromLeaderTraj(traj_vl, [-1.5; 1.5]);
                 end
