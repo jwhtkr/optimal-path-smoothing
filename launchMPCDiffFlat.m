@@ -1,6 +1,6 @@
 function launchMPCDiffFlat()
     % Clear previous work
-    close all;
+    %close all;
     clear;
     clc;
     

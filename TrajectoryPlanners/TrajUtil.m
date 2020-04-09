@@ -73,6 +73,40 @@ classdef TrajUtil
             traj.dt = traj_in.dt;
             traj.updateTrajWithPositionalValues();    
         end
+        
+        function [psi, v, w, a, alpha] = getTrajectoryInformation(traj)
+        %getTrajectoryInformation calcualte trajectory information directly from
+        %trajectory
+        %
+        % Inputs:
+        %   traj: Struct with trajectory information
+        %       .q = position
+        %       .qdot = velocity vector
+        %       .qddot = acceleration vector
+        %       .qdddot = jerk vector
+        %
+        % Outputs:
+        %   psi: orientation
+        %   v: translational velocity
+        %   w: rotational velocity
+        %   a: translational acceleration
+        %   alpha: rotational acceleration
+
+            % Extract trajectory information
+            xdot = traj.qdot(1); % Velocity vector
+            ydot = traj.qdot(2);
+            xddot = traj.qddot(1); % Accleration vector
+            yddot = traj.qddot(2);
+            xdddot = traj.qdddot(1); % Jerk vector
+            ydddot = traj.qdddot(2);
+
+            % Calculate the trajectgory variables
+            psi = atan2(ydot, xdot);
+            v = sqrt(xdot^2+ydot^2);
+            w = 1/v^2*(xdot*yddot - ydot*xddot);
+            a = (xdot*xddot + ydot*yddot)/v;
+            alpha = (xdot*ydddot-ydot*xdddot)/v^2 - 2*a*w/v;    
+        end
     end
 end
 

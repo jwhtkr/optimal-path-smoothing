@@ -39,7 +39,7 @@ classdef MPCG2GAgent < SingleAgent
             traj = OrbitTrajectory(MultiAgentScenario.dt, 0, qd, 6, 1);
             
             % Create MPC solver
-            obj.solver = LinearSystemQuadraticCostOSQP(A, B, 100, MultiAgentScenario.dt, traj, [], [], []);
+            obj.solver = LinearSystemQuadraticCostOSQP(A, B, 300, MultiAgentScenario.dt, traj, [], [], []);
             obj.solver = obj.solver.initializeParameters();
             %obj.solver.xd = obj.solver.calculateDesiredState(0); % Calculate the desired state and input
             %obj.solver.ud = obj.solver.calculateDesiredInput(0);
@@ -54,6 +54,8 @@ classdef MPCG2GAgent < SingleAgent
             
             % Set initial state of the MPC
             obj.x_flat_latest = [obj.getFlatStateFromVehicleState(x0, [0;0]); 0; 0];
+            %TODO: remove next line
+            obj.x_flat_latest(1:2) = obj.x_flat_latest(1:2) + rand(2,1)*1;
             obj.solver = obj.solver.setInitialState(obj.x_flat_latest);
             
             % Create the initial input and state for warm starting
@@ -82,33 +84,42 @@ classdef MPCG2GAgent < SingleAgent
             % Extract the desired state
             obj.x_flat_latest = x(1:obj.solver.n_x);
             
-%             % Store the state for exact representation
-%             rep = ExactTrajRep4();
-%             rep.setValues(x, u, obj.solver.dt, t);
-%             rep.plotComparison();
-            
             % Update for the next iteration
             xf = x(end-obj.solver.n_x+1:end);
             obj.u_warm = [u(obj.solver.n_u+1:end); zeros(obj.solver.n_u, 1)]; % warm-start for next iteration is simply the zero input control appended to previous horizon
             obj.x_warm = [x(obj.solver.n_x+1:end); obj.solver.Abar*xf];
             obj.solver = obj.solver.setInitialState(obj.x_warm(1:obj.solver.n_x)); % Update the initial state
             
-            if obj.zero_error_tracking
-                % Calculate the positions desired states for the epsilon point
-                [qe, qe_dot, qe_ddot] = getDesiredEspilonPoints(obj.x_flat_latest, obj.vehicle.eps_path, 0.1);
+%             if obj.zero_error_tracking
+%                 % Calculate the positions desired states for the epsilon point
+%                 [qe, qe_dot, qe_ddot] = getDesiredEspilonPoints(obj.x_flat_latest, obj.vehicle.eps_path, 0.1);
+% 
+%                 % Calculate the epsilon tracking control
+%                 u = obj.vehicle.pathControl(t, qe, qe_dot, qe_ddot, x_state);
+%             else
+%                 % Extract the desired values
+%                 qd = obj.x_flat_latest(1:2);
+%                 qd_dot = obj.x_flat_latest(3:4);
+%                 qd_ddot = obj.x_flat_latest(5:6);
+%                 
+%                 % Calculate the control
+%                 u = obj.vehicle.pathControl(t, qd, qd_dot, qd_ddot, x_state);
+%             end
+            
+            
+%             % Store the state for exact representation
+%             rep = ExactTrajRep4();
+%             rep.setValues(x, u, obj.solver.dt, t);
+%             rep.plotComparison();
 
-                % Calculate the epsilon tracking control
-                u = obj.vehicle.pathControl(t, qe, qe_dot, qe_ddot, x_state);
-            else
-                % Extract the desired values
-                qd = obj.x_flat_latest(1:2);
-                qd_dot = obj.x_flat_latest(3:4);
-                qd_ddot = obj.x_flat_latest(5:6);
-                
-                % Calculate the control
-                u = obj.vehicle.pathControl(t, qd, qd_dot, qd_ddot, x_state);
-            end
+            % Test diff flat LQR P matrix generation
+            diffLQR = DiffFlatLQR();
+            diffLQR.setValues(x, u, obj.solver.dt, t);
+            u = diffLQR.calculateControl(t, x_state);
+            
+
         end
+        
     end
     
     % Methods for converting to and from differentially flat system
@@ -157,7 +168,7 @@ classdef MPCG2GAgent < SingleAgent
             traj.qdddot = u_flat;
             
             % Extract the desired accelerations
-            [~, ~, ~, a, alpha] = getTrajectoryInformation(traj);
+            [~, ~, ~, a, alpha] = TrajUtil.getTrajectoryInformation(traj);
             
             % Output the control
             ud = [a; alpha];            
@@ -205,7 +216,7 @@ function [qe, qe_dot, qe_ddot] = getDesiredEspilonPoints(x_flat, eps, thresh)
     traj.qdddot = x_flat(7:8);
     
     % Calculate the trajectory parameters
-    [psi, v, w, a, alpha] = getTrajectoryInformation(traj);
+    [psi, v, w, a, alpha] = TrajUtil.getTrajectoryInformation(traj);
     
     % Process and group the states
     c = cos(psi); % Pre-calculate the trig functions
@@ -232,36 +243,3 @@ function [qe, qe_dot, qe_ddot] = getDesiredEspilonPoints(x_flat, eps, thresh)
 end
 
 
-function [psi, v, w, a, alpha] = getTrajectoryInformation(traj)
-%getTrajectoryInformation calcualte trajectory information directly from
-%trajectory
-%
-% Inputs:
-%   traj: Struct with trajectory information
-%       .q = position
-%       .qdot = velocity vector
-%       .qddot = acceleration vector
-%       .qdddot = jerk vector
-%
-% Outputs:
-%   psi: orientation
-%   v: translational velocity
-%   w: rotational velocity
-%   a: translational acceleration
-%   alpha: rotational acceleration
-
-    % Extract trajectory information
-    xdot = traj.qdot(1); % Velocity vector
-    ydot = traj.qdot(2);
-    xddot = traj.qddot(1); % Accleration vector
-    yddot = traj.qddot(2);
-    xdddot = traj.qdddot(1); % Jerk vector
-    ydddot = traj.qdddot(2);
-
-    % Calculate the trajectgory variables
-    psi = atan2(ydot, xdot);
-    v = sqrt(xdot^2+ydot^2);
-    w = 1/v^2*(xdot*yddot - ydot*xddot);
-    a = (xdot*xddot + ydot*yddot)/v;
-    alpha = (xdot*ydddot-ydot*xdddot)/v^2 - 2*a*w/v;    
-end

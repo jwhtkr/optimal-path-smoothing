@@ -72,7 +72,7 @@ classdef ExactTrajRep4 < handle
             step = min(step, obj.N); % Make step correspond to the final control
                         
             % Calculate the time of the step
-            step_t = (step-1)*obj.dt; % time of x(step)
+            step_t = (step-1)*obj.dt + obj.t1; % time of x(step)
             delta = t - step_t; % The difference between the previous state and t
             
             % Extract the state and input at the given step
