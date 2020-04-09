@@ -193,48 +193,38 @@ function [A_eq, b_eq] = equality_constraints(A_bar, B_bar, x0, xN, N)
 %   Uses a sparse matrix for speed and memory efficiency for A_eq, but can
 %   be a little hard to follow the code. The main idea is to calculate
 %   vectors for the index pairs, (i,j), and the corresponding value, v,
-%   such that A(i(k), j(k)) = v(k) for k=1:n_nonzero. For convenience,
-%   matrices of indices and values can be used instead of vectors so that 
-%   A(i(m,n), j(m,n)) = v(m,n) for m,n necessary to represent all nonzero 
-%   values.
+%   such that A(i(k), j(k)) = v(k) for k=1:n_nonzero.
 %
 %   In this code this corresponds to: 
-%       A_eq(A_i(m,n), A_j(m,n)) = A_eq_vec(m,n).
+%       A_eq(A_i(k), A_j(k)) = A_eq_v(k).
 
 % Extract size variables
 [n_x,~] = size(A_bar);
 [~,n_u] = size(B_bar);
 
+I = speye(n_x);   % Create identity matrix for convenience
+ABI = [A_bar B_bar -I]; % Create convenience block matrix
+
+% Find non_zero entries
+[I_i, I_j, I_v] = find(I);
+[ABI_i, ABI_j, ABI_v] = find(ABI);
+nnz_I = length(I_v);
+nnz_ABI = length(ABI_v);
+
 % Preallocate space
 b_eq = zeros((N+1)*n_x, 1);
-A_i = zeros(n_x, 2*n_x + (N-1)*(2*n_x + n_u));
+A_i = zeros(2*nnz_I+(N-1)*nnz_ABI, 1);
 A_j = zeros(size(A_i));
 
-I = eye(n_x);   % Create identity matrix for convenience
-
 % First entries are different
-[grid_1_i, grid_1_j] = ndgrid(1:n_x, 1:n_x);
-A_i(:,1:n_x) = grid_1_i;
-A_j(:,1:n_x) = grid_1_j;
+A_i(1:nnz_I) = I_i;
+A_j(1:nnz_I) = I_j;
 b_eq(1:n_x) = -x0;
-
-% Last entries are different
-row_range = N*n_x+1:(N+1)*n_x;
-col_range = (N-1)*(n_x+n_u)+1:(N-1)*(n_x+n_u)+n_x;
-[grid_N_i, grid_N_j] = ndgrid(row_range, col_range);
-A_i(:, end-n_x+1:end) = grid_N_i;
-A_j(:, end-n_x+1:end) = grid_N_j;
-b_eq(end-n_x+1:end) = -xN;
 
 % A_eq_vec can be made in form [-I A B -I A B -I ... A B -I -I]
 % with A = A_bar, B = B_bar and (N-1) sets of [A B -I] blocks
-A_eq_vec = [-I repmat([A_bar B_bar -I],1,N-1) -I];
+A_eq_v = [-I_v; repmat(ABI_v,N-1,1); -I_v];
 
-% Calculate the (unshifted) indices for an [A B -I] block. These are
-% shifted to reflect the current location in A_eq. This is calculated once,
-% then shifted for speed instead of recalculating every iteration of the
-% for loop.
-[grid_i, grid_j] = ndgrid(1:n_x, 1:2*n_x+n_u);
 for i=2:N
     % Calculate the indices for the rest of the time steps according to the
     % dynamics
@@ -244,25 +234,25 @@ for i=2:N
     %                              .  .     .  .  .  .     .  .;
     %                              .  .        .  .  .  .  .  .;
     %                              .  .           .  .  .  .  .;
-    %                              0  0              A  B -I  0;
+    %                              0  0     ...      A  B -I  0;
     %                              0  0     ...      0  0 -I  0]
     % with A = A_bar, B = B_bar.
     
     % calculate indices based on the time step
     row_ind = (i-1)*n_x + 1;
     col_ind = (i-2)*(n_x+n_u) + 1;
-    grid_ind = col_ind + row_ind - 1;
+    ij_ind = (i-2)*nnz_ABI + nnz_I + 1;
     
-    % Shift the index grids to the current locations in A_eq
-    A_i_next = grid_i + row_ind - 1;
-    A_j_next = grid_j + col_ind - 1;
     % add these shifted grids to the index arrays: A_i and A_j
-    A_i(:, grid_ind:grid_ind+(2*n_x+n_u)-1) = A_i_next;
-    A_j(:, grid_ind:grid_ind+(2*n_x+n_u)-1) = A_j_next;
+    A_i(ij_ind:ij_ind+nnz_ABI-1) = ABI_i + row_ind - 1;
+    A_j(ij_ind:ij_ind+nnz_ABI-1) = ABI_j + col_ind - 1;
 end
-% A_i = reshape(A_i, [], 1);
-% A_j = reshape(A_j, [], 1);
-A_eq = sparse(A_i, A_j, A_eq_vec, (N+1)*n_x, N*(n_x+n_u));
+% Last entries are different
+A_i(end-nnz_I+1:end) = I_i + N*n_x;
+A_j(end-nnz_I+1:end) = I_j + (N-1)*(n_x+n_u);
+b_eq(end-n_x+1:end) = -xN;
+
+A_eq = sparse(A_i, A_j, A_eq_v, (N+1)*n_x, N*(n_x+n_u));
 end
 
 function [P, q] = calc_P_q_from_Q_R_S(Q, R, S, xd, n, m, N)
@@ -293,9 +283,22 @@ function [P, q] = calc_P_q_from_Q_R_S(Q, R, S, xd, n, m, N)
 n_x = n*(m-1);
 n_u = n;
 
-% Preallocate P and q
-P = spalloc(n*m*N, n*m*N, (N-1)*(nnz(Q)+nnz(R))+nnz(S));
-q = zeros(n*m*N,1);
+% Find indices of non-zero entries
+[Q_i, Q_j, Q_v] = find(Q);
+[S_i, S_j, S_v] = find(S);
+[R_i, R_j, R_v] = find(R);
+nnz_QR = length(Q_v) + length(R_v);
+nnz_S = length(S_v);
+
+% Preallocate q and index vars
+q = zeros(n*m*N, 1);
+P_i = zeros((N-1)*nnz_QR + nnz_S, 1);
+P_j = zeros(size(P_i));
+
+% P_v can be calculated before as [Q_v; R_v; Q_v; R_v; ... S_v] with N-1
+% sets of Q_v; R_v blocks.
+QR_v = [Q_v; R_v];
+P_v = [repmat(QR_v, N-1, 1); S_v];
 
 for i=1:N-1
     % Create P of the form [Q 0 0 0 ...  0 0;
@@ -305,26 +308,32 @@ for i=1:N-1
     %                       . .     .    . .;
     %                       . .       .  . .;
     %                       . .         .. .;
-    %                       0 0          S 0;
-    %                       0 0          0 0]
+    %                       0 0   ...    S 0;
+    %                       0 0   ...    0 0]
     %
     % And q of the form [-x_{d,1}Q 0 -x_{d,2}Q 0 ... -x_{d_N}S 0]
     
     % Calculate indices
     x_ind = (i-1)*n*m + 1;
     u_ind = x_ind + n_x;
+    ij_ind = (i-1)*nnz_QR + 1;
     
     % Populate arrays
-    P(x_ind:x_ind+n_x-1, x_ind:x_ind+n_x-1) = Q;
-    P(u_ind:u_ind+n_u-1, u_ind:u_ind+n_u-1) = R;
+    P_i(ij_ind:ij_ind+nnz_QR-1) = [Q_i+x_ind-1; R_i+u_ind-1];
+    P_j(ij_ind:ij_ind+nnz_QR-1) = [Q_j+x_ind-1; R_j+u_ind-1];
     q(x_ind:x_ind+n_x-1) = -xd(x_ind:x_ind+n_x-1)' * Q;
 end
 % Calculate last index (for S instead of Q on last state cost)
 x_ind = (N-1)*n*m + 1;
+ij_ind = (N-1)*nnz_QR + 1;
 
 % Populate arrays
-P(x_ind:x_ind+n_x-1, x_ind:x_ind+n_x-1) = S;
+P_i(ij_ind:end) = S_i+x_ind-1;
+P_j(ij_ind:end) = S_j+x_ind-1;
 q(x_ind:x_ind+n_x-1) = -xd(x_ind:x_ind+n_x-1)' * S;
+
+% Create Sparse P
+P = sparse(P_i, P_j, P_v, N*n*m, N*n*m);
 end
 
 function [A, l, u] = calc_constraints(A_c, b_c, A_eq, b_eq)
