@@ -90,21 +90,21 @@ classdef MPCG2GAgent < SingleAgent
             obj.x_warm = [x(obj.solver.n_x+1:end); obj.solver.Abar*xf];
             obj.solver = obj.solver.setInitialState(obj.x_warm(1:obj.solver.n_x)); % Update the initial state
             
-%             if obj.zero_error_tracking
-%                 % Calculate the positions desired states for the epsilon point
-%                 [qe, qe_dot, qe_ddot] = getDesiredEspilonPoints(obj.x_flat_latest, obj.vehicle.eps_path, 0.1);
-% 
-%                 % Calculate the epsilon tracking control
-%                 u = obj.vehicle.pathControl(t, qe, qe_dot, qe_ddot, x_state);
-%             else
-%                 % Extract the desired values
-%                 qd = obj.x_flat_latest(1:2);
-%                 qd_dot = obj.x_flat_latest(3:4);
-%                 qd_ddot = obj.x_flat_latest(5:6);
-%                 
-%                 % Calculate the control
-%                 u = obj.vehicle.pathControl(t, qd, qd_dot, qd_ddot, x_state);
-%             end
+            if obj.zero_error_tracking
+                % Calculate the positions desired states for the epsilon point
+                [qe, qe_dot, qe_ddot] = getDesiredEspilonPoints(obj.x_flat_latest, obj.vehicle.eps_path, 0.1);
+
+                % Calculate the epsilon tracking control
+                u = obj.vehicle.pathControl(t, qe, qe_dot, qe_ddot, x_state);
+            else
+                % Extract the desired values
+                qd = obj.x_flat_latest(1:2);
+                qd_dot = obj.x_flat_latest(3:4);
+                qd_ddot = obj.x_flat_latest(5:6);
+                
+                % Calculate the control
+                u = obj.vehicle.pathControl(t, qd, qd_dot, qd_ddot, x_state);
+            end
             
             
 %             % Store the state for exact representation
@@ -112,10 +112,10 @@ classdef MPCG2GAgent < SingleAgent
 %             rep.setValues(x, u, obj.solver.dt, t);
 %             rep.plotComparison();
 
-            % Test diff flat LQR P matrix generation
-            diffLQR = DiffFlatLQR();
-            diffLQR.setValues(x, u, obj.solver.dt, t);
-            u = diffLQR.calculateControl(t, x_state);
+%             % Test diff flat LQR P matrix generation
+%             diffLQR = DiffFlatLQR();
+%             diffLQR.setValues(x, u, obj.solver.dt, t);
+%             u = diffLQR.calculateControl(t, x_state);
             
 
         end
