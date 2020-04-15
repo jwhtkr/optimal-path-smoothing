@@ -2,7 +2,7 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
     properties
         % Optimization weights
         R = 0.1 .* diag([1, 1]); % Input squared cost (i.e. u'*R*u)
-        Q = 10 .* diag([1, 1,  0, 0,   100, 100, 0, 0]); % state error squared (x-x_d)'Q(x-x_d)
+        Q = 10 .* diag([1, 1,  0, 0,   0, 0, 0, 0]); % state error squared (x-x_d)'Q(x-x_d)
         S = [] % state error squared (x-x_d)'S(x-x_d)
         
         % Variable bounds
@@ -20,15 +20,23 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
     
     %%% Initialization functions %%%
     methods
-        function obj = LinearSystemQuadraticCost(A, B, N, dt, des_traj)
+        function obj = LinearSystemQuadraticCost(A, B, N, dt, des_traj, cost_mat)
             %Construct an instance of this class
             %
             % Inputs:
             %   A: Continous-time state matrix
             %   B: Continuous-time input matrix
+            %   @param cost_mat: struct of quadratic costs
+            %       cost_mat.Q: Instantaneous cost on state
+            %       cost_mat.R: Instantaneous cost on control
+            %       cost_mat.S: Terminal cost on state (if empty then
+            %            the infinite horizon DARE is used)
             
             obj = obj@LinearSystemOptimization(A, B, N, dt);
             obj.des_traj = des_traj;
+            obj.Q = cost_mat.Q;
+            obj.R = cost_mat.R;
+            obj.S = cost_mat.S;
         end
         
         function obj = initializeParameters(obj)
@@ -41,7 +49,9 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
             obj = initializeParameters@LinearSystemOptimization(obj);
             
             % Calculate the discrete-time algebraic riccati equation
-            obj.S = dare(obj.Abar, obj.Bbar, obj.Q, obj.R);
+            if isempty(obj.S)
+                obj.S = dare(obj.Abar, obj.Bbar, obj.Q, obj.R);
+            end            
             
             %% Define bounds
             % Define bounds on control

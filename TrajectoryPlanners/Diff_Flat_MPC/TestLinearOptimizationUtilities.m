@@ -10,23 +10,36 @@ close all;
     N = 100;
     dt = 0.05;
     
+    % Setup the cost matrices
+    cost_mat.Q = 10 .* diag([1, 1,  0, 0,   0, 0, 0, 0]); % state error squared (x-x_d)'Q(x-x_d)
+    cost_mat.R = 0.1 .* diag([1, 1]); % Input squared cost (i.e. u'*R*u)
+    cost_mat.S = []; % 10 .* diag([1, 1,  0, 0,   0, 0, 0, 0]);
+    
     % Setup the desired trajectory
-    %traj = ConstantPosition(dt, 0, [5; 3], 3);
-    traj = OrbitTrajectory(dt, 0, [5; 3], 6, 1);
+    traj = ConstantPosition(dt, 0, [5; 3], 3);
+    %traj = OrbitTrajectory(dt, 0, [5; 3], 6, 1);
     
     %P = LinearSystemQuadraticCost(A, B, N, dt);
-    P = LinearSystemQuadraticCostOSQP(A, B, N, dt, traj, [], [], []);
+    P = LinearSystemQuadraticCostOSQP(A, B, N, dt, traj, cost_mat, [], [], []);
     P = P.initializeParameters();
     P.xd = P.calculateDesiredState(0); % Calculate the desired state and input
     P.ud = P.calculateDesiredInput(0);
     
-    % Set state and input bounds
-    %x_max = [10; 10; 0.5; 0.5; 1; 1; 5; 5];
-    x_max = [inf; inf; 1; 1; 0.25; 0.25; 0.125; 0.125];
-    x_min = -x_max;
-    u_max = [1.0; 1.0];
-    P = P.updateSimBounds(x_min, x_max, u_max);
+    %% Set state and input bounds
+    % Unconstrained
+    x_max = [inf; inf; 10; 10; 10; 10; 10; 10];
+    u_max = [inf; inf];
     
+    % Some constraints
+    %x_max = [10; 10; 0.5; 0.5; 1; 1; 5; 5];
+    %u_max = [1; 1];
+    
+    % Better constraints
+    %x_max = [inf; inf; 1; 1; 0.25; 0.25; 0.125; 0.125];
+    %u_max = [1; 1];
+    
+    x_min = -x_max;
+    P = P.updateSimBounds(x_min, x_max, u_max);    
     
     % Test the discrete dynamics
     P.testDiscreteDynamics();
@@ -42,26 +55,33 @@ close all;
     h_x = [];
     
     % Data for MPC
-    M = 1200; % Number of MPC steps to take
+    M = 600; % Number of MPC steps to take
     xdata = zeros(P.n_x, M);
     udata = zeros(P.n_u, M);
+    plot_step = 10;
     
     % Optimize
     for k = 1:M
-        k
         % Optimize
-        tic
+        %tic
         [x, u] = P.simultaneousOptimization(x0, u0);
         %[x, u] = P.sequentialOptimization(u0);
-        time_opt = toc
+        %time_opt = toc
         
         % Store the updated data
         xdata(:,k) = P.x0;
         udata(:,k) = u(1:P.n_u);
         
         % Plot
-        [h_d, h_x] = P.plot2dPosition(x, ax, h_d, h_x);
-        pause(0.0001);
+        if mod(k, plot_step) == 0
+            % Display step       
+            k
+            
+            % Plot results
+            [h_d, h_x] = P.plot2dPosition(x, ax, h_d, h_x);
+            axis equal
+            pause(0.0001);
+        end
         
         %% Update for the next iteration
         % Create a warm start

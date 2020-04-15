@@ -16,6 +16,7 @@ classdef ExactTrajRep4 < handle
         
         % Solution
         dt % Spacing interval
+        dt_4 % Fourth of dt used for rounding errors
         x_mat % 8x(N+1) matrix of states
         u_mat % 2xN matrix of inputs
         t1 % time of x(1), u(1)
@@ -46,6 +47,7 @@ classdef ExactTrajRep4 < handle
         %   t1: time of x(1)
             % Store the inputs
             obj.dt = dt;
+            obj.dt_4 = dt/4;
             obj.t1 = t1;
             obj.x_mat = reshape(x_in, obj.n_x, []);
             obj.u_mat = reshape(u_in, obj.n_u, []);
@@ -65,7 +67,9 @@ classdef ExactTrajRep4 < handle
         
             % Calculate the index
             delta_t1 = t - obj.t1; % Change of time from beginning
-            step = floor(delta_t1/obj.dt) + 1; % index of the time before
+            step0 = delta_t1/obj.dt;
+            step0 = obj.floorStep(step0);
+            step = step0 + 1; % index of the time before
             
             % Ensure that step is valid
             assert(step > 0);
@@ -85,6 +89,23 @@ classdef ExactTrajRep4 < handle
             
             % Calculate the updated state
             x = eAdelta*x_step + Xdelta*obj.B*u;            
+        end
+        
+        function step = floorStep(obj, step)
+            % Find the integers above and below
+            step_high = ceil(step);
+            d_high = abs(step-step_high);
+            
+            % Choose the lower one unless the step is close to the high
+            if d_high < obj.dt_4
+                step = step_high;
+            else
+                step = floor(step);
+                
+                if step < 0
+                    step = 0;
+                end
+            end            
         end
         
         function plotComparison(obj)

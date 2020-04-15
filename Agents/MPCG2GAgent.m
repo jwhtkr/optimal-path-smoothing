@@ -32,14 +32,20 @@ classdef MPCG2GAgent < SingleAgent
             Z = zeros(2); % 2x2 matrix of zeros
             I = eye(2); % 2x2 identity matrix
             A = [Z I Z Z; Z Z I Z; Z Z Z I; Z Z Z Z]; % state matrix
-            B = [Z; Z; Z; I]; % Input matrix           
+            B = [Z; Z; Z; I]; % Input matrix 
+            
+            % Setup the cost matrices
+            cost_mat.Q = 10 .* diag([1, 1,  0, 0,   100, 100, 0, 0]); % state error squared (x-x_d)'Q(x-x_d)
+            cost_mat.R = 0.1 .* diag([1, 1]); % Input squared cost (i.e. u'*R*u)
+            cost_mat.S = []; % 10 .* diag([1, 1,  0, 0,   0, 0, 0, 0]);
+            
             
             % Setup the desired trajectory
             %traj = ConstantPosition(MultiAgentScenario.dt, 0, qd, 3);
             traj = OrbitTrajectory(MultiAgentScenario.dt, 0, qd, 6, 1);
             
             % Create MPC solver
-            obj.solver = LinearSystemQuadraticCostOSQP(A, B, 300, MultiAgentScenario.dt, traj, [], [], []);
+            obj.solver = LinearSystemQuadraticCostOSQP(A, B, 100, MultiAgentScenario.dt, traj, cost_mat, [], [], []);
             obj.solver = obj.solver.initializeParameters();
             %obj.solver.xd = obj.solver.calculateDesiredState(0); % Calculate the desired state and input
             %obj.solver.ud = obj.solver.calculateDesiredInput(0);
@@ -55,7 +61,7 @@ classdef MPCG2GAgent < SingleAgent
             % Set initial state of the MPC
             obj.x_flat_latest = [obj.getFlatStateFromVehicleState(x0, [0;0]); 0; 0];
             %TODO: remove next line
-            obj.x_flat_latest(1:2) = obj.x_flat_latest(1:2) + rand(2,1)*1;
+            obj.x_flat_latest(1:2) = obj.x_flat_latest(1:2) + [0.5; 0.3];
             obj.solver = obj.solver.setInitialState(obj.x_flat_latest);
             
             % Create the initial input and state for warm starting
@@ -107,11 +113,11 @@ classdef MPCG2GAgent < SingleAgent
             end
             
             
-%             % Store the state for exact representation
-%             rep = ExactTrajRep4();
-%             rep.setValues(x, u, obj.solver.dt, t);
-%             rep.plotComparison();
-
+% %             % Store the state for exact representation
+% %             rep = ExactTrajRep4();
+% %             rep.setValues(x, u, obj.solver.dt, t);
+% %             rep.plotComparison();
+% 
 %             % Test diff flat LQR P matrix generation
 %             diffLQR = DiffFlatLQR();
 %             diffLQR.setValues(x, u, obj.solver.dt, t);

@@ -4,11 +4,11 @@ classdef DiffFlatLQR < handle
     
     properties(Access=protected)
         df_traj = ExactTrajRep4(); % Stores the differentially flat trajectory
-        T = 15; % Final time for control
+        T = 5; % Final time for control
         P_0 % Stores the initial value for the DRE
         
         % Cost values for LQR problem
-        Q = 0.1 .* eye(5);
+        Q = 5 .* eye(5);
         R = 0.1 .* eye(2);
         R_inv % Inverse of R
         S = diag([1, 1, 0, 0, 0]);
@@ -63,6 +63,7 @@ classdef DiffFlatLQR < handle
             
             % Calculate the state difference
             dx = x_veh - xd;
+            %warning('It appears that xd is not the same as what is being plotted');
             
             % Update the orientation variable to be between -pi and pi
             dpsi = dx(obj.psi_ind);
@@ -72,44 +73,50 @@ classdef DiffFlatLQR < handle
             % Calculate the control
             du = -obj.R_inv*obj.B'*P*dx;
             u = ud + du;
+            
+            QP = obj.Q + P*obj.B*obj.R_inv*obj.B'*P;
+            V = dx'*P*dx
+            Vdot = -dx'*QP*dx
+            eig_V = eig(-QP);
+            max_eig_V = max(real(eig_V))
         end
         
         function P = calculatePLinSys(obj, t)
         %calculatePLinSys Calculates the solution to the DRE at time t <
         %obj.T using a combination of linear systems
-            % Use Euler integration to integrate backwards in time
-            X = eye(obj.n_x);
-            Y = obj.S;
-            dt = 0.001;
-            
-            % Start from the terminal time and integrate backwards
-            t_sim = obj.T + obj.df_traj.t1;
-%             p_vec = reshape(Y, [], 1);
-%             t_vec = t_sim;
-            tic
-            while t_sim > t
-                % Get the state matrix
-                [x_diff_flat, ~] = obj.df_traj.getStateAndControl(t_sim);
-                A = obj.calculateLinearizedStateMatrix(x_diff_flat);
-                
-                % Calculate the time derivatives
-                Xdot = A*X - obj.BRB*Y;
-                Ydot = -obj.Q*X - A'*Y;
-                
-                % Update the state
-                X = X - dt * Xdot;
-                Y = Y - dt * Ydot;
-                t_sim = t_sim - dt;   
-                
-%                 % Store the value of P
-%                 Ptmp = Y*inv(X);
-%                 p_vec = [p_vec reshape(Ptmp, [], 1)];
-%                 t_vec = [t_vec t_sim];
-            end
-            
-            % Calculate the P matrix
-            P = Y/X;
-            time_lin = toc
+%             % Use Euler integration to integrate backwards in time
+%             X = eye(obj.n_x);
+%             Y = obj.S;
+%             dt = 0.001;
+%             
+%             % Start from the terminal time and integrate backwards
+%             t_sim = obj.T + obj.df_traj.t1;
+% %             p_vec = reshape(Y, [], 1);
+% %             t_vec = t_sim;
+% %             tic
+%             while t_sim > t
+%                 % Get the state matrix
+%                 [x_diff_flat, ~] = obj.df_traj.getStateAndControl(t_sim);
+%                 A = obj.calculateLinearizedStateMatrix(x_diff_flat);
+%                 
+%                 % Calculate the time derivatives
+%                 Xdot = A*X - obj.BRB*Y;
+%                 Ydot = -obj.Q*X - A'*Y;
+%                 
+%                 % Update the state
+%                 X = X - dt * Xdot;
+%                 Y = Y - dt * Ydot;
+%                 t_sim = t_sim - dt;   
+%                 
+% %                 % Store the value of P
+% %                 Ptmp = Y*inv(X);
+% %                 p_vec = [p_vec reshape(Ptmp, [], 1)];
+% %                 t_vec = [t_vec t_sim];
+%             end
+%             
+%             % Calculate the P matrix
+%             P = Y/X;
+% %             time_lin = toc
             
 %             % Calculate using exponential (assuming constant A)
 %             M = [A -obj.B*obj.R_inv*obj.B'; -obj.Q -A'];
@@ -124,11 +131,11 @@ classdef DiffFlatLQR < handle
 %             err = norm(P-P_calc, 'fro')
             
             % Calculate via ode45
-%             tic
-%             [Pode, pvec_tmp, tvec_tmp] = obj.calculatePOde(t);
-%             time_ode = toc
+            tic
+            [Pode, pvec_tmp, tvec_tmp] = obj.calculatePOde(t);
+            time_ode = toc
 %             err = norm(P-Pode, 'fro')
-%             P = Pode;
+            P = Pode;
             
 %             figure('units','normalized','outerposition',[0 0 1 1]);
 %             for k = 1:size(p_vec, 1)
@@ -150,8 +157,8 @@ classdef DiffFlatLQR < handle
             t_vec = [obj.T+obj.df_traj.t1:-.0001:t];
             
             % Simulate backwards in time
-            %[t_mat, p_mat] = ode45(@(t_val, p_val)dynamicsP(t_val, p_val, obj), t_vec, pT);
-            [t_mat, p_mat] = ode15s(@(t_val, p_val)dynamicsP(t_val, p_val, obj), t_vec, pT);
+            [t_mat, p_mat] = ode45(@(t_val, p_val)dynamicsP(t_val, p_val, obj), t_vec, pT);
+            %[t_mat, p_mat] = ode15s(@(t_val, p_val)dynamicsP(t_val, p_val, obj), t_vec, pT);
             
             % Extract the initial P
             p = p_mat(end,:)';

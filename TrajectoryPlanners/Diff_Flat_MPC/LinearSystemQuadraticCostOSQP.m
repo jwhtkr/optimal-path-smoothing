@@ -29,7 +29,7 @@ classdef LinearSystemQuadraticCostOSQP < LinearSystemQuadraticCost
     end
     
     methods
-        function obj = LinearSystemQuadraticCostOSQP(A, B, N, dt, des_traj, A_c, l_c, u_c)
+        function obj = LinearSystemQuadraticCostOSQP(A, B, N, dt, des_traj, cost_mat, A_c, l_c, u_c)
             %LINEARSYSTEMQUADRATICCOSTOSQP Construct an instance of this class
             %   @param A: Continuous-time state matrix
             %   @param B: Continuous-time input matrix
@@ -40,11 +40,15 @@ classdef LinearSystemQuadraticCostOSQP < LinearSystemQuadraticCost
             %   @param A_c: The non-dynamic constraints of the system
             %   @param l_c: The corresponding lower bound vector to A_c
             %   @param u_c: The corresponding upper bound vector to A_c
-            %
+            %   @param cost_mat: struct of quadratic costs
+            %            cost_mat.Q: Instantaneous cost on state
+            %            cost_mat.R: Instantaneous cost on control
+            %            cost_mat.S: Terminal cost on state (if empty then
+            %            the infinite horizon DARE is used)
             %   A_c, l_c, and u_c can be passed in as empty arrays if not
             %   applicable to the problem.
             
-            obj = obj@LinearSystemQuadraticCost(A, B, N, dt, des_traj);
+            obj = obj@LinearSystemQuadraticCost(A, B, N, dt, des_traj, cost_mat);
             obj.A_c = A_c;
             obj.l_c = l_c;
             obj.u_c = u_c;
