@@ -6,11 +6,9 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
         S = [] % state error squared (x-x_d)'S(x-x_d)
         
         % Variable bounds
-        u_max = [1; 1];
-        x_max = [10; 10; 0.5; 0.5; 5; 5; 5; 5];
-        x_min = [-1; -1; -0.5; -0.5; -5; -5; 5; 5];
-%         x_max = inf.*ones(6, 1);
-%         x_min = -inf.*ones(6, 1);
+        u_max  % control constraints
+        x_max  % maximum state constraint
+        x_min  % minimum state constraint
         
         % Desired variables
         xd = [] % Desired state over time
@@ -20,23 +18,29 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
     
     %%% Initialization functions %%%
     methods
-        function obj = LinearSystemQuadraticCost(A, B, N, dt, des_traj, cost_mat)
+        function obj = LinearSystemQuadraticCost(A, B, N, dt, des_traj, cost_params)
             %Construct an instance of this class
             %
             % Inputs:
             %   A: Continous-time state matrix
             %   B: Continuous-time input matrix
-            %   @param cost_mat: struct of quadratic costs
-            %       cost_mat.Q: Instantaneous cost on state
-            %       cost_mat.R: Instantaneous cost on control
-            %       cost_mat.S: Terminal cost on state (if empty then
+            %   @param cost_params: struct of quadratic costs
+            %       cost_params.Q: Instantaneous cost on state
+            %       cost_params.R: Instantaneous cost on control
+            %       cost_params.S: Terminal cost on state (if empty then
             %            the infinite horizon DARE is used)
+            %       cost_params.u_max: control bounds
+            %       cost_params.x_min: min value for state
+            %       cost_params.x_max: max value for state
             
             obj = obj@LinearSystemOptimization(A, B, N, dt);
             obj.des_traj = des_traj;
-            obj.Q = cost_mat.Q;
-            obj.R = cost_mat.R;
-            obj.S = cost_mat.S;
+            obj.Q = cost_params.Q;
+            obj.R = cost_params.R;
+            obj.S = cost_params.S;
+            obj.u_max = cost_params.u_max;
+            obj.x_max = cost_params.x_max;
+            obj.x_min = cost_params.x_min;
         end
         
         function obj = initializeParameters(obj)
@@ -285,6 +289,62 @@ classdef LinearSystemQuadraticCost < LinearSystemOptimization
 
                 % Update subplot index (increment by two to avoid the left column)
                 sub_plot_ind = sub_plot_ind + 2;
+            end
+        end
+        
+        function plotStateAndInputStacked(obj, x, u)
+            % Get the state and input in matrix form
+            if size(x, 1) == obj.n_x
+                x_mat = x;
+                u_mat = u;
+            else
+                [x_mat, u_mat] = obj.getInputStateMatrices(x, u);
+            end
+            
+            % Get time matrix
+            N_plot = size(x_mat, 2);
+            t_vec = linspace(0, N_plot*obj.dt, N_plot);
+            
+            % Create the desired state
+            xd_result = zeros(obj.n_x, N_plot);
+            for k = 0:(N_plot-1)
+                xd_result(:,k+1) = obj.getDesiredState(k);
+            end
+
+            % Plot the state
+            figure('units','normalized','outerposition',[0 0 1 1]);
+            names = {'x_1', 'x_2', 'xd_1', 'xd_2', 'xdd_1', 'xdd_2', 'xddd_1', 'xddd_2'};
+            sub_plot_ind = 1;
+            for k = 1:obj.n_x
+                % Plot the desired state
+                subplot(obj.n_x+obj.n_u, 1, sub_plot_ind);
+                plot(t_vec, xd_result(k,:), 'r:', 'linewidth', 3); hold on;
+
+                % Plot the actual state
+                plot(t_vec, x_mat(k,:), 'b', 'linewidth', 2);
+                ylabel(names{k});
+                xlabel('time (s)');
+                set(gca, 'fontsize', 16)
+
+                % Update subplot index (increment by two to avoid the right column)
+                sub_plot_ind = sub_plot_ind + 1;
+            end
+            
+            % Plot the inputs
+            names = {'u_1', 'u_2'};
+            for k = 1:obj.n_u
+%                 % Plot the desired state
+                subplot(obj.n_x+obj.n_u, 1, sub_plot_ind);
+%                 plot(t_vec, obj.ud(k,:), 'r:', 'linewidth', 3); hold on;
+
+                % Plot the actual state
+                plot(t_vec, u_mat(k,:), 'b', 'linewidth', 2);
+                ylabel(names{k});
+                xlabel('time (s)');
+                set(gca, 'fontsize', 16)
+
+                % Update subplot index (increment by two to avoid the left column)
+                sub_plot_ind = sub_plot_ind + 1;
             end
         end
 

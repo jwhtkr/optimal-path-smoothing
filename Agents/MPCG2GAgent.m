@@ -35,28 +35,28 @@ classdef MPCG2GAgent < SingleAgent
             B = [Z; Z; Z; I]; % Input matrix 
             
             % Setup the cost matrices
-            cost_mat.Q = 10 .* diag([1, 1,  0, 0,   100, 100, 0, 0]); % state error squared (x-x_d)'Q(x-x_d)
-            cost_mat.R = 0.1 .* diag([1, 1]); % Input squared cost (i.e. u'*R*u)
-            cost_mat.S = []; % 10 .* diag([1, 1,  0, 0,   0, 0, 0, 0]);
+            cost_params.Q = 10 .* diag([1, 1,  0, 0,   100, 100, 0, 0]); % state error squared (x-x_d)'Q(x-x_d)
+            cost_params.R = 0.1 .* diag([1, 1]); % Input squared cost (i.e. u'*R*u)
+            cost_params.S = []; % 10 .* diag([1, 1,  0, 0,   0, 0, 0, 0]);
             
+            % Set state and input bounds
+            %x_max = [inf; inf; 0.5; 0.5; 1; 1; 5; 5];
+            %x_max = [inf; inf; 1; 1; 1; 1; 0.5; 0.5];
+            x_max = [inf; inf; 1; 1; 0.25; 0.25; 0.125; 0.125];
+            u_max = [1.0; 1.0];
+            cost_params.x_max = x_max;
+            cost_params.x_min = -x_max;
+            cost_params.u_max = u_max;            
             
             % Setup the desired trajectory
             %traj = ConstantPosition(MultiAgentScenario.dt, 0, qd, 3);
             traj = OrbitTrajectory(MultiAgentScenario.dt, 0, qd, 6, 1);
             
             % Create MPC solver
-            obj.solver = LinearSystemQuadraticCostOSQP(A, B, 100, MultiAgentScenario.dt, traj, cost_mat, [], [], []);
+            obj.solver = LinearSystemQuadraticCostOSQP(A, B, 100, MultiAgentScenario.dt, traj, cost_params, [], [], []);
             obj.solver = obj.solver.initializeParameters();
             %obj.solver.xd = obj.solver.calculateDesiredState(0); % Calculate the desired state and input
             %obj.solver.ud = obj.solver.calculateDesiredInput(0);
-            
-            % Set state and input bounds
-            %x_max = [inf; inf; 0.5; 0.5; 1; 1; 5; 5];
-            %x_max = [inf; inf; 1; 1; 1; 1; 0.5; 0.5];
-            x_max = [inf; inf; 1; 1; 0.25; 0.25; 0.125; 0.125];
-            x_min = -x_max;
-            u_max = [1.0; 1.0];
-            obj.solver = obj.solver.updateSimBounds(x_min, x_max, u_max);
             
             % Set initial state of the MPC
             obj.x_flat_latest = [obj.getFlatStateFromVehicleState(x0, [0;0]); 0; 0];

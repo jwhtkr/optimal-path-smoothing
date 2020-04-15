@@ -1,52 +1,57 @@
-function TestLinearOptimizationUtilities
+function CircuitExample
 close all;
 
     %% Setup the parameters of the problem
     % Setup continuous dynamics
-    Z = zeros(2); % 2x2 matrix of zeros
-    I = eye(2); % 2x2 identity matrix
-    A = [Z I Z Z; Z Z I Z; Z Z Z I; Z Z Z Z]; % state matrix
-    B = [Z; Z; Z; I]; % Input matrix
+    R = 1; L = 2; C = 3;
+    A = [-R/L -1/L; 1/C 0]; % State matrix
+    B = [1/L; 0]; % Input matrix
     N = 100;
     dt = 0.05;
+    tf_sim = 20;
+    x0 = [50; 0];
+    
+    % Setup the desired trajectory
+    xd = [0;4];
+    traj = ConstantState(dt, 0, xd, xd(2));
     
     % Setup the cost matrices
-    cost_params.Q = 10 .* diag([1, 1,  0, 0,   0, 0, 0, 0]); % state error squared (x-x_d)'Q(x-x_d)
-    cost_params.R = 0.1 .* diag([1, 1]); % Input squared cost (i.e. u'*R*u)
-    cost_params.S = []; % 10 .* diag([1, 1,  0, 0,   0, 0, 0, 0]);
+    cost_params.Q = eye(2);
+    cost_params.R = 1;
+    cost_params.S = []; 
+    
+%     % Setup the cost matrices - Bryson's method
+%     cost_params.Q = diag([1/25 1/25]); % No state greater than 5
+%     cost_params.R = 1/16; % No input greater than 4
+%     cost_params.S = []; 
     
     %% Set state and input bounds
     % Unconstrained
-    x_max = [inf; inf; 10; 10; 10; 10; 10; 10];
-    u_max = [inf; inf];
+    x_max = [inf; inf];
+    x_min = -x_max;
+    u_max = [inf];
     
     % Some constraints
-    %x_max = [10; 10; 0.5; 0.5; 1; 1; 5; 5];
-    %u_max = [1; 1];
-    
-    % Better constraints
-    %x_max = [inf; inf; 1; 1; 0.25; 0.25; 0.125; 0.125];
-    %u_max = [1; 1];
+    x_max = [inf; inf];
+    x_min = [-inf; -inf];
+    u_max = [4];
     
     cost_params.x_max = x_max;
-    cost_params.x_min = -x_max;
-    cost_params.u_max = u_max;    
+    cost_params.x_min = x_min;
+    cost_params.u_max = u_max;
     
-    %% Create the solver
-    % Setup the desired trajectory
-    traj = ConstantPosition(dt, 0, [5; 3], 3);
-    %traj = OrbitTrajectory(dt, 0, [5; 3], 6, 1);
     
-    %P = LinearSystemQuadraticCost(A, B, N, dt);
+    % Setup MPC problem
     P = LinearSystemQuadraticCostOSQP(A, B, N, dt, traj, cost_params, [], [], []);
     P = P.initializeParameters();
+    P = P.setInitialState(x0);
     P.xd = P.calculateDesiredState(0); % Calculate the desired state and input
     P.ud = P.calculateDesiredInput(0);
+      
     
     % Test the discrete dynamics
     P.testDiscreteDynamics();
 
-    %% Run MPC
     % Create the initial input and state
     u0 = 1.0.*ones(P.n_ctrl, 1);
     x0 = P.discreteSim(u0);
@@ -58,7 +63,7 @@ close all;
     h_x = [];
     
     % Data for MPC
-    M = 600; % Number of MPC steps to take
+    M = round(tf_sim/dt);
     xdata = zeros(P.n_x, M);
     udata = zeros(P.n_u, M);
     plot_step = 10;
@@ -80,10 +85,10 @@ close all;
             % Display step       
             k
             
-            % Plot results
-            [h_d, h_x] = P.plot2dPosition(x, ax, h_d, h_x);
-            axis equal
-            pause(0.0001);
+%             % Plot results
+%             [h_d, h_x] = P.plot2dPosition(x, ax, h_d, h_x);
+%             axis equal
+%             pause(0.0001);
         end
         
         %% Update for the next iteration
@@ -100,5 +105,5 @@ close all;
     end
     
     % Plot the results
-    P.plotStateAndInput(xdata, udata);
+    P.plotStateAndInputStacked(xdata, udata);
 end
