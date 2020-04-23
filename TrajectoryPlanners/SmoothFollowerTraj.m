@@ -28,10 +28,13 @@ xd_mat(2,:,:) = [follower_traj.y;
                  0*follower_traj.ydddot; 
                  0*follower_traj.yddddot];
 
+% plot(follower_traj.x, follower_traj.y); hold on; plot(leader_traj.x, leader_traj.y, 'LineWidth', 2);
+% axis equal;
 [A, b] = create_A_b(leader_traj, A_begin, b_begin, n, m, N);
+% hold off;
 
 Q = diag([1 1 0 0 10 10 10 10]);
-R = diag([10 10]);
+R = diag([100 100]);
 S = diag([1 1 0 0 0 0 0 0]);
 
 dt = follower_traj.dt;
@@ -64,30 +67,57 @@ end
 function [A, b] = create_A_b(leader_traj, A_begin, b_begin, n, m, N)
 [p,~] = size(A_begin);  % get number of constraints, p
 
+A_plus = (A_begin'*A_begin)\A_begin';
+
 if p ~= 0
     A = zeros(p,n,m,N);
     b = zeros(p,N);
-    A(:,:,1,1) = A_begin;
-    b(:,1) = b_begin;
-    psi_0 = leader_traj.psi(0);
+    quiv = [];
+%     v = VideoWriter('traj_constraints.avi');
+%     open(v)
     % Create A and b for each time step
-    for i=2:N
+    for i=1:N
         psi = leader_traj.psi(i);
-        del_q = [leader_traj.x(i) - leader_traj.x(1); 
-                 leader_traj.y(i) - leader_traj.y(1)];
-        A(:,:,1,i) = transform_A(psi-psi_0, A_begin);
-        b(:,i) = transform_b(del_q, b_begin, A(:,:,1,i));
+        q = [leader_traj.x(i); leader_traj.y(i)];
+        A(:,:,1,i) = transform_A(psi, A_begin);
+        b(:,i) = transform_b(q, b_begin, A(:,:,1,i));
+        
+        % Validation
+%         A_i = transform_A(psi, A_begin);
+%         b_i = transform_b(q, b_begin, A_i);
+%         A_plus_i = (A_i'*A_i)\A_i';
+%         assert(all(A_plus_i - R_leader(psi)*A_plus < 1e-10, 'all'));
+%         point = A_plus_i*b_i;
+%         assert(norm(point - (A_plus_i*b_begin + q)) < 1e-10);
+%         quiv = plot_constraint(A_i, b_i, 0.5, quiv);
+%         if mod(i, 5) == 0
+%             drawnow;
+% %             writeVideo(v, getframe);
+%         end
     end
 else
     A = [];
     b = [];
 end
+% close(v);
 end
 
-function A = transform_A(del_psi, A0)
-A = A0*R_leader(del_psi)';
+function A = transform_A(psi, A0)
+A = A0*R_leader(psi)';
 end
 
-function b = transform_b(del_q, b0, A_bar)
-b = b0 + A_bar * del_q;
+function b = transform_b(q, b0, A_bar)
+b = b0 + A_bar * q;
+end
+
+function quiv = plot_constraint(A, b, delta, quiv)
+[p, ~] = size(A);
+A_plus = (A'*A)\A';
+q_center = A_plus*b;
+points = repmat(q_center, 1, p) + delta.*A';
+if isempty(quiv)
+    quiv = quiver(points(1,:), points(2,:), A(:,1)', A(:,2)');
+else
+    set(quiv, 'XData', points(1,:), 'YData', points(2,:), 'UData', A(:,1)', 'VData', A(:,2)');
+end
 end

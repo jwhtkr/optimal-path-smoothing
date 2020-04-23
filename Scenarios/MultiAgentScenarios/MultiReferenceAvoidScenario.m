@@ -53,7 +53,10 @@ classdef MultiReferenceAvoidScenario < MultiAgentScenario
                 % Create the agent
                 veh_i = veh(x0{i}); veh_i.use_dim_eps = false;
                 traj_follow{i} = TrajUtil.createOffsetTrajectory(vl_traj, Q(:,i)); % Desired trajectory for follower
-                [traj_smooth{i}, smoothing_solver] = SmoothFollowerTraj(traj_follow{i}, vl_traj, [], [], smoothing_solver);   % Smooth the trajectory
+                [A_0, b_0] = BoxConstraint(Q(:,i), 1.5);
+                tic;
+                [traj_smooth{i}, smoothing_solver] = SmoothFollowerTraj(traj_follow{i}, vl_traj, A_0, b_0, []);   % Smooth the trajectory
+                time = toc
                 traj_eps{i} = TrajUtil.createOffsetTrajectory(traj_smooth{i}, [veh_i.eps_path; 0]); % Desired trajectory for the epsilon point of the follower
                 agents{i} = ReferenceLineAvoidAgent(veh_i, world, traj_smooth{i}, traj_eps{i});
                 %agents{i} = ReferencePureAvoidAgent(veh_i, world, traj_follow{i}, traj_eps{i});

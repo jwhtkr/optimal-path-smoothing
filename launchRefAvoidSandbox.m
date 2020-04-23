@@ -64,7 +64,7 @@ function launchRefAvoidSandbox()
     scenario = MultiReferenceAvoidScenario(@BetterUnicycleVehicle, EmptyWorld, waypoints, x0, Q);
     %scenario = MultiReferenceAvoidScenario(@SimpleUnicycleVehicle, CorridorWorldStraight, waypoints, x0, Q);
     scenario.tf = 45;
-    
+    scenario.make_movie = true;
 %     % Wall following scenario
 %     x0 = cell(1,0);
 %     x0{1} = [0.5;0;0];

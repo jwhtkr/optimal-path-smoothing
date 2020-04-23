@@ -75,7 +75,7 @@ else
 end
 
 %% Solve with OSQP
-solver.warm_start('x', traj);
+% solver.warm_start('x', traj);
 results = solver.solve();
 
 % smooth_solve_time = results.info.run_time
@@ -96,6 +96,7 @@ function [A_c, b_c] = reshape_Ac_bc(A_c_mat, b_c_mat)
 %   @return b_c: the linear inequality constraint vector formatted to be
 %                compatible with the solver as size (p*N, 1)
 
+% TODO: Reformulate with sparse methodology
 [p,n,m,N] = size(A_c_mat);  % Extract size variables
 A_c = spalloc(p*N, n*m*N, length(A_c_mat));    % Preallocate A_c
 
