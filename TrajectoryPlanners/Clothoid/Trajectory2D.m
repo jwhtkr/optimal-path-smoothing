@@ -399,5 +399,13 @@ classdef Trajectory2D < handle
             v = obj.v(ind);
             w = obj.w(ind);
         end
+        
+        function q_struct = to_q_struct(obj)
+            q_struct.q = [obj.x; obj.y];
+            q_struct.qdot = [obj.xdot; obj.ydot];
+            q_struct.qddot = [obj.xddot; obj.yddot];
+            q_struct.qdddot = [obj.xdddot; obj.ydddot];
+            q_struct.qddddot = [obj.xddddot; obj.yddddot];
+        end
     end
 end
