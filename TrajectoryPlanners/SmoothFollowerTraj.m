@@ -34,7 +34,7 @@ xd_mat(2,:,:) = [follower_traj.y;
 % hold off;
 
 Q = diag([1 1 0 0 10 10 10 10]);
-R = diag([100 100]);
+R = diag([10 10]);
 S = diag([1 1 0 0 0 0 0 0]);
 
 dt = follower_traj.dt;

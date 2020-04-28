@@ -67,7 +67,18 @@ xN = traj(end-n_x-n_u+1:end-n_u);
 %% Setup OSQP
 if isempty(solver)
     solver = osqp;
-    solver.setup(P, q, A, l, u, 'verbose', false);
+    settings = solver.default_settings();
+    settings.verbose = false;
+%     settings.alpha = 1.4;
+%     settings.rho = 2.12;
+    settings.eps_abs = 1e-4;
+    settings.eps_rel = 4e-4;
+%     settings.sigma = 1e-10;
+%     settings.adaptive_rho = false;
+%     settings.polish_refine_iter = 100;
+%     settings.polish = true;
+    
+    solver.setup(P, q, A, l, u, settings);
 else
     [~,~,Px] = find(P);
     [~,~,Ax] = find(A);
@@ -77,6 +88,7 @@ end
 %% Solve with OSQP
 % solver.warm_start('x', traj);
 results = solver.solve();
+disp(['OSQP run time: ', num2str(results.info.run_time)]);
 
 % smooth_solve_time = results.info.run_time
 smoothed_traj = reshape(results.x, n, m, N);
