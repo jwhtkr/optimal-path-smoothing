@@ -1,3 +1,22 @@
+# Running the Optimal Path Smoothing Project #
+In order to use the OSQP solver the following commands can be run in Matlab to install the library
+``` matlab
+websave('install_osqp.m', 'https://dl.bintray.com/bstellato/generic/OSQP/0.6.0/install_osqp.m');
+install_osqp
+```
+
+After that the project can be run by checking out the branch `trajectory-smoothing`:
+```bash
+$ git checkout trajectory-smoothing
+```
+and then running in matlab `launchRefAvoidSandbox.m`.
+In its current state this runs the constrained smoothing. 
+- To run the unconstrained smoothing comment line 59 and uncomment line 58
+- To run it with larger or smaller sides of the box constraint change the second argument of `BoxConstraint(~, side_length/2)` on line 57
+
+I ran the code most recently on Windows 10. It *should* run on Linux (Ubuntu 16/18) if Matlab is installed as I have run it on these before, but that hasn't been recently.
+
+
 # Overview #
 This code is still very much in development, so significant changes will occur in the short term. The goal is to provide a modular Matlab simulation capability for evaluating and demonstrating unmanned systems algorithms. 
 
